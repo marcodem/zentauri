@@ -50,28 +50,41 @@ const ALLOWED_RENDERED_DATA_ATTRS = [
 ]
 let sanitizerHooksInstalled = false
 
+function getPurify(): any {
+  return (DOMPurify as any).default || DOMPurify;
+}
+
 function ensureSanitizerHooks(): void {
   if (sanitizerHooksInstalled) return
-  DOMPurify.addHook('uponSanitizeAttribute', (_node, data) => {
-    if (data.attrName !== 'href' && data.attrName !== 'src' && data.attrName !== 'xlink:href') {
-      return
-    }
-    const value = data.attrValue?.trim()
-    if (value && URI_SCHEME_RE.test(value) && !ALLOWED_RENDERED_URI_SCHEME_RE.test(value)) {
-      data.keepAttr = false
-    }
-  })
-  sanitizerHooksInstalled = true
+  try {
+    getPurify().addHook('uponSanitizeAttribute', (_node: any, data: any) => {
+      if (data.attrName !== 'href' && data.attrName !== 'src' && data.attrName !== 'xlink:href') {
+        return
+      }
+      const value = data.attrValue?.trim()
+      if (value && URI_SCHEME_RE.test(value) && !ALLOWED_RENDERED_URI_SCHEME_RE.test(value)) {
+        data.keepAttr = false
+      }
+    })
+    sanitizerHooksInstalled = true
+  } catch (e) {
+    console.warn('Could not install DOMPurify hook:', e)
+  }
 }
 
 function sanitizeRenderedHtml(html: string): string {
   ensureSanitizerHooks()
-  return DOMPurify.sanitize(html, {
-    ALLOW_DATA_ATTR: true,
-    ALLOW_ARIA_ATTR: true,
-    ALLOWED_URI_REGEXP: ALLOWED_RENDERED_URI_RE,
-    ADD_ATTR: ALLOWED_RENDERED_DATA_ATTRS
-  })
+  try {
+    return getPurify().sanitize(html, {
+      ALLOW_DATA_ATTR: true,
+      ALLOW_ARIA_ATTR: true,
+      ALLOWED_URI_REGEXP: ALLOWED_RENDERED_URI_RE,
+      ADD_ATTR: ALLOWED_RENDERED_DATA_ATTRS
+    })
+  } catch (e) {
+    console.warn('DOMPurify sanitize failed:', e)
+    return html // fallback
+  }
 }
 
 function remarkWikilinks() {

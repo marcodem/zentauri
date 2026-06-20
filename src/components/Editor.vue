@@ -1,15 +1,17 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
-import { EditorState } from '@codemirror/state'
+import { EditorState, Compartment } from '@codemirror/state'
 import { EditorView, lineNumbers } from '@codemirror/view'
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
 import { languages } from '@codemirror/language-data'
+import { vim } from '@replit/codemirror-vim'
 
-const props = defineProps<{ modelValue: string }>()
+const props = defineProps<{ modelValue: string, vimMode?: boolean }>()
 const emit = defineEmits<{ (e: 'update:modelValue', value: string): void }>()
 
 const container = ref<HTMLElement>()
 let view: EditorView | null = null
+const vimCompartment = new Compartment()
 
 onMounted(() => {
   if (!container.value) return
@@ -23,6 +25,7 @@ onMounted(() => {
         "&": { height: "100%", backgroundColor: "transparent" },
         ".cm-scroller": { overflow: "auto", fontFamily: "monospace" }
       }),
+      vimCompartment.of(props.vimMode ? vim() : []),
       EditorView.updateListener.of((update) => {
         if (update.docChanged) {
           emit('update:modelValue', update.state.doc.toString())
@@ -41,6 +44,14 @@ watch(() => props.modelValue, (newVal) => {
   if (view && view.state.doc.toString() !== newVal) {
     view.dispatch({
       changes: { from: 0, to: view.state.doc.length, insert: newVal }
+    })
+  }
+})
+
+watch(() => props.vimMode, (newVal) => {
+  if (view) {
+    view.dispatch({
+      effects: vimCompartment.reconfigure(newVal ? vim() : [])
     })
   }
 })

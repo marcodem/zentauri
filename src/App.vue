@@ -27,6 +27,7 @@ graph TD
 const currentFilePath = ref<string | null>(null)
 const showPreview = ref(true)
 const showCheatsheet = ref(false)
+const vimMode = ref(false)
 
 async function handleOpenFile() {
   const selected = await open({
@@ -92,6 +93,13 @@ async function handleSaveFile() {
       </div>
       <div class="flex gap-2 z-10 relative ml-auto">
         <button 
+          @click="vimMode = !vimMode"
+          class="px-3 py-1.5 text-sm font-medium rounded-md bg-zinc-200 hover:bg-zinc-300 dark:bg-zinc-800 dark:hover:bg-zinc-700 transition-colors border border-transparent dark:border-zinc-700 shadow-sm"
+          :class="{'ring-2 ring-zinc-400 dark:ring-zinc-500': vimMode}"
+        >
+          Vim Mode
+        </button>
+        <button 
           @click="showPreview = !showPreview"
           class="px-3 py-1.5 text-sm font-medium rounded-md bg-zinc-200 hover:bg-zinc-300 dark:bg-zinc-800 dark:hover:bg-zinc-700 transition-colors border border-transparent dark:border-zinc-700 shadow-sm"
           :class="{'ring-2 ring-zinc-400 dark:ring-zinc-500': showPreview}"
@@ -108,7 +116,7 @@ async function handleSaveFile() {
 
       <!-- Editor Pane -->
       <div class="flex-1 h-full border-r border-zinc-200 dark:border-zinc-800">
-        <Editor v-model="markdownSource" />
+        <Editor v-model="markdownSource" :vimMode="vimMode" />
       </div>
       
       <!-- Preview Pane -->
