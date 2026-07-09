@@ -10,14 +10,21 @@ Zentauri is a lightweight, simplified Markdown note-taking app, built as a minim
 - **Unified / Remark / Rehype** - Powerful Markdown parsing and rendering with custom plugins
 
 ## Features
-- Minimalistic Editor/Preview split view
-- Extensively customized Markdown rendering:
-  - Custom containers (e.g. `:::grammar-box`, `:::important`)
-  - Semantic wiki-links and tags
-  - Math expressions with KaTeX
-  - Mermaid diagrams
-  - GitHub Flavored Markdown (GFM)
-  - Seamless local asset embedding (images, videos, PDFs)
+- **Minimalistic Editor/Preview Split View**
+- **IDE-Style File Explorer Sidebar:**
+  - Inline file/folder creation and renaming (popup-free, with keyboard Enter/Esc/Blur confirmation).
+  - Specific file icons for `.md` (Markdown), `.pdf` (PDF), images, and config files.
+  - Toolbar controls to "Collapse All" folders and "Refresh" the workspace tree.
+  - Focus-revealing: clicking active tabs expands parent folders and highlights that file in the tree.
+- **Document-Specific Search Sidebar:**
+  - Live search matches inside the active file with line numbers and preview snippets.
+  - Case-sensitivity check.
+  - Click-to-jump to instantly scroll and place the cursor on that line in CodeMirror 6.
+- **Extensively Customized Markdown Rendering (Aligned with Payer):**
+  - Custom containers (`:::grammar-box`, `:::grammar-box2`, `:::note-box`, `:::important`) matching the Payer stylesheet.
+  - Explicit Sanskrit Devanagari markup (`《Wort》`) rendered in red.
+  - Math expressions with KaTeX, Mermaid diagrams, and tables with colspans.
+- **Local Asset Integration:** Seamlessly renders local images, videos, and PDFs inside notes.
 
 ## Development
 To start the development server:
