@@ -1,42 +1,66 @@
 # Zentauri
 
-Zentauri is a lightweight, simplified Markdown note-taking app, built as a minimal successor to ZenNotes. It retains the essential core features of ZenNotes, most importantly its extensive Markdown extensions, but leaves behind the Electron bloat in favor of Tauri.
+Zentauri is a lightweight, high-performance Markdown note-taking editor. Built with Tauri and Vue.js as a modern successor to ZenNotes, it combines native desktop performance with advanced scholarly Markdown rendering features specifically aligned with the Payer project standards.
+
+---
 
 ## Tech Stack
-- **Tauri** - Fast, lightweight, and secure cross-platform framework
-- **Vue.js** - Reactive frontend framework
-- **CodeMirror 6** - Extensible code editor
-- **Tailwind CSS v4** - Utility-first styling
-- **Unified / Remark / Rehype** - Powerful Markdown parsing and rendering with custom plugins
+- **Tauri** — Blazing fast desktop execution with a secure Rust backend.
+- **Vue 3** — Highly reactive and responsive component-driven interface.
+- **CodeMirror 6** — Modern, modular, and extensible editor experience.
+- **Tailwind CSS v4** — Premium styling system with dark mode and custom palettes.
+- **Unified / Remark / Rehype** — Custom AST-driven Markdown parsing and sanitization pipeline.
 
-## Features
-- **Minimalistic Editor/Preview Split View**
-- **IDE-Style File Explorer Sidebar:**
-  - Inline file/folder creation and renaming (popup-free, with keyboard Enter/Esc/Blur confirmation).
-  - Specific file icons for `.md` (Markdown), `.pdf` (PDF), images, and config files.
-  - Toolbar controls to "Collapse All" folders and "Refresh" the workspace tree.
-  - Focus-revealing: clicking active tabs expands parent folders and highlights that file in the tree.
-- **Document-Specific Search Sidebar:**
-  - Live search matches inside the active file with line numbers and preview snippets.
-  - Case-sensitivity check.
-  - Click-to-jump to instantly scroll and place the cursor on that line in CodeMirror 6.
-- **Extensively Customized Markdown Rendering (Aligned with Payer):**
-  - Custom containers (`:::grammar-box`, `:::grammar-box2`, `:::note-box`, `:::important`) matching the Payer stylesheet.
-  - Explicit Sanskrit Devanagari markup (`《Wort》`) rendered in red.
-  - Math expressions with KaTeX, Mermaid diagrams, and tables with colspans.
-- **Local Asset Integration:** Seamlessly renders local images, videos, and PDFs inside notes.
+---
+
+## Key Features
+
+### 📂 Premium IDE-Style File Explorer
+- **Popup-Free File Editing:** Create new files, folders, or rename existing nodes inline using smooth text fields that confirm on `Enter`/`Blur` and cancel on `Escape`.
+- **Dateityp-spezifische Icons:** Distinct visual cues for Markdown files, PDF documents, local images, and settings/config files.
+- **Header Toolbar:** One-click shortcuts to **Collapse All** directory folders and **Refresh** the current workspace path.
+- **Workspace Sync:** Clicking on open editor tabs automatically highlights and expands folders to reveal that file in the explorer tree.
+
+### 🔍 Search in File Panel
+- **Document-Level Search:** Accessible via the magnifying glass in the Activity Bar.
+- **Live Previews:** Displays matching lines with line numbers and highlights the search term visually.
+- **Case-Sensitivity Filter:** Toggle precise case matching.
+- **Quick-Jump Integration:** Clicking a search result instantly scrolls CodeMirror 6 and anchors the cursor to that line.
+
+### ✍️ Custom Scholarly Markdown Rendering
+- **Sanskrit Devanagari Highlighting:** Matches word boundaries wrapped in CJK double brackets `《Sanskrit-Text》` and highlights them in Sanskrit-Red.
+- **Custom container blocks:** Implements Payer-compatible style containers:
+  - `:::grammar-box` (gold border)
+  - `:::grammar-box2` (orange border)
+  - `:::important` (purple border)
+  - `:::note-box` (blue-grey border)
+- **Scientific Extensions:** Full support for KaTeX math equations (inline & block), Mermaid structural diagrams, and GitHub Flavored Markdown (GFM) tables.
+- **Local Asset Integration:** Renders local images, videos, and PDFs directly in the live preview.
+
+---
 
 ## Development
-To start the development server:
-```sh
-npm install
-npm run tauri dev
-```
 
-To build for production:
-```sh
+### Prerequisites
+Make sure you have Node.js and Rust/Cargo installed.
+
+### Setup and Running locally
+1. Install dependencies:
+   ```bash
+   npm install
+   ```
+2. Start the Tauri development server:
+   ```bash
+   npm run tauri dev
+   ```
+
+### Building for Production
+To bundle Zentauri into a native desktop package (.app, .dmg, .msi, etc.):
+```bash
 npm run tauri build
 ```
+
+---
 
 ## License
 MIT
