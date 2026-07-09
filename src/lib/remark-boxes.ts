@@ -25,32 +25,29 @@ type AnyParent = { type: string; children: Content[] }
 
 const CONTAINER_KINDS: Record<string, string> = {
   'grammarbox':     'grammarbox',
+  'gramarbox':      'grammarbox',
   'grammarbox2':    'grammarbox2',
+  'gramarbox2':     'grammarbox2',
   'grammar-box':    'grammarbox',
+  'gramar-box':     'grammarbox',
   'grammar-box2':   'grammarbox2',
+  'gramar-box2':    'grammarbox2',
   'media':          'media',
   'center':         'center',
   'metrik-schema':  'metrik-schema',
+  'metrikschema':   'metrik-schema',
   'important':      'important',
   'deleteme-box':   'deleteme-box',
+  'deletemebox':    'deleteme-box',
   'note-box':       'note-box',
+  'notebox':        'note-box',
   'laut-table':     'laut-table',
+  'lauttable':      'laut-table',
   'indent':         'indent',
   'compact':        'compact',
   'no-header':      'no-header',
-  'hidden':         'hidden',
+  'noheader':       'no-header',
 }
-
-/** Extract title from `[brackets]` at the start of a text node. */
-function extractTitle(text: string): [string | null, string] {
-  const m = text.match(/^\[([^\]]*)\]\s*(.*)/s)
-  if (m) {
-    const title = m[1].trim()
-    return [title.length > 0 ? title : null, m[2]]
-  }
-  return [null, text]
-}
-
 
 /**
  * Remark plugin that converts `containerDirective` nodes (from
@@ -70,101 +67,47 @@ export default function remarkBoxes(this: unknown): (tree: import('mdast').Root)
       const kind = (node.name != null ? CONTAINER_KINDS[node.name] : undefined)
       if (!kind) return // Unknown directive — skip
 
-      const p = parent as unknown as AnyParent
-
-      // ── Extract optional title from directive attributes or first child ──
-      // remark-directive parses `:::grammar-box{title="My Title"}` into
-      // node.attributes.title. Also supports legacy `[title]` in content.
-      let title: string | null = null
-      if (node.attributes?.title && typeof node.attributes.title === 'string') {
-        title = node.attributes.title.trim() || null
-      } else {
-        // Legacy: parse [title] from first text node content
-        const firstChild = node.children?.[0]
-        if (firstChild?.type === 'paragraph') {
-          const firstText = (firstChild as AnyParent).children?.[0]
-          if (firstText?.type === 'text') {
-            const [t, rest] = extractTitle((firstText as { value: string }).value)
-            title = t
-            if (rest) {
-              (firstText as { value: string }).value = rest
-            } else {
-              // Title consumed entire first paragraph — remove it
-              (firstChild as AnyParent).children.shift()
-              if ((firstChild as AnyParent).children.length === 0) {
-                node.children.shift()
-              }
-            }
-          }
-        }
-      }
-
-      // ── Map kind to semantic tag ──
       const tagName = (kind === 'important') ? 'aside' : 'div'
 
-      // ── Build children with title as first element ──
+      // ── Build children ──
       const containerChildren: Content[] = [...(node.children ?? [])]
 
-      if (title) {
-        // Prepend a title paragraph that renders as <div class="md-box__title">
-        containerChildren.unshift({
+      const hProps: Record<string, unknown> = {
+        className: ['md-box', `md-box--${kind}`],
+        'data-box-kind': kind,
+      }
+
+      // Mutate the node IN PLACE so unist-util-visit traverses the new structure correctly
+      // without needing complex return values or duplicate visit hacks.
+      // We cast to any to overwrite 'type' which is usually readonly in TS AST.
+      const n = node as any;
+      n.type = 'paragraph';
+      n.data = {
+        hName: tagName,
+        hProperties: hProps,
+      };
+      
+      n.children = [
+        // Inner wrapper
+        {
           type: 'paragraph',
           data: {
             hName: 'div',
-            hProperties: { className: ['md-box__title'] },
+            hProperties: { className: ['md-box__inner'] },
           },
-          children: [{ type: 'text', value: title }],
-        } as Content)
-      }
-
-      // ── Wrap body in a div.md-box__body container ──
-      // We replace the directive with a container div that has an inner
-      // structure matching customBoxes.css:
-      //   <div class="md-box md-box--kind" data-box-kind="kind">
-      //     <div class="md-box__inner">
-      //       [title]  <-- already injected above
-      //       <div class="md-box__body">[children]</div>
-      //     </div>
-      //   </div>
-      //
-      // We achieve this by using a paragraph with hName for the container
-      // and wrapping children in an intermediate HTML wrapper.
-
-      const containerNode: Content = {
-        type: 'paragraph',
-        data: {
-          hName: tagName,
-          hProperties: {
-            className: ['md-box', `md-box--${kind}`],
-            'data-box-kind': kind,
-          },
-        },
-        children: [
-          // Inner wrapper
-          {
-            type: 'paragraph',
-            data: {
-              hName: 'div',
-              hProperties: { className: ['md-box__inner'] },
-            },
-            children: [
-              // Body wrapper (title is already in containerChildren)
-              {
-                type: 'paragraph',
-                data: {
-                  hName: 'div',
-                  hProperties: { className: ['md-box__body'] },
-                },
-                // This will contain the actual content children
-                children: containerChildren,
-              } as Content,
-            ],
-          } as Content,
-        ],
-      } as Content
-
-      p.children.splice(index, 1, containerNode)
-      return index
+          children: [
+            // Body wrapper (title is already in containerChildren)
+            {
+              type: 'paragraph',
+              data: {
+                hName: 'div',
+                hProperties: { className: ['md-box__body'] },
+              },
+              children: containerChildren,
+            } as Content,
+          ],
+        } as Content,
+      ];
     })
   }
 }

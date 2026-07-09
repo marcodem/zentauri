@@ -69,8 +69,8 @@ export default function remarkDirectiveFilter(): (tree: Root) => void {
       if (typeof index !== 'number' || !parent) return
       const p = parent as unknown as AnyParent
 
-      // Let remarkScholarly handle :br and :indent
-      if (node.name === 'br' || node.name === 'indent') return
+      // Let remarkScholarly handle :br, :indent, and :sig
+      if (node.name === 'br' || node.name === 'indent' || node.name === 'sig') return
 
       const textNode = directiveToOpenText(node)
       const children = node.children || []

@@ -9,6 +9,28 @@
     "core:default",
     "opener:default",
     "fs:default",
-    "dialog:default"
+    "dialog:default",
+    "fs:allow-write-text-file",
+    "fs:allow-read-text-file",
+    "fs:allow-mkdir",
+    "fs:allow-exists",
+    "fs:allow-document-write-recursive",
+    "fs:allow-document-read-recursive",
+    {
+      "identifier": "fs:allow-read",
+      "allow": [{ "path": "$DOCUMENT/**" }, { "path": "$DOCUMENT/*" }, { "path": "$DOCUMENT" }]
+    },
+    {
+      "identifier": "fs:allow-write",
+      "allow": [{ "path": "$DOCUMENT/**" }, { "path": "$DOCUMENT/*" }, { "path": "$DOCUMENT" }]
+    },
+    {
+      "identifier": "fs:allow-mkdir",
+      "allow": [{ "path": "$DOCUMENT/**" }, { "path": "$DOCUMENT/*" }, { "path": "$DOCUMENT" }]
+    },
+    {
+      "identifier": "fs:allow-exists",
+      "allow": [{ "path": "$DOCUMENT/**" }, { "path": "$DOCUMENT/*" }, { "path": "$DOCUMENT" }]
+    }
   ]
 }

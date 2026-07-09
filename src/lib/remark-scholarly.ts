@@ -4,7 +4,8 @@
  * Handles:
  *   1. `:br` — text directive → hard line break inside table cells
  *   2. `:indent` — text directive → inline indent span
- *   3. `⟪Devanagari⟫` — explicit Sanskrit markup (always red)
+ *   3. `《Devanagari》` — explicit Sanskrit markup (always red)
+ *   4. `:sig[...]` — signal red highlighting
  *
  * Ported from Payer's qa_viewer.html `scholarly_fixes` core.ruler.
  * Operates on inline text nodes in the remark AST.
@@ -17,12 +18,12 @@ type AnyParent = { type: string; children: Content[] }
 
 /**
  * Regex to split text on scholarly markers.
- * Captures: ⟪Devanagari⟫
+ * Captures: 《Devanagari》, :br, :indent, :sig[...]
  */
-const SCHOLARLY_RE = /(⟪[^⟫]+⟫|(?<!:):br|(?<!:):indent)/g
+const SCHOLARLY_RE = /(《[^》]+》|sig\[.*?\]|(?<!:):br|(?<!:):indent)/g
 
 function processInlineText(value: string): Content[] | null {
-  if (!value.includes('⟪') && !value.includes(':br') && !value.includes(':indent')) {
+  if (!value.includes('《') && !value.includes(':br') && !value.includes(':indent') && !value.includes(':sig[')) {
     return null // Fast path: nothing to transform
   }
 
@@ -32,7 +33,7 @@ function processInlineText(value: string): Content[] | null {
   for (const part of parts) {
     if (!part) continue
 
-    if (part.startsWith('⟪') && part.endsWith('⟫')) {
+    if (part.startsWith('《') && part.endsWith('》')) {
       // Explicitly marked Devanagari
       const text = part.slice(1, -1)
       result.push({
@@ -45,6 +46,13 @@ function processInlineText(value: string): Content[] | null {
       result.push({
         type: 'html',
         value: '<span class="indent-inline"></span>',
+      } as Content)
+    } else if (part.startsWith('sig[') && part.endsWith(']')) {
+      // :sig[...] → <strong class="signalrot">...</strong>
+      const text = part.slice(4, -1)
+      result.push({
+        type: 'html',
+        value: `<strong class="signalrot">${text}</strong>`,
       } as Content)
     } else {
       // Plain text
@@ -77,7 +85,7 @@ export default function remarkScholarlyExtensions(this: unknown): (tree: Root) =
       return [SKIP, index + replacement.length]
     })
 
-    // 2. Process textDirectives for :br and :indent
+    // 2. Process textDirectives for :br, :indent, and :sig
     visit(tree, 'textDirective', (node: Content, index, parent) => {
       if (!parent || index === undefined) return
       const p = parent as unknown as AnyParent
@@ -92,6 +100,11 @@ export default function remarkScholarlyExtensions(this: unknown): (tree: Root) =
           value: '<span class="indent-inline"></span>',
         } as Content)
         return [SKIP, index + 1]
+      } else if (dir.name === 'sig') {
+        // Mutate the directive into a span element with class signal-red
+        dir.data = dir.data || {}
+        dir.data.hName = 'strong'
+        dir.data.hProperties = { class: 'signalrot' }
       }
     })
   }

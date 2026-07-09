@@ -1,13 +1,48 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import { EditorState, Compartment } from '@codemirror/state'
-import { EditorView, lineNumbers } from '@codemirror/view'
+import { EditorView, lineNumbers, keymap } from '@codemirror/view'
+import { history, historyKeymap, defaultKeymap } from '@codemirror/commands'
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
 import { languages } from '@codemirror/language-data'
 import { vim } from '@replit/codemirror-vim'
+import { directiveGuidelines } from '../lib/editor-extensions/directive-guidelines'
 
 const props = defineProps<{ modelValue: string, vimMode?: boolean }>()
 const emit = defineEmits<{ (e: 'update:modelValue', value: string): void }>()
+
+function insertText(text: string) {
+  if (!view) return
+  const selection = view.state.selection.main
+  view.dispatch({
+    changes: { from: selection.from, to: selection.to, insert: text },
+    selection: { anchor: selection.from + text.length },
+    scrollIntoView: true
+  })
+  view.focus()
+}
+
+function focus() {
+  if (view) {
+    view.focus()
+  }
+}
+
+function jumpToLine(lineNum: number) {
+  if (!view) return
+  try {
+    const line = view.state.doc.line(lineNum)
+    view.dispatch({
+      selection: { anchor: line.from, head: line.from },
+      scrollIntoView: true
+    })
+    view.focus()
+  } catch (e) {
+    console.error('Failed to jump to line', e)
+  }
+}
+
+defineExpose({ insertText, focus, jumpToLine })
 
 const container = ref<HTMLElement>()
 let view: EditorView | null = null
@@ -20,17 +55,25 @@ onMounted(() => {
     doc: props.modelValue,
     extensions: [
       lineNumbers(),
+      history(),
+      keymap.of([...defaultKeymap, ...historyKeymap]),
       markdown({ base: markdownLanguage, codeLanguages: languages }),
       EditorView.theme({
-        "&": { height: "100%", backgroundColor: "transparent" },
-        ".cm-scroller": { overflow: "auto", fontFamily: "monospace" }
+        "&": { height: "100%", backgroundColor: "var(--app-bg)", color: "var(--app-text)" },
+        ".cm-scroller": { overflow: "auto", fontFamily: "monospace" },
+        ".cm-gutters": { backgroundColor: "var(--app-bg-secondary)", color: "var(--app-text-muted)", borderRight: "1px solid var(--app-border)" },
+        ".cm-activeLineGutter": { backgroundColor: "var(--app-bg-hover)" },
+        ".cm-activeLine": { backgroundColor: "var(--app-bg-hover)" },
+        "&.cm-focused .cm-selectionBackground, .cm-selectionBackground, .cm-content ::selection": { backgroundColor: "var(--app-bg-active)" },
+        ".cm-cursor": { borderLeftColor: "var(--app-text)" }
       }),
       vimCompartment.of(props.vimMode ? vim() : []),
       EditorView.updateListener.of((update) => {
         if (update.docChanged) {
           emit('update:modelValue', update.state.doc.toString())
         }
-      })
+      }),
+      directiveGuidelines
     ]
   })
   
@@ -65,5 +108,5 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div ref="container" class="h-full w-full bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100"></div>
+  <div ref="container" class="h-full w-full bg-app-bg text-app-text" style="font-size: var(--editor-font-size, 16px);"></div>
 </template>

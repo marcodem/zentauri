@@ -6,19 +6,12 @@
  * ================================================================ */
 
 :root {
-  --box-grammarbox-bg: #fefce8;
+  --box-grammarbox-bg: color-mix(in srgb, var(--app-bg) 85%, #eab308);
   --box-grammarbox-border: #eab308;
-  --box-grammarbox2-bg: #ffedd5;
+  --box-grammarbox2-bg: color-mix(in srgb, var(--app-bg) 85%, #ea580c);
   --box-grammarbox2-border: #ea580c;
-  --box-important-bg: #f5f3ff;
+  --box-important-bg: color-mix(in srgb, var(--app-bg) 85%, #8b5cf6);
   --box-important-border: #8b5cf6;
-}
-
-:root[data-theme*="dark"] {
-  --box-grammarbox-bg: #241500;
-  --box-grammarbox2-bg: #361e04;
-  --box-important-bg: #1e1210;
-  --box-important-border: #a78bfa;
 }
 
 /* --- Base box container --- */
@@ -27,10 +20,11 @@
 }
 
 .md-box__inner {
-  border: 1px solid rgb(var(--color-zinc-200));
+  border: 1px solid var(--app-border);
   border-radius: 8px;
   padding: 0.9rem 1rem;
-  background: rgb(var(--color-zinc-50));
+  background: var(--app-bg-secondary);
+  color: var(--app-text);
 }
 
 .md-box__title {
@@ -47,7 +41,7 @@
 }
 
 /* --- grammarbox: yellow / gold (Sanskrit grammar) --- */
-.md-box--grammarbox .md-box__inner {
+.md-box--grammarbox > .md-box__inner {
   border-left: 5px solid var(--box-grammarbox-border);
   background: var(--box-grammarbox-bg);
   border-radius: 0 8px 8px 0;
@@ -62,7 +56,7 @@
 }
 
 /* --- grammarbox2: orange (advanced grammar) --- */
-.md-box--grammarbox2 .md-box__inner {
+.md-box--grammarbox2 > .md-box__inner {
   border-left: 5px solid var(--box-grammarbox2-border);
   background: var(--box-grammarbox2-bg);
   border-radius: 0 8px 8px 0;
@@ -76,22 +70,23 @@
 }
 
 /* --- note-box: gray (didactic notes) --- */
-.md-box--note-box .md-box__inner {
-  border-left: 3px solid rgb(var(--color-zinc-500));
-  background: rgb(var(--color-zinc-500) / 0.05);
+.md-box--note-box > .md-box__inner {
+  border-left: 3px solid var(--app-text-muted);
+  background: color-mix(in srgb, var(--app-bg) 90%, var(--app-text-muted));
   padding: 0.75rem 1.25rem;
+  border-radius: 0;
 }
 
 /* --- important: violet (important callouts) --- */
-.md-box--important .md-box__inner {
+.md-box--important > .md-box__inner {
   border-left: 5px solid var(--box-important-border);
   background: var(--box-important-bg);
   border-radius: 0 8px 8px 0;
   position: relative;
-  padding-left: 1.5rem;
+  padding-left: 4.5rem;
 }
 
-.md-box--important .md-box__inner::before {
+.md-box--important > .md-box__inner::before {
   content: "";
   position: absolute;
   left: 1rem;
@@ -99,7 +94,7 @@
   transform: translateY(-50%);
   width: 2.8rem;
   height: 2.8rem;
-  background-image: none;
+  background-image: url('/images/lekt1001.jpg');
   background-color: var(--box-important-bg);
   background-blend-mode: multiply;
   background-size: contain;
@@ -107,7 +102,7 @@
 }
 
 /* --- indent: padded left (indentation) --- */
-.md-box--indent .md-box__inner {
+.md-box--indent > .md-box__inner {
   padding-left: 2.5rem;
   border: none;
   background: transparent;
@@ -119,7 +114,7 @@
   text-align: center;
   margin: 2.5rem 0;
 }
-.md-box--center .md-box__inner {
+.md-box--center > .md-box__inner {
   border: none;
   background: transparent;
   box-shadow: none;
@@ -129,7 +124,7 @@
 }
 
 /* --- media: image block (flex, centered) --- */
-.md-box--media .md-box__inner {
+.md-box--media > .md-box__inner {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -144,7 +139,7 @@
 }
 
 /* --- metrik-schema: monospace (metrical schema) --- */
-.md-box--metrik-schema .md-box__inner {
+.md-box--metrik-schema > .md-box__inner {
   border: none;
   background: transparent;
   box-shadow: none;
@@ -160,7 +155,7 @@
 }
 
 /* --- no-header: hide table headings --- */
-.md-box--no-header .md-box__inner {
+.md-box--no-header > .md-box__inner {
   border: none;
   background: transparent;
   padding: 0;
@@ -171,11 +166,11 @@
   display: none !important;
 }
 .md-box--no-header table {
-  border-top: 1px solid rgb(var(--color-zinc-200));
+  border-top: 1px solid var(--app-border);
 }
 
 /* --- compact: tighter table cells --- */
-.md-box--compact .md-box__inner {
+.md-box--compact > .md-box__inner {
   border: none;
   background: transparent;
   padding: 0;
@@ -199,7 +194,7 @@
  * ============================================================== */
 .md-box table {
   border-collapse: collapse;
-  border: 1px solid rgb(var(--color-zinc-200));
+  border: 1px solid var(--app-border);
   margin: 1rem 0;
   width: auto;
   max-width: 100%;
@@ -208,7 +203,7 @@
 .md-box td,
 .md-box th {
   padding: 0.6rem 0.8rem;
-  border: 1px solid rgb(var(--color-zinc-200));
+  border: 1px solid var(--app-border);
 }
 
 /* Hide borders on cells explicitly hidden for colspan merging */
@@ -221,7 +216,7 @@
 }
 
 .md-box tr:nth-child(even) {
-  background-color: rgb(var(--color-zinc-50) / 0.5);
+  background-color: color-mix(in srgb, var(--app-bg-secondary) 50%, transparent);
 }
 
 .md-box th {
@@ -232,12 +227,22 @@
  * Scholarly extensions (Payer)
  * ============================================================== */
 
+/* Signalrot for highlighting via :sig[] — Payer uses #ff0000 (pure red) */
+.signalrot {
+  color: #ff0000;
+  font-weight: 600;
+}
+.signalrot .sanskrit-dev {
+  color: #ff0000 !important;
+}
+
 /* Devanagari — always red per CLAUDE.md Hard Rule */
 .sanskrit-dev {
-  color: rgb(var(--color-red-500));
+  color: #b22222; /* Scholarly Red (firebrick) */
   font-size: 1.15em;
   font-weight: 600;
 }
+
 
 table .sanskrit-dev {
   font-size: 1.35em;
