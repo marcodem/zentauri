@@ -73,6 +73,16 @@ To bundle Zentauri into a native desktop package (.app, .dmg, .msi, etc.):
 npm run tauri build
 ```
 
+## Releases & Build-Artefakte
+
+Die Desktop-Applikationen werden bei jedem Release (durch Pushing eines Versions-Tags wie `v*`) automatisch über GitHub Actions kompiliert. Folgende Installationsdateien werden dabei als Artefakte erzeugt:
+
+- 🍎 **macOS:** Universal `.dmg` & `.app` (kompatibel mit Apple Silicon M1/M2/M3 und Intel-Prozessoren).
+- 🪟 **Windows:** Standalone `.msi`-Installer sowie `.exe`-Binärdateien.
+- 🐧 **Linux:** Debian-Paket (`.deb`) und portables AppImage (`.AppImage`).
+
+Du findest die kompilierten Binärdateien nach dem Build-Prozess im GitHub-Repository unter dem Reiter **Releases** (Veröffentlichungen).
+
 ---
 
 ## License
