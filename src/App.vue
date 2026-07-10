@@ -451,9 +451,28 @@ async function handlePrint() {
         // Customize cloned document for print layout
         const clonedElement = clonedDoc.querySelector('.prose') as HTMLElement
         if (clonedElement) {
+          // Force standard A4 width (794px corresponds to A4 width at 96 DPI)
+          // This keeps the font sizes, wraps, and margins proportional
+          clonedElement.style.width = '794px'
+          clonedElement.style.maxWidth = '794px'
+          clonedElement.style.minWidth = '794px'
+          clonedElement.style.padding = '40px' // Margins around the page
+          clonedElement.style.boxSizing = 'border-box'
           clonedElement.style.color = '#000000'
+          clonedElement.style.backgroundColor = '#ffffff'
           clonedElement.classList.remove('dark:prose-invert')
           
+          // Reset parent flex/overflow styling in the clone to allow full width rendering
+          let parent = clonedElement.parentElement
+          while (parent) {
+            parent.style.width = 'auto'
+            parent.style.maxWidth = 'none'
+            parent.style.minWidth = '0'
+            parent.style.height = 'auto'
+            parent.style.overflow = 'visible'
+            parent = parent.parentElement
+          }
+
           // Fix custom notes/boxes colors
           const boxes = clonedElement.querySelectorAll('.md-box__inner')
           boxes.forEach((box: any) => {
@@ -486,8 +505,8 @@ async function handlePrint() {
     pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight)
     heightLeft -= pageHeight
 
-    // Add subsequent pages if content overflows A4 height
-    while (heightLeft >= 0) {
+    // Add subsequent pages if content overflows A4 height (using > 1 to avoid rounding blank pages)
+    while (heightLeft > 1) {
       position = heightLeft - imgHeight
       pdf.addPage()
       pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight)
