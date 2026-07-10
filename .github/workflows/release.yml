@@ -54,6 +54,6 @@ jobs:
           tagName: ${{ github.ref_name }}
           releaseName: 'Zentauri v__VERSION__'
           releaseBody: 'Automatic release built by GitHub Actions.'
-          releaseDraft: true
+          releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
