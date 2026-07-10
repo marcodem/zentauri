@@ -1,3 +1,24 @@
+# Release Notes — ZenTauri v1.0.1
+
+Dieses Release behebt Fehler bei Dateisystem-Berechtigungen und optimiert das Explorer-Verhalten für eine stabilere Benutzererfahrung.
+
+## Behobene Probleme & Optimierungen (v1.0.1)
+
+### 📂 Dateisystem-Berechtigungen & Stabilität
+* **Globaler Dateisystem-Zugriff:** Der Berechtigungsbereich wurde auf das gesamte Dateisystem (`**`) erweitert. Dadurch können nun auch Arbeitsbereiche auf externen Laufwerken (z. B. `/Volumes/...`) oder beliebige Projektverzeichnisse beim Starten ohne Einschränkung geladen werden.
+* **Fehlertoleranz bei Start:** Falls ein zuvor geöffneter Ordner nicht mehr existiert (z. B. Laufwerk getrennt), stürzt die App nicht ab. Stattdessen wird eine verständliche Fehlermeldung mit der Option „Ordner erneut öffnen“ angezeigt.
+* **Fallbacks in Systemdialogen:** In Datei-Öffnen- und Speichern-Dialogen wurde eine "All Files" (`*`)-Filteroption hinzugefügt, um zu verhindern, dass macOS Markdown-Dateien ausgraut.
+
+### 🔄 Synchronisierter Tab-Wechsel
+* **Verbesserter Sidebar-Wechsel:** Klicks auf Dateien in der Sidebar (sowohl im Dateibaum als auch unter "Open Editors") prüfen zuerst, ob das Dokument bereits im Editor geöffnet ist. Falls ja, wird direkt zu diesem Tab gewechselt, anstatt die Datei neu von der Festplatte zu laden. Das schützt ungespeicherte Änderungen vor dem Überschreiben und ermöglicht das Wechseln von virtuellen `untitled://`-Tabs direkt aus der Sidebar.
+
+### ✍️ Explorer-Funktionen aktiviert
+* **Save All (Alle speichern):** Das Disketten-Symbol in der Sektion „Open Editors“ wurde aktiviert und speichert alle geänderten Tabs parallel.
+* **Erweitertes Kontextmenü:** Die Optionen „Neue Datei“ und „Neuer Ordner“ sind nun auch beim Rechtsklick auf eine Datei aktiv (erstellt die Elemente im selben Ordner wie die Datei).
+* **Auto-Open:** Neu erstellte Dateien werden nach dem Bestätigen im Explorer sofort automatisch im Editor geöffnet.
+
+---
+
 # Release Notes — ZenTauri v1.0.0
 
 Wir freuen uns, das offizielle Release **ZenTauri v1.0.0** ankündigen zu können! Dieses Release portiert die reichhaltigen, wissenschaftlichen Markdown-Funktionen aus dem ZenNotes-Erbe auf ein schlankes, natives Tauri-Fundament und ergänzt es um moderne IDE-Werkzeuge für Sanskrit-Lehrer und Linguisten.

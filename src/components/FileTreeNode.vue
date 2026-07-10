@@ -234,6 +234,7 @@ async function handleChildCreateConfirm(payload: { parentPath: string, name: str
   try {
     if (payload.type === 'file') {
       await writeTextFile(fullPath, '# ' + payload.name.replace(/\.md$/, '') + '\n\n')
+      emit('select', fullPath)
     } else {
       await mkdir(fullPath)
     }

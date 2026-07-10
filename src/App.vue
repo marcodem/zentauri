@@ -185,12 +185,31 @@ async function forceSave() {
   }
 }
 
+async function handleSaveAll() {
+  isSaving.value = true
+  try {
+    for (const tab of tabs.value) {
+      if (tab.path && !tab.path.startsWith('untitled://')) {
+        await writeTextFile(tab.path, tab.content)
+      }
+    }
+    saveTabsState()
+  } catch (err) {
+    console.error('Save all failed', err)
+  } finally {
+    setTimeout(() => { isSaving.value = false }, 500)
+  }
+}
+
 async function handleSaveAs() {
   const tab = tabs.value[activeTabIndex.value]
   if (!tab) return
 
   const newPath = await save({
-    filters: [{ name: 'Markdown', extensions: ['md', 'markdown'] }]
+    filters: [
+      { name: 'Markdown', extensions: ['md', 'markdown'] },
+      { name: 'All Files', extensions: ['*'] }
+    ]
   })
 
   if (newPath) {
@@ -279,7 +298,10 @@ function selectTab(index: number) {
 async function handleOpenFile() {
   const selected = await open({
     multiple: false,
-    filters: [{ name: 'Markdown', extensions: ['md', 'markdown'] }]
+    filters: [
+      { name: 'Markdown', extensions: ['md', 'markdown'] },
+      { name: 'All Files', extensions: ['*'] }
+    ]
   })
   
   if (selected && typeof selected === 'string') {
@@ -301,6 +323,16 @@ async function handleOpenFolder() {
 }
 
 async function loadFile(path: string) {
+  const existingIndex = tabs.value.findIndex(t => t.path === path || t.id === path)
+  if (existingIndex >= 0) {
+    selectTab(existingIndex)
+    return
+  }
+
+  if (path.startsWith('untitled://')) {
+    return
+  }
+
   try {
     const text = await readTextFile(path)
     const title = path.split(/[/\\]/).pop() || 'Unknown'
@@ -408,6 +440,10 @@ function handlePrint() {
           :activePath="tabs[activeTabIndex]?.path" 
           :openTabs="tabs"
           @select="loadFile" 
+          @open-folder="handleOpenFolder"
+          @open-file="handleOpenFile"
+          @close-tab="closeTab"
+          @save-all="handleSaveAll"
         />
       </div>
 

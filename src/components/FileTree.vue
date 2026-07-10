@@ -10,7 +10,7 @@ const props = defineProps<{
   openTabs?: { id: string, path: string, title: string, content: string }[]
 }>()
 
-defineEmits<{
+const emit = defineEmits<{
   (e: 'select', path: string): void
   (e: 'open-folder'): void
   (e: 'open-file'): void
@@ -21,10 +21,12 @@ defineEmits<{
   (e: 'close-tab', index: number): void
   (e: 'new-file'): void
   (e: 'new-folder'): void
+  (e: 'save-all'): void
 }>()
 
 const rootEntries = ref<FileEntry[]>([])
 const isLoading = ref(false)
+const loadError = ref<string | null>(null)
 
 const isOpenEditorsExpanded = ref(true)
 const isFolderExpanded = ref(true)
@@ -32,10 +34,12 @@ const isFolderExpanded = ref(true)
 const loadRoot = async () => {
   if (!props.rootPath) {
     rootEntries.value = []
+    loadError.value = null
     return
   }
   
   isLoading.value = true
+  loadError.value = null
   try {
     const entries = await readDir(props.rootPath)
     rootEntries.value = entries
@@ -51,6 +55,9 @@ const loadRoot = async () => {
         return a.name.localeCompare(b.name)
       })
   } catch (e) {
+    console.error('Failed to load workspace root', e)
+    loadError.value = String(e)
+    rootEntries.value = []
   } finally {
     isLoading.value = false
   }
@@ -123,6 +130,7 @@ async function handleRootCreateConfirm(payload: { parentPath: string, name: stri
   try {
     if (payload.type === 'file') {
       await writeTextFile(fullPath, '# ' + payload.name.replace(/\.md$/, '') + '\n\n')
+      emit('select', fullPath)
     } else {
       await mkdir(fullPath)
     }
@@ -163,10 +171,9 @@ async function handleRootDeleteConfirm(payload: { path: string }) {
 const contextMenuItems = computed(() => {
   if (!contextTarget.value) return []
   
-  const node = contextTarget.value.node
   return [
-    { label: node.isDirectory ? 'Neue Datei' : 'Kopieren', action: 'new-file', disabled: !node.isDirectory },
-    { label: 'Neuer Ordner', action: 'new-folder', disabled: !node.isDirectory },
+    { label: 'Neue Datei', action: 'new-file' },
+    { label: 'Neuer Ordner', action: 'new-folder' },
     { divider: true },
     { label: 'Umbenennen', action: 'rename' },
     { label: 'Löschen', action: 'delete' },
@@ -250,7 +257,7 @@ onMounted(loadRoot)
             </div>
             <!-- Action Icons -->
             <div class="flex items-center gap-0.5 opacity-0 group-hover/section:opacity-100 transition-opacity" @click.stop>
-              <button class="p-1 hover:bg-app-border rounded-md text-app-text-muted hover:text-app-text transition-colors" title="Save All">
+              <button @click="$emit('save-all')" class="p-1 hover:bg-app-border rounded-md text-app-text-muted hover:text-app-text transition-colors" title="Save All">
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
               </button>
             </div>
@@ -329,6 +336,16 @@ onMounted(loadRoot)
           <div v-show="isFolderExpanded" class="py-1">
             <div v-if="isLoading" class="px-6 py-2 text-xs text-app-text-muted opacity-80">
               Lade Arbeitsbereich...
+            </div>
+            <div v-else-if="loadError" class="px-4 py-3 text-xs text-red-400 text-center flex flex-col gap-2 bg-red-950/20 border border-red-900/30 rounded mx-2 my-1">
+              <span>Fehler beim Laden:</span>
+              <span class="opacity-80 italic break-all font-mono text-[11px]">{{ loadError }}</span>
+              <button 
+                @click="$emit('open-folder')"
+                class="mt-1 py-1 px-2 bg-red-500 hover:bg-red-600 text-white text-xs font-medium rounded transition-colors shadow-sm cursor-pointer"
+              >
+                Ordner erneut öffnen
+              </button>
             </div>
             <div v-else-if="rootEntries.length === 0" class="px-6 py-2 text-xs text-app-text-muted text-center">
               Leerer Ordner
