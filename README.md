@@ -1,8 +1,8 @@
 # Zentauri
 
-- Zentauri is a lightweight, high-performance Markdown note-taking editor. Built with Tauri and Vue.js it was first conceived as an extension to ZenNotes,  but later withdrawn and based on a different tech stack (Tauri -> ZenTauri). It combines native desktop performance with advanced scholarly Markdown rendering features specifically aligned with the Payer project (Sanskritkurs) standards.
+Zentauri is a lightweight, high-performance Markdown note-taking editor. Built with Tauri and Vue.js, it was first conceived as an extension to ZenNotes, but later built on a modern native desktop tech stack (Tauri -> ZenTauri). It combines native desktop performance with advanced scholarly Markdown rendering features specifically aligned with the Payer project (Sanskritkurs) standards.
 
-- f you wish to introduce your own Markdown syntax extensions, check out the help file under notes to developers.
+If you wish to introduce your own Markdown syntax extensions, check out the help file under notes to developers.
 
 ---
 
@@ -21,7 +21,7 @@
 ### 📂 Premium IDE-Style File Explorer
 
 - **Popup-Free File Editing:** Create new files, folders, or rename existing nodes inline using smooth text fields that confirm on `Enter`/`Blur` and cancel on `Escape`.
-- **Dateityp-spezifische Icons:** Distinct visual cues for Markdown files, PDF documents, local images, and settings/config files.
+- **File-Type Specific Icons:** Distinct visual cues for Markdown files, PDF documents, local images, and settings/config files.
 - **Header Toolbar:** One-click shortcuts to **Collapse All** directory folders and **Refresh** the current workspace path.
 - **Workspace Sync:** Clicking on open editor tabs automatically highlights and expands folders to reveal that file in the explorer tree.
 
@@ -35,7 +35,7 @@
 ### ✍️ Custom Scholarly Markdown Rendering
 
 - **Sanskrit Devanagari Highlighting:** Matches word boundaries wrapped in CJK double brackets `《Sanskrit-Text》` and highlights them in Sanskrit-Red.
-- **Custom container blocks:** Implements Payer-compatible style containers:
+- **Custom Container Blocks:** Implements Payer-compatible style containers:
   - `:::grammar-box` (gold border)
   - `:::grammar-box2` (orange border)
   - `:::important` (purple border)
@@ -51,7 +51,7 @@
 
 Make sure you have Node.js and Rust/Cargo installed.
 
-### Setup and Running locally
+### Setup and Running Locally
 
 1. Install dependencies:
 
@@ -73,15 +73,15 @@ To bundle Zentauri into a native desktop package (.app, .dmg, .msi, etc.):
 npm run tauri build
 ```
 
-## Releases & Build-Artefakte
+## Releases & Build Artifacts
 
-Die Desktop-Applikationen werden bei jedem Release (durch Pushing eines Versions-Tags wie `v*`) automatisch über GitHub Actions kompiliert. Folgende Installationsdateien werden dabei als Artefakte erzeugt:
+The desktop applications are automatically compiled via GitHub Actions with every release (triggered by pushing a version tag such as `v*`). The following installer files are generated as build artifacts:
 
-- 🍎 **macOS:** Universal `.dmg` & `.app` (kompatibel mit Apple Silicon M1/M2/M3 und Intel-Prozessoren).
-- 🪟 **Windows:** Standalone `.msi`-Installer sowie `.exe`-Binärdateien.
-- 🐧 **Linux:** Debian-Paket (`.deb`) und portables AppImage (`.AppImage`).
+- 🍎 **macOS:** Universal `.dmg` & `.app` (compatible with Apple Silicon M1/M2/M3 and Intel processors).
+- 🪟 **Windows:** Standalone `.msi` installers and `.exe` binaries.
+- 🐧 **Linux:** Debian package (`.deb`) and portable AppImage (`.AppImage`).
 
-Du findest die kompilierten Binärdateien nach dem Build-Prozess im GitHub-Repository unter dem Reiter **Releases** (Veröffentlichungen).
+You can find the compiled binaries in the GitHub repository under the **Releases** tab.
 
 ---
 

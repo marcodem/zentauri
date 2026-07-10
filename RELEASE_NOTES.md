@@ -1,54 +1,65 @@
+# Release Notes — ZenTauri v1.0.2
+
+This release resolves navigation and sidebar state issues when opening/loading files, and optimizes the workspace layout structure.
+
+## Fixed Issues & Enhancements (v1.0.2)
+
+### 📂 Active Explorer Navigation & Focus
+* **Automatic Sidebar Explorer Activation:** Opening or loading a file (via the open file dialog, creating a new file, or loading a workspace) now automatically switches the active sidebar panel to the File Explorer view.
+* **Workspace Independent File Explorer:** When files are loaded but no workspace folder is opened, the File Explorer sidebar now successfully renders the "Open Editors" list, allowing users to view and switch between open documents.
+* **No Folder Opened Prompt:** A clean, non-obtrusive "No Folder Opened" panel with a button is displayed underneath the open editors list to encourage folder loading without cluttering the interface.
+* **Immediate Menu Creation Focus:** Creating a new file via the top application menu now automatically loads and focuses the new document in the editor.
+
+---
+
 # Release Notes — ZenTauri v1.0.1
 
-Dieses Release behebt Fehler bei Dateisystem-Berechtigungen und optimiert das Explorer-Verhalten für eine stabilere Benutzererfahrung.
+This release addresses file system permission constraints and refines explorer behaviors to deliver a more stable user experience.
 
-## Behobene Probleme & Optimierungen (v1.0.1)
+## Fixed Issues & Enhancements (v1.0.1)
 
-### 📂 Dateisystem-Berechtigungen & Stabilität
-* **Globaler Dateisystem-Zugriff:** Der Berechtigungsbereich wurde auf das gesamte Dateisystem (`**`) erweitert. Dadurch können nun auch Arbeitsbereiche auf externen Laufwerken (z. B. `/Volumes/...`) oder beliebige Projektverzeichnisse beim Starten ohne Einschränkung geladen werden.
-* **Fehlertoleranz bei Start:** Falls ein zuvor geöffneter Ordner nicht mehr existiert (z. B. Laufwerk getrennt), stürzt die App nicht ab. Stattdessen wird eine verständliche Fehlermeldung mit der Option „Ordner erneut öffnen“ angezeigt.
-* **Fallbacks in Systemdialogen:** In Datei-Öffnen- und Speichern-Dialogen wurde eine "All Files" (`*`)-Filteroption hinzugefügt, um zu verhindern, dass macOS Markdown-Dateien ausgraut.
+### 📂 File System Permissions & Resiliency
+* **Global File System Access:** Extended the workspace filesystem scope to allow access to the entire disk (`**`). This ensures folders and workspaces located on external volumes (such as `/Volumes/...`) or other system directories can be loaded seamlessly.
+* **Graceful Missing Workspace Recovery:** If a previously saved workspace directory no longer exists (e.g., external drive disconnected), the application recovers gracefully and displays a clear error state in the sidebar explorer with an option to reopen a directory instead of crashing.
+* **File Dialog Fallbacks:** Added an "All Files" (`*`) filter to file open/save dialogs to resolve a macOS-specific issue where Markdown documents were occasionally disabled or grayed out.
 
-### 🔄 Synchronisierter Tab-Wechsel
-* **Verbesserter Sidebar-Wechsel:** Klicks auf Dateien in der Sidebar (sowohl im Dateibaum als auch unter "Open Editors") prüfen zuerst, ob das Dokument bereits im Editor geöffnet ist. Falls ja, wird direkt zu diesem Tab gewechselt, anstatt die Datei neu von der Festplatte zu laden. Das schützt ungespeicherte Änderungen vor dem Überschreiben und ermöglicht das Wechseln von virtuellen `untitled://`-Tabs direkt aus der Sidebar.
+### 🔄 Synchronized Tab Transitions
+* **Smart Explorer Selection:** Clicking files in the explorer tree or "Open Editors" list first checks if the document is already open in one of the active editor tabs. If so, it switches directly to that tab instead of reloading it from disk, safeguarding unsaved changes and correctly resolving virtual `untitled://` tabs.
 
-### ✍️ Explorer-Funktionen aktiviert
-* **Save All (Alle speichern):** Das Disketten-Symbol in der Sektion „Open Editors“ wurde aktiviert und speichert alle geänderten Tabs parallel.
-* **Erweitertes Kontextmenü:** Die Optionen „Neue Datei“ und „Neuer Ordner“ sind nun auch beim Rechtsklick auf eine Datei aktiv (erstellt die Elemente im selben Ordner wie die Datei).
-* **Auto-Open:** Neu erstellte Dateien werden nach dem Bestätigen im Explorer sofort automatisch im Editor geöffnet.
+### ✍️ Enabled Explorer Tools
+* **Save All:** Enabled the Save All action icon within the "Open Editors" panel to save all modified files concurrently.
+* **Expanded Context Menu:** "New File" and "New Folder" context actions are now active when right-clicking files, creating items in the same directory as the target file.
+* **Auto-Open:** Newly created files are immediately opened in the editor upon confirmation.
 
 ---
 
 # Release Notes — ZenTauri v1.0.0
 
-Wir freuen uns, das offizielle Release **ZenTauri v1.0.0** ankündigen zu können! Dieses Release portiert die reichhaltigen, wissenschaftlichen Markdown-Funktionen aus dem ZenNotes-Erbe auf ein schlankes, natives Tauri-Fundament und ergänzt es um moderne IDE-Werkzeuge für Sanskrit-Lehrer und Linguisten.
+We are excited to announce the official release of **ZenTauri v1.0.0**! This release ports the rich, scholarly Markdown capabilities from our ZenNotes heritage onto a lightweight, native Tauri foundation, complete with modern IDE utilities for Sanskrit scholars and linguists.
 
----
+## Features & Highlights
 
-## Neue Funktionen & Highlights
+### 📂 Premium IDE-Style File Explorer
+* **Inline File Operations:** Create files, folders, or rename nodes inline using smooth text inputs that confirm on `Enter`/`Blur` and cancel on `Escape`.
+* **File-Type Specific Icons:** Dedicated styling indicators for Markdown, PDFs, image assets, and configuration files.
+* **Directory Utilities:** Toolbar shortcuts to collapse all directories and manually refresh the workspace tree.
+* **Active Document Tracking:** Clicking an active tab automatically expands parent directories and highlights the corresponding file in the explorer.
 
-### 📂 Premium-Explorer mit Inline-Editing
-* **Popup-freie Erstellung & Umbenennung:** Dateinamen und Ordner werden direkt im Dateibaum über eingeblendete Textfelder bearbeitet. Bestätigung erfolgt intuitiv per `Enter` oder Klick außerhalb (`Blur`), Abbrechen per `Esc`.
-* **Dateityp-spezifische Icons:** Visuelle Unterstützung durch spezifische Symbole für Markdown-Dateien, PDF-Dokumente, Bild-Assets und Konfigurationen.
-* **Explorer-Werkzeuge:** Shortcuts zum automatischen Schließen aller Ordner ("Collapse All") und zum manuellen Neuladen des Workspace-Verzeichnisses.
-* **Aktive Dateiverfolgung:** Das Anklicken eines geöffneten Tabs expandiert automatisch alle übergeordneten Verzeichnisse und markiert die Datei im Explorer.
+### 🔍 Search in File Panel
+* **Document-Level Search:** Accessible via the search icon in the Activity Bar.
+* **Real-time Previews:** Displays matching lines with line numbers and highlights the query.
+* **Case-Sensitivity Filter:** Toggle precise case matching.
+* **Quick-Jump Integration:** Clicking a search result instantly scrolls CodeMirror 6 and anchors the cursor to that line.
 
-### 🔍 Dateispezifische Textsuche
-* **Integriertes Such-Panel:** Erreichbar über die Suchlupe in der Activity-Leiste.
-* **Echtzeit-Trefferliste:** Listet alle Zeilen-Treffer inklusive Zeilennummern und Vorschautext mit farbiger Markierung des Suchbegriffs auf.
-* **Fall-Sensitivität (Case Sensitivity):** Option zum Filtern nach exakter Groß-/Kleinschreibung.
-* **Code-Verlinkung:** Ein Klick auf ein Suchergebnis springt im CodeMirror 6-Editor sofort an die exakte Zeile und fokussiert diese.
+### ✍️ Custom Scholarly Markdown Rendering
+* **Sanskrit Devanagari Highlighting:** Automatically detects text wrapped in CJK double brackets `《Sanskrit-Word》` and highlights it in Sanskrit-Red.
+* **Structural Containers:** Native support for standard Payer-compatible layout styles (`:::grammar-box`, `:::grammar-box2`, `:::important`, `:::note-box`) without header titles.
+* **Scientific Extensions:** Full support for LaTeX math (via KaTeX), Mermaid diagrams, and GFM tables.
+* **Local Asset Support:** Direct preview rendering of local images, videos, and PDFs.
 
-### ✍️ Wissenschaftliches Markdown & Sanskrit-Syntax (Payer-kompatibel)
-* **Standardisierte Sanskrit-Highlighting:** Text in CJK-Doppelwinkel-Klammern `《Sanskrit-Wort》` wird vollautomatisch erkannt und rot eingefärbt.
-* **Layout-Kompatibilität:** Vollständige Angleichung der Container-Boxen an das Payer-Layout (`:::grammar-box`, `:::grammar-box2`, `:::note-box`, `:::important`) ohne störende Header-Titel-Deklarationen.
-* **Technische Syntax:** Unterstützung für komplexe LaTeX-Formeln über KaTeX, Mermaid-Strukturdiagramme und GFM-Tabellen.
-
----
-
-## CI/CD Builds & Verteilung
-* **Automatisierter Build-Workflow:** GitHub Actions kompiliert ab sofort bei jedem Push eines `v*`-Tags vollautomatisch die Installationsdateien für alle Zielplattformen:
-  * **macOS:** Universal `.dmg` / `.app` (für Apple Silicon M1/M2/M3 und Intel).
-  * **Windows:** `.msi` & `.exe`-Installer.
-  * **Linux:** Portables `.AppImage` & `.deb`-Pakete.
-* Die Artefakte werden automatisch als Entwurf (Draft) unter den GitHub-Releases abgelegt.
+### 🚀 CI/CD Builds & Distribution
+* **Automated Packaging:** GitHub Actions automatically builds target installers on every version tag (`v*`):
+  * **macOS:** Universal `.dmg` / `.app` (compatible with M1/M2/M3 and Intel).
+  * **Windows:** Standalone `.msi` installers and `.exe` binaries.
+  * **Linux:** Debian packages (`.deb`) and portable `AppImage` files.
+* Compiled binaries are automatically uploaded as draft releases on GitHub.

@@ -295,6 +295,13 @@ function selectTab(index: number) {
   focusEditor()
 }
 
+function showExplorerView() {
+  showExplorer.value = true
+  showSettings.value = false
+  showCheatsheet.value = false
+  showSearch.value = false
+}
+
 async function handleOpenFile() {
   const selected = await open({
     multiple: false,
@@ -317,7 +324,7 @@ async function handleOpenFolder() {
   
   if (selected && typeof selected === 'string') {
     workspaceRoot.value = selected
-    showExplorer.value = true
+    showExplorerView()
     localStorage.setItem('zentauri-workspace', selected)
   }
 }
@@ -326,6 +333,7 @@ async function loadFile(path: string) {
   const existingIndex = tabs.value.findIndex(t => t.path === path || t.id === path)
   if (existingIndex >= 0) {
     selectTab(existingIndex)
+    showExplorerView()
     return
   }
 
@@ -337,6 +345,7 @@ async function loadFile(path: string) {
     const text = await readTextFile(path)
     const title = path.split(/[/\\]/).pop() || 'Unknown'
     openTab(title, path, text)
+    showExplorerView()
     focusEditor()
   } catch (err) {
     console.error('Failed to load file', err)
@@ -345,11 +354,13 @@ async function loadFile(path: string) {
 
 async function handleNewFile() {
   if (!workspaceRoot.value) return
-  const name = prompt('Dateiname (z.B. neue_datei.md):', 'neue_datei.md')
+  const name = prompt('Filename (e.g. new_file.md):', 'new_file.md')
   if (!name) return
   try {
-    await writeTextFile(`${workspaceRoot.value}/${name}`, '# Neuer Titel\n\n')
+    const fullPath = `${workspaceRoot.value}/${name}`
+    await writeTextFile(fullPath, '# Neuer Titel\n\n')
     if (fileTreeRef.value) await fileTreeRef.value.loadRoot()
+    await loadFile(fullPath)
   } catch (err) {
     alert(`Fehler beim Erstellen der Datei: ${err}`)
   }
@@ -357,7 +368,7 @@ async function handleNewFile() {
 
 async function handleNewFolder() {
   if (!workspaceRoot.value) return
-  const name = prompt('Ordnername:', 'neuer_ordner')
+  const name = prompt('Folder name:', 'new_folder')
   if (!name) return
   try {
     await mkdir(`${workspaceRoot.value}/${name}`)

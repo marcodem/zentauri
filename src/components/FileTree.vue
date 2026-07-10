@@ -232,24 +232,25 @@ onMounted(loadRoot)
     </div>
     
     <div class="flex-1 py-2 flex flex-col gap-1">
-      <div v-if="!rootPath" class="px-4 py-8 flex flex-col gap-3">
+      <!-- Big Welcome/Empty State when no workspace is open and no files are loaded -->
+      <div v-if="!rootPath && (!openTabs || openTabs.length === 0)" class="px-4 py-8 flex flex-col gap-3">
         <button 
           @click="$emit('open-folder')"
-          class="w-full py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-md transition-colors shadow-sm"
+          class="w-full py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-md transition-colors shadow-sm cursor-pointer"
         >
           Ordner öffnen
         </button>
         <button 
           @click="$emit('open-file')"
-          class="w-full py-2 px-4 bg-app-bg-secondary hover:bg-app-bg text-app-text text-sm font-medium rounded-md border border-app-border transition-colors shadow-sm"
+          class="w-full py-2 px-4 bg-app-bg-secondary hover:bg-app-bg text-app-text text-sm font-medium rounded-md border border-app-border transition-colors shadow-sm cursor-pointer"
         >
           Datei öffnen
         </button>
       </div>
 
       <template v-else>
-        <!-- Offene Dateien Section -->
-        <div class="mb-1">
+        <!-- Offene Dateien Section (Shown whenever there is either a workspace open or active files open) -->
+        <div v-if="openTabs && openTabs.length > 0" class="mb-1">
           <div class="px-2 py-1 text-xs font-bold text-app-text flex justify-between items-center group/section cursor-pointer select-none bg-app-bg-secondary hover:bg-app-bg transition-colors border-y border-transparent hover:border-app-border" @click="isOpenEditorsExpanded = !isOpenEditorsExpanded">
             <div class="flex items-center gap-1">
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="transition-transform opacity-80" :class="{'rotate-[-90deg]': !isOpenEditorsExpanded}"><polyline points="6 9 12 15 18 9"></polyline></svg>
@@ -264,11 +265,7 @@ onMounted(loadRoot)
           </div>
           
           <div v-show="isOpenEditorsExpanded" class="flex flex-col py-1">
-            <div v-if="!openTabs || openTabs.length === 0" class="px-6 py-1 text-xs text-app-text-muted italic">
-              Keine offenen Dateien
-            </div>
             <div 
-              v-else
               v-for="(tab, index) in openTabs" 
               :key="tab.id"
               @click="$emit('select', tab.path)"
@@ -292,8 +289,8 @@ onMounted(loadRoot)
           </div>
         </div>
 
-        <!-- Ordner Section -->
-        <div>
+        <!-- Ordner Section (Only shown if rootPath is set) -->
+        <div v-if="rootPath">
           <div class="px-2 py-1 text-xs font-bold text-app-text flex justify-between items-center group/section cursor-pointer select-none bg-app-bg-secondary hover:bg-app-bg transition-colors border-y border-transparent hover:border-app-border" @click="isFolderExpanded = !isFolderExpanded">
             <div class="flex items-center gap-1 truncate pr-2">
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="transition-transform opacity-80" :class="{'rotate-[-90deg]': !isFolderExpanded}"><polyline points="6 9 12 15 18 9"></polyline></svg>
@@ -367,18 +364,29 @@ onMounted(loadRoot)
                 @rename-confirm="handleRootRenameConfirm"
                 @delete-confirm="handleRootDeleteConfirm"
               />
-              </div>
+            </div>
 
-              <!-- Context Menu -->
-              <ContextMenu 
-                v-if="contextTarget"
-                :target="contextTarget"
-                :items="contextMenuItems"
-                @action="onContextAction"
-                @close="closeContextMenu"
-              />
-              </div>
-              </div>
+            <!-- Context Menu -->
+            <ContextMenu 
+              v-if="contextTarget"
+              :target="contextTarget"
+              :items="contextMenuItems"
+              @action="onContextAction"
+              @close="closeContextMenu"
+            />
+          </div>
+        </div>
+
+        <!-- No Folder Opened (Only shown if rootPath is not set, but we have files open) -->
+        <div v-if="!rootPath" class="mt-4 px-3 py-2.5 border border-app-border rounded mx-2 bg-app-bg-secondary">
+          <p class="text-[11px] text-app-text-muted mb-2 leading-relaxed">Sie haben noch keinen Ordner geöffnet.</p>
+          <button 
+            @click="$emit('open-folder')"
+            class="w-full py-1.5 px-3 bg-blue-500 hover:bg-blue-600 text-white text-xs font-medium rounded transition-colors shadow-sm cursor-pointer"
+          >
+            Ordner öffnen
+          </button>
+        </div>
       </template>
     </div>
   </div>

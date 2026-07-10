@@ -181,12 +181,12 @@ watch(() => props.activePath, (newVal) => {
 
 onMounted(() => {
   if (props.node.isNew) {
-    editName.value = props.node.newType === 'file' ? 'neue_datei.md' : 'neuer_ordner'
+    editName.value = props.node.newType === 'file' ? 'new_file.md' : 'new_folder'
     nextTick(() => {
       if (inputRef.value) {
         inputRef.value.focus()
         if (props.node.newType === 'file') {
-          inputRef.value.setSelectionRange(0, 11) // "neue_datei" length
+          inputRef.value.setSelectionRange(0, 8) // "new_file" length
         } else {
           inputRef.value.select()
         }
