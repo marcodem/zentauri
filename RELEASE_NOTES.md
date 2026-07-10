@@ -1,14 +1,21 @@
 # Release Notes — ZenTauri v1.0.2
 
-This release resolves navigation and sidebar state issues when opening/loading files, and optimizes the workspace layout structure.
+This release resolves navigation and sidebar state issues when opening/loading files, refines prompt naming conventions to match English standards, and optimizes the workspace layout structure for single-file editing.
 
 ## Fixed Issues & Enhancements (v1.0.2)
 
 ### 📂 Active Explorer Navigation & Focus
 * **Automatic Sidebar Explorer Activation:** Opening or loading a file (via the open file dialog, creating a new file, or loading a workspace) now automatically switches the active sidebar panel to the File Explorer view.
+* **Immediate Menu Creation Focus:** Creating a new file via the top application menu now automatically loads and focuses the new document in the editor.
+* **Seamless State Transitions:** Fixed a state transition where the sidebar view would remain stuck on the "Cheatsheet", "Settings", or "Search" screens after opening a file, requiring users to manually toggle back to the explorer. The interface now dynamically switches to the File Explorer so users see their newly loaded file in context immediately.
+
+### 💼 Workspace Layout & Usability
 * **Workspace Independent File Explorer:** When files are loaded but no workspace folder is opened, the File Explorer sidebar now successfully renders the "Open Editors" list, allowing users to view and switch between open documents.
 * **No Folder Opened Prompt:** A clean, non-obtrusive "No Folder Opened" panel with a button is displayed underneath the open editors list to encourage folder loading without cluttering the interface.
-* **Immediate Menu Creation Focus:** Creating a new file via the top application menu now automatically loads and focuses the new document in the editor.
+
+### ✍️ Prompt & Inline Creation Enhancements
+* **Default Prompt Placeholders in English:** The prompts for creating a new file now default to `new_file.md` (instead of `neue_datei.md`) and directory creation defaults to `new_folder` (instead of `neuer_ordner`).
+* **Smart Inline Input Selection:** When creating a new file inline, the cursor selection automatically spans only the filename base (`new_file`) and excludes the `.md` extension, allowing for quick typing and overriding.
 
 ---
 
