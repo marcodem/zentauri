@@ -13,7 +13,7 @@ import { readTextFile, writeTextFile, writeFile, mkdir } from '@tauri-apps/plugi
 import debounce from 'lodash.debounce'
 import { listen } from '@tauri-apps/api/event'
 import { jsPDF } from 'jspdf'
-import html2canvas from 'html2canvas'
+import html2canvas from 'html2canvas-pro'
 
 interface Tab {
   id: string

@@ -35,7 +35,7 @@
     "gray-matter": "^2.0.1",
     "hast": "^1.0.0",
     "highlight.js": "^11.11.1",
-    "html2canvas": "^1.4.1",
+    "html2canvas-pro": "^2.2.3",
     "jsdom": "^29.1.1",
     "jspdf": "^4.2.1",
     "jsxgraph": "^1.12.2",
