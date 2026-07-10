@@ -9,11 +9,9 @@ import HelpSystem from './components/HelpSystem.vue'
 import SearchPanel from './components/SearchPanel.vue'
 import ActivityBar from './components/ActivityBar.vue'
 import { open, save } from '@tauri-apps/plugin-dialog'
-import { readTextFile, writeTextFile, writeFile, mkdir } from '@tauri-apps/plugin-fs'
+import { readTextFile, writeTextFile, mkdir } from '@tauri-apps/plugin-fs'
 import debounce from 'lodash.debounce'
 import { listen } from '@tauri-apps/api/event'
-import { jsPDF } from 'jspdf'
-import html2canvas from 'html2canvas-pro'
 
 interface Tab {
   id: string
@@ -56,7 +54,6 @@ const showSettings = ref(false)
 const showHelpSystem = ref(false)
 const vimMode = ref(false)
 const isSaving = ref(false)
-const isExportingPDF = ref(false)
 const autoSaveEnabled = ref(true)
 
 const activeActivityView = computed(() => {
@@ -408,130 +405,8 @@ function handleJumpToLine(lineNum: number) {
   }
 }
 
-async function exportPDF() {
-  if (isExportingPDF.value) return
-  
-  // Find the rendered preview element
-  const element = document.querySelector('.prose') as HTMLElement
-  if (!element) {
-    alert('No rendered preview content found to export!')
-    return
-  }
-
-  isExportingPDF.value = true
-  try {
-    // 1. Determine a default filename based on the active tab title
-    const currentTab = tabs.value[activeTabIndex.value]
-    const defaultName = currentTab && currentTab.title && currentTab.title !== 'Untitled Document'
-      ? currentTab.title.replace(/\.[^/.]+$/, "") + ".pdf"
-      : "document.pdf"
-      
-    // 2. Open native Tauri save dialog
-    const filePath = await save({
-      title: 'Export Document to PDF',
-      defaultPath: defaultName,
-      filters: [
-        { name: 'PDF Document', extensions: ['pdf'] }
-      ]
-    })
-
-    if (!filePath) {
-      // User cancelled
-      return
-    }
-
-    // 3. Render HTML element to a canvas
-    // Using 2x scale for crisp font rendering, math symbols, and diagram SVGs
-    const canvas = await html2canvas(element, {
-      scale: 2,
-      useCORS: true,
-      logging: false,
-      backgroundColor: '#ffffff', // Force white background
-      onclone: (clonedDoc) => {
-        // Customize cloned document for print layout
-        const clonedElement = clonedDoc.querySelector('.prose') as HTMLElement
-        if (clonedElement) {
-          // Force standard A4 width (794px corresponds to A4 width at 96 DPI)
-          // This keeps the font sizes, wraps, and margins proportional
-          clonedElement.style.width = '794px'
-          clonedElement.style.maxWidth = '794px'
-          clonedElement.style.minWidth = '794px'
-          clonedElement.style.padding = '40px' // Margins around the page
-          clonedElement.style.boxSizing = 'border-box'
-          clonedElement.style.color = '#000000'
-          clonedElement.style.backgroundColor = '#ffffff'
-          clonedElement.classList.remove('dark:prose-invert')
-          
-          // Reset parent flex/overflow styling in the clone to allow full width rendering
-          let parent = clonedElement.parentElement
-          while (parent) {
-            parent.style.width = 'auto'
-            parent.style.maxWidth = 'none'
-            parent.style.minWidth = '0'
-            parent.style.height = 'auto'
-            parent.style.overflow = 'visible'
-            parent = parent.parentElement
-          }
-
-          // Fix custom notes/boxes colors
-          const boxes = clonedElement.querySelectorAll('.md-box__inner')
-          boxes.forEach((box: any) => {
-            box.style.backgroundColor = '#f4f4f5'
-            box.style.color = '#000000'
-            box.style.borderColor = '#e4e4e7'
-          })
-
-          // Ensure Mermaid flowcharts are styled correctly
-          const mermaidSVGs = clonedElement.querySelectorAll('.mermaid svg')
-          mermaidSVGs.forEach((svg: any) => {
-            svg.style.maxWidth = '100%'
-            svg.style.height = 'auto'
-          })
-        }
-      }
-    })
-
-    // 4. Calculate A4 proportions
-    const imgWidth = 210 // A4 width in mm
-    const pageHeight = 297 // A4 height in mm
-    const imgHeight = (canvas.height * imgWidth) / canvas.width
-    let heightLeft = imgHeight
-
-    const pdf = new jsPDF('p', 'mm', 'a4')
-    let position = 0
-
-    // Add first page
-    const imgData = canvas.toDataURL('image/jpeg', 0.95)
-    pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight)
-    heightLeft -= pageHeight
-
-    // Add subsequent pages if content overflows A4 height (using > 1 to avoid rounding blank pages)
-    while (heightLeft > 1) {
-      position = heightLeft - imgHeight
-      pdf.addPage()
-      pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight)
-      heightLeft -= pageHeight
-    }
-
-    // 5. Convert PDF output to binary data and save using Tauri's FS
-    const pdfOutput = pdf.output('arraybuffer')
-    const uint8Array = new Uint8Array(pdfOutput)
-
-    await writeFile(filePath, uint8Array)
-  } catch (err) {
-    console.error('Failed to export PDF:', err)
-    alert(`Failed to export PDF: ${err}`)
-  } finally {
-    isExportingPDF.value = false
-  }
-}
-
 function handlePrint() {
-  if (isTauri) {
-    exportPDF()
-  } else {
-    window.print()
-  }
+  window.print()
 }
 </script>
 
@@ -542,11 +417,11 @@ function handlePrint() {
     
     <!-- Toolbar -->
     <header class="flex-none flex items-center px-4 py-2 border-b border-app-border bg-app-bg-secondary select-none print:hidden" data-tauri-drag-region>
-      <!-- Auto-Save / Export Status -->
+      <!-- Auto-Save Status -->
       <div class="flex-1 text-center text-sm font-medium text-app-text-muted absolute left-0 right-0 pointer-events-none flex items-center justify-center gap-2">
-        <span v-if="isSaving || isExportingPDF" class="inline-block w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+        <span v-if="isSaving" class="inline-block w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
         <span v-else class="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
-        {{ isExportingPDF ? 'Exporting PDF...' : (isSaving ? 'Saving...' : 'Saved') }}
+        {{ isSaving ? 'Saving...' : 'Saved' }}
       </div>
       
       <div class="flex gap-1 z-10 relative ml-auto">
