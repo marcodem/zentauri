@@ -72,6 +72,16 @@ export default function remarkBoxes(this: unknown): (tree: import('mdast').Root)
       // ── Build children ──
       const containerChildren: Content[] = [...(node.children ?? [])]
 
+      if (containerChildren.length > 0) {
+        const firstChild = containerChildren[0] as any
+        if (firstChild.type === 'paragraph' && firstChild.data?.directiveLabel) {
+          firstChild.data.hName = 'div'
+          firstChild.data.hProperties = {
+            className: ['md-box__title'],
+          }
+        }
+      }
+
       const hProps: Record<string, unknown> = {
         className: ['md-box', `md-box--${kind}`],
         'data-box-kind': kind,

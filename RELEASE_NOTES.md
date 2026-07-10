@@ -1,3 +1,15 @@
+# Release Notes — ZenTauri v1.0.4
+
+This release fixes title parsing for container blocks that do not use brackets, and adds the correct visual container title styling to the live preview.
+
+## Fixed Issues & Enhancements (v1.0.4)
+
+### ✍️ Custom Container Block Titles
+* **Auto-Bracket Title Parsing:** Added support for raw text titles written directly after custom container directive names without brackets (e.g. `::: note-box Version 1.5` is automatically transformed to `:::note-box[Version 1.5]`). This guarantees that classic Payer-style container titles parse correctly and render the styled block instead of falling back to raw plain text paragraphs.
+* **Proper Container Title Styles (.md-box__title):** Container titles defined in brackets (either manually or via auto-bracketing) are now correctly rendered as `<div class="md-box__title">` elements in the preview panel, applying the intended bold title styles from `custom-boxes.css`.
+
+---
+
 # Release Notes — ZenTauri v1.0.3
 
 This release addresses case-sensitivity and title parsing issues for custom container blocks (such as `::: note-box`) in the live preview, and refines the default text weights inside `grammar-box2`.
