@@ -64,7 +64,7 @@ export default function remarkBoxes(this: unknown): (tree: import('mdast').Root)
   return (tree: import('mdast').Root): void => {
     visit(tree, 'containerDirective', (node: ContainerDirective, index: number | undefined, parent: import('mdast').Parent | undefined) => {
       if (!parent || index === undefined) return
-      const kind = (node.name != null ? CONTAINER_KINDS[node.name] : undefined)
+      const kind = (node.name != null ? CONTAINER_KINDS[node.name.toLowerCase()] : undefined)
       if (!kind) return // Unknown directive — skip
 
       const tagName = (kind === 'important') ? 'aside' : 'div'

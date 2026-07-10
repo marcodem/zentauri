@@ -544,6 +544,7 @@ export function renderMarkdown(src: string, options?: { markdownExtensionsEnable
   // Also normalize multimd-table syntax (|| for colspan, ^^ for rowspan, multiline cells)
   const normalizedSrc = src
     .replace(/^([ \t]*)(:{3,})[ \t]+([a-zA-Z0-9_-]+)/gm, '$1$2$3')
+    .replace(/^([ \t]*)(:{3,})([a-zA-Z0-9_-]+)[ \t]+(\[)/gm, '$1$2$3$4')
     .replace(/\|\|/g, '| |')  // colspan marker → empty cell
     .replace(/\|\^/g, '|')    // rowspan marker → empty cell (rowspan requires HTML)
 

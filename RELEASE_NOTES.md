@@ -1,3 +1,16 @@
+# Release Notes — ZenTauri v1.0.3
+
+This release addresses case-sensitivity and title parsing issues for custom container blocks (such as `::: note-box`) in the live preview, and refines the default text weights inside `grammar-box2`.
+
+## Fixed Issues & Enhancements (v1.0.3)
+
+### ✍️ Container Blocks & Markdown Parsing
+* **Case-Insensitive Container Matching:** Custom container blocks (like `::: note-box`, `::: grammar-box`, etc.) are now matched case-insensitively. Typing `::: Note-Box` or `::: Note-box` will successfully render the styled box in the live preview.
+* **Smart Space Normalization for Titles:** Normalized spaces between custom container names and the title/label brackets (e.g. `::: note-box [Title]` is automatically normalized to `:::note-box[Title]`). This ensures standard Payer-style container headers with spaces parse successfully and render headers inside the preview instead of showing raw Markdown markup.
+* **Standardized Text Weight in grammar-box2:** Removed default `font-weight: 600` styling on the `grammar-box2` container. Regular text inside `grammar-box2` is now rendered with standard font weight, and bold styling is only applied when using explicit Markdown `**` formatting, aligning its behavior with the standard `grammar-box`.
+
+---
+
 # Release Notes — ZenTauri v1.0.2
 
 This release resolves navigation and sidebar state issues when opening/loading files, refines prompt naming conventions to match English standards, and optimizes the workspace layout structure for single-file editing.

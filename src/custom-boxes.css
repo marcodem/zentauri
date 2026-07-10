@@ -60,7 +60,6 @@
   border-left: 5px solid var(--box-grammarbox2-border);
   background: var(--box-grammarbox2-bg);
   border-radius: 0 8px 8px 0;
-  font-weight: 600;
 }
 
 .md-box--grammarbox2 blockquote {
