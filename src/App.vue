@@ -41,6 +41,22 @@ graph TD
 const tabs = ref<Tab[]>([])
 const activeTabIndex = ref(-1)
 
+const activeTab = computed(() => {
+  if (activeTabIndex.value >= 0 && activeTabIndex.value < tabs.value.length) {
+    return tabs.value[activeTabIndex.value]
+  }
+  return null
+})
+
+watch(() => activeTab.value?.title, (newTitle) => {
+  if (newTitle) {
+    const nameWithoutExt = newTitle.replace(/\.[^/.]+$/, "")
+    document.title = nameWithoutExt
+  } else {
+    document.title = 'Zentauri'
+  }
+}, { immediate: true })
+
 const markdownSource = ref('')
 const editorRef = ref<InstanceType<typeof Editor> | null>(null)
 const fileTreeRef = ref<InstanceType<typeof FileTree> | null>(null)
