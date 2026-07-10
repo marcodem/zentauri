@@ -78,7 +78,7 @@ const getRelativeDirectory = (path: string) => {
   return ''
 }
 
-defineExpose({ loadRoot })
+defineExpose({ loadRoot, triggerNewRootFile, triggerNewRootFolder })
 
 // Context menu state
 const contextTarget = ref<{ node: FileEntry; x: number; y: number } | null>(null)

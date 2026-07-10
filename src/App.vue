@@ -353,28 +353,22 @@ async function loadFile(path: string) {
 }
 
 async function handleNewFile() {
-  if (!workspaceRoot.value) return
-  const name = prompt('Filename (e.g. new_file.md):', 'new_file.md')
-  if (!name) return
-  try {
-    const fullPath = `${workspaceRoot.value}/${name}`
-    await writeTextFile(fullPath, '# Neuer Titel\n\n')
-    if (fileTreeRef.value) await fileTreeRef.value.loadRoot()
-    await loadFile(fullPath)
-  } catch (err) {
-    alert(`Fehler beim Erstellen der Datei: ${err}`)
+  if (workspaceRoot.value && fileTreeRef.value) {
+    showExplorerView()
+    nextTick(() => {
+      fileTreeRef.value?.triggerNewRootFile()
+    })
+  } else {
+    openTab('Untitled Document', `untitled://${Date.now()}`, '')
   }
 }
 
 async function handleNewFolder() {
-  if (!workspaceRoot.value) return
-  const name = prompt('Folder name:', 'new_folder')
-  if (!name) return
-  try {
-    await mkdir(`${workspaceRoot.value}/${name}`)
-    if (fileTreeRef.value) await fileTreeRef.value.loadRoot()
-  } catch (err) {
-    alert(`Fehler beim Erstellen des Ordners: ${err}`)
+  if (workspaceRoot.value && fileTreeRef.value) {
+    showExplorerView()
+    nextTick(() => {
+      fileTreeRef.value?.triggerNewRootFolder()
+    })
   }
 }
 
