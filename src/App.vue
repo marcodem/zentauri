@@ -408,7 +408,7 @@ function handleJumpToLine(lineNum: number) {
   }
 }
 
-async function handlePrint() {
+async function exportPDF() {
   if (isExportingPDF.value) return
   
   // Find the rendered preview element
@@ -523,6 +523,14 @@ async function handlePrint() {
     alert(`Failed to export PDF: ${err}`)
   } finally {
     isExportingPDF.value = false
+  }
+}
+
+function handlePrint() {
+  if (isTauri) {
+    exportPDF()
+  } else {
+    window.print()
   }
 }
 </script>
