@@ -1,3 +1,24 @@
+# Release Notes — ZenTauri v1.0.5
+
+This release introduces high-fidelity PDF export and printing capabilities. It implements an offline client-side PDF compiler that works on all platforms (bypassing macOS WKWebView print dialog limitations) and formats document prints with dedicated print stylesheets.
+
+## Features & Enhancements (v1.0.5)
+
+### 🖨️ PDF Export & Native Save Dialogs
+* **Offline PDF Compiler:** Replaced the browser native `window.print()` handler with a custom client-side PDF generator using `jsPDF` and `html2canvas`. This captures the live preview canvas at 2x resolution to maintain crisp fonts, math equations, and flowcharts.
+* **Native Save File Dialog:** Prompts user to select the destination file path using Tauri's native dialog, auto-suggesting a filename derived from the active tab's title.
+* **Multi-Page A4 Segmentation:** Automatically sections long pages of Markdown preview into separate A4 sheets.
+* **Toolbar Progress Indicator:** Shows a pulsating orange dot and "Exporting PDF..." status in the app header during compilation.
+* **Native Window Menu & Shortcuts:** Added "Print..." to the OS native "File" menu (bound to `CmdOrCtrl+P`) and wired global keyboard listeners to trigger export.
+
+### 🎨 Print Styles & Webview Resiliency
+* **High-Contrast Print Theme:** Forces a clean print theme (black text on white background) under `@media print` even if dark themes (e.g. Gruvbox, Nord, Solarized) are active, saving printer ink.
+* **Mermaid SVG Scaling:** Mermaid diagrams automatically scale to `max-width: 100%` on print to prevent cropping.
+* **Page-Break Control:** Prevents elements like code blocks, quotes, tables, and custom boxes from breaking inside (`break-inside: avoid`), and disables orphans after headings (`h1` - `h6`).
+* **Browser Sandbox Resiliency:** Safely checks `isTauri` before initializing Tauri event listeners (`listen`), preventing frontend initialization crashes when loading the application outside of Tauri.
+
+---
+
 # Release Notes — ZenTauri v1.0.4
 
 This release fixes title parsing for container blocks that do not use brackets, and adds the correct visual container title styling to the live preview.

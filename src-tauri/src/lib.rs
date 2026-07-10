@@ -33,6 +33,8 @@ pub fn run() {
                     &MenuItem::with_id(app, "save", "Save", true, Some("CmdOrCtrl+S"))?,
                     &MenuItem::with_id(app, "save_as", "Save As...", true, Some("CmdOrCtrl+Shift+S"))?,
                     &PredefinedMenuItem::separator(app)?,
+                    &MenuItem::with_id(app, "print", "Print...", true, Some("CmdOrCtrl+P"))?,
+                    &PredefinedMenuItem::separator(app)?,
                     #[cfg(not(target_os = "macos"))]
                     &PredefinedMenuItem::quit(app, Some("Quit"))?,
                     #[cfg(target_os = "macos")]
@@ -108,7 +110,7 @@ pub fn run() {
             app.on_menu_event(move |app_handle, event| {
                 let id = event.id().0.as_str();
                 match id {
-                    "new_file" | "new_folder" | "open_file" | "open_folder" | "save" | "save_as" => {
+                    "new_file" | "new_folder" | "open_file" | "open_folder" | "save" | "save_as" | "print" => {
                         let _ = app_handle.emit("menu-event", id);
                     }
                     _ => {}

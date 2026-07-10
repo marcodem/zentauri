@@ -80,7 +80,7 @@ onMounted(() => {
 
 <template>
   <div 
-    class="h-full overflow-y-auto bg-app-bg text-app-text" 
+    class="h-full overflow-y-auto bg-app-bg text-app-text print:h-auto print:overflow-visible print:bg-white print:text-black" 
     style="font-size: var(--editor-font-size, 16px);"
   >
     <div 
