@@ -192,7 +192,8 @@
 /* =================================================================
  * Tables (shared across box types and standalone)
  * ============================================================== */
-.md-box table {
+.md-box table,
+.prose table {
   border-collapse: collapse;
   border: 1px solid var(--app-border);
   margin: 1rem 0;
@@ -201,7 +202,9 @@
 }
 
 .md-box td,
-.md-box th {
+.md-box th,
+.prose td,
+.prose th {
   padding: 0.6rem 0.8rem;
   border: 1px solid var(--app-border);
 }
@@ -210,16 +213,22 @@
 .md-box th[hidden],
 .md-box td[hidden],
 .md-box th[style*="display: none"],
-.md-box td[style*="display: none"] {
+.md-box td[style*="display: none"],
+.prose th[hidden],
+.prose td[hidden],
+.prose th[style*="display: none"],
+.prose td[style*="display: none"] {
   border: none;
   background: transparent;
 }
 
-.md-box tr:nth-child(even) {
+.md-box tr:nth-child(even),
+.prose tr:nth-child(even) {
   background-color: color-mix(in srgb, var(--app-bg-secondary) 50%, transparent);
 }
 
-.md-box th {
+.md-box th,
+.prose th {
   font-weight: 600;
 }
 
