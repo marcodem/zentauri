@@ -1,6 +1,6 @@
 # Zentauri
 
-Zentauri is a lightweight, high-performance Markdown note-taking editor. Built with Tauri and Vue.js, it was first conceived as an extension to ZenNotes, but later built on a modern native desktop tech stack (Tauri -> ZenTauri). It combines native desktop performance with advanced scholarly Markdown rendering features specifically aligned with the Payer project (Sanskritkurs) standards.
+Zentauri is a lightweight (ca. 30MB on Mac), high-performance Markdown note-taking editor. Built with Tauri and Vue.js, it was first conceived as an extension to ZenNotes, but later built on a modern native desktop tech stack (Tauri -> ZenTauri). It combines native desktop performance with advanced scholarly Markdown rendering features specifically aligned with the Payer project (Sanskritkurs) standards.
 
 If you wish to introduce your own Markdown syntax extensions, check out the help file under notes to developers.
 
