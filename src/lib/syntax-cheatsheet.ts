@@ -208,7 +208,7 @@ const CHEAT_SHEET: SyntaxCategory[] = [
   // ── Diagramme & Math ───────────────────────────────────────
   {
     id: 'diag',
-    title: 'Diagramme & Formeln',
+    title: 'Diagrams & Math',
     items: [
       {
         label: '```mermaid',

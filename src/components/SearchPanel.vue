@@ -68,14 +68,14 @@ function handleMatchClick(lineNum: number) {
 
 <template>
   <div class="w-64 flex-none border-r border-app-border bg-app-bg-secondary overflow-hidden p-4 text-sm shadow-inner flex flex-col h-full">
-    <h2 class="font-bold mb-4 text-app-text flex-none">Suche in Datei</h2>
+    <h2 class="font-bold mb-4 text-app-text flex-none">Search in File</h2>
     
     <!-- Inputs -->
     <div class="flex flex-col gap-2 mb-4 flex-none">
       <input 
         v-model="searchQuery"
         type="text"
-        placeholder="Suchbegriff..."
+        placeholder="Search..."
         class="w-full px-3 py-1.5 bg-app-bg border border-app-border rounded-md text-app-text focus:outline-none focus:ring-1 focus:ring-blue-500"
       />
       <div class="flex items-center gap-2">
@@ -85,17 +85,17 @@ function handleMatchClick(lineNum: number) {
           v-model="caseSensitive"
           class="w-4 h-4 text-blue-600 bg-app-bg border-app-border rounded cursor-pointer focus:ring-blue-500"
         />
-        <label for="caseSensitive" class="text-xs text-app-text-muted select-none cursor-pointer">Groß-/Kleinschreibung</label>
+        <label for="caseSensitive" class="text-xs text-app-text-muted select-none cursor-pointer">Case Sensitive</label>
       </div>
     </div>
     
     <!-- Results Info -->
     <div class="mb-3 text-xs text-app-text-muted flex-none">
       <span v-if="searchQuery">
-        {{ matches.length === 100 ? '100+ Treffer' : `${matches.length} Treffer` }}
+        {{ matches.length === 100 ? '100+ matches' : `${matches.length} matches` }}
       </span>
       <span v-else>
-        Geben Sie einen Begriff ein...
+        Enter search term...
       </span>
     </div>
 
@@ -109,7 +109,7 @@ function handleMatchClick(lineNum: number) {
           class="p-2 bg-app-bg hover:bg-app-bg-hover rounded border border-app-border cursor-pointer transition-colors"
         >
           <div class="flex justify-between items-center mb-1 text-[10px] text-app-text-muted font-mono">
-            <span>Zeile {{ match.lineNum }}</span>
+            <span>Line {{ match.lineNum }}</span>
           </div>
           <p class="text-xs break-all font-mono line-clamp-2 text-app-text">
             <span>{{ match.beforeMatch }}</span>

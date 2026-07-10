@@ -81,7 +81,7 @@ $$
 
 Highlight text using \`==\`: ==This is highlighted==
 
-**Signalrot:** Use \`:sig[Text]\` to make inline text bright red for emphasis: :sig[Achtung]
+**Signalrot:** Use \`:sig[Text]\` to make inline text bright red for emphasis: :sig[Warning]
 
 Superscripts use \`^^\`: 2^^10^^ = 1024
 

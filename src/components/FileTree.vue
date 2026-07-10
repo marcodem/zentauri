@@ -137,7 +137,7 @@ async function handleRootCreateConfirm(payload: { parentPath: string, name: stri
     await loadRoot()
     activeCreateRequest.value = null
   } catch (err) {
-    alert(`Fehler beim Erstellen: ${err}`)
+    alert(`Failed to create: ${err}`)
   }
 }
 
@@ -154,7 +154,7 @@ async function handleRootRenameConfirm(payload: { path: string, newName: string 
     activeRenamePath.value = null
     await loadRoot()
   } catch (err) {
-    alert(`Fehler beim Umbenennen: ${err}`)
+    alert(`Failed to rename: ${err}`)
   }
 }
 
@@ -163,7 +163,7 @@ async function handleRootDeleteConfirm(payload: { path: string }) {
     await remove(payload.path)
     await loadRoot()
   } catch (err) {
-    alert(`Fehler beim Löschen: ${err}`)
+    alert(`Failed to delete: ${err}`)
   }
 }
 
@@ -172,13 +172,13 @@ const contextMenuItems = computed(() => {
   if (!contextTarget.value) return []
   
   return [
-    { label: 'Neue Datei', action: 'new-file' },
-    { label: 'Neuer Ordner', action: 'new-folder' },
+    { label: 'New File', action: 'new-file' },
+    { label: 'New Folder', action: 'new-folder' },
     { divider: true },
-    { label: 'Umbenennen', action: 'rename' },
-    { label: 'Löschen', action: 'delete' },
+    { label: 'Rename', action: 'rename' },
+    { label: 'Delete', action: 'delete' },
     { divider: true },
-    { label: 'Pfad kopieren', action: 'copy-path' },
+    { label: 'Copy Path', action: 'copy-path' },
   ]
 })
 
@@ -207,7 +207,7 @@ function onContextAction(action: string) {
       activeRenamePath.value = node.path
       break
     case 'delete':
-      if (confirm(`"${node.name}" wirklich löschen?`)) {
+      if (confirm(`Are you sure you want to delete "${node.name}"?`)) {
         handleRootDeleteConfirm({ path: node.path })
       }
       break
@@ -238,13 +238,13 @@ onMounted(loadRoot)
           @click="$emit('open-folder')"
           class="w-full py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-md transition-colors shadow-sm cursor-pointer"
         >
-          Ordner öffnen
+          Open Folder
         </button>
         <button 
           @click="$emit('open-file')"
           class="w-full py-2 px-4 bg-app-bg-secondary hover:bg-app-bg text-app-text text-sm font-medium rounded-md border border-app-border transition-colors shadow-sm cursor-pointer"
         >
-          Datei öffnen
+          Open File
         </button>
       </div>
 
@@ -276,7 +276,7 @@ onMounted(loadRoot)
                 <button 
                   @click.stop="$emit('close-tab', index)"
                   class="opacity-0 group-hover/tab:opacity-100 text-app-text-muted hover:text-app-text transition-all p-[2px] rounded-sm hover:bg-app-border"
-                  title="Schließen"
+                  title="Close"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                 </button>
@@ -332,20 +332,20 @@ onMounted(loadRoot)
 
           <div v-show="isFolderExpanded" class="py-1">
             <div v-if="isLoading" class="px-6 py-2 text-xs text-app-text-muted opacity-80">
-              Lade Arbeitsbereich...
+              Loading workspace...
             </div>
             <div v-else-if="loadError" class="px-4 py-3 text-xs text-red-400 text-center flex flex-col gap-2 bg-red-950/20 border border-red-900/30 rounded mx-2 my-1">
-              <span>Fehler beim Laden:</span>
+              <span>Failed to load:</span>
               <span class="opacity-80 italic break-all font-mono text-[11px]">{{ loadError }}</span>
               <button 
                 @click="$emit('open-folder')"
                 class="mt-1 py-1 px-2 bg-red-500 hover:bg-red-600 text-white text-xs font-medium rounded transition-colors shadow-sm cursor-pointer"
               >
-                Ordner erneut öffnen
+                Reopen Folder
               </button>
             </div>
             <div v-else-if="rootEntries.length === 0" class="px-6 py-2 text-xs text-app-text-muted text-center">
-              Leerer Ordner
+              Empty folder
             </div>
             <div v-else class="flex flex-col">
               <FileTreeNode 
@@ -379,12 +379,12 @@ onMounted(loadRoot)
 
         <!-- No Folder Opened (Only shown if rootPath is not set, but we have files open) -->
         <div v-if="!rootPath" class="mt-4 px-3 py-2.5 border border-app-border rounded mx-2 bg-app-bg-secondary">
-          <p class="text-[11px] text-app-text-muted mb-2 leading-relaxed">Sie haben noch keinen Ordner geöffnet.</p>
+          <p class="text-[11px] text-app-text-muted mb-2 leading-relaxed">You have not opened a folder yet.</p>
           <button 
             @click="$emit('open-folder')"
             class="w-full py-1.5 px-3 bg-blue-500 hover:bg-blue-600 text-white text-xs font-medium rounded transition-colors shadow-sm cursor-pointer"
           >
-            Ordner öffnen
+            Open Folder
           </button>
         </div>
       </template>

@@ -61,7 +61,7 @@ defineEmits<{
         @click="$emit('toggle-view', 'help')"
         class="relative p-2 rounded-lg transition-colors group flex items-center justify-center w-10 h-10"
         :class="activeView === 'help' ? 'text-app-text' : 'text-app-text-muted hover:text-app-text'"
-        title="Hilfe / Manual"
+        title="Help / Manual"
       >
         <div v-if="activeView === 'help'" class="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-6 bg-blue-500 rounded-r-full"></div>
         <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

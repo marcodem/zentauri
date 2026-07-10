@@ -221,7 +221,7 @@ async function handleSaveAs() {
       saveTabsState()
     } catch (err) {
       console.error('Save As failed', err)
-      alert(`Fehler beim Speichern: ${err}`)
+      alert(`Failed to save: ${err}`)
     } finally {
       setTimeout(() => { isSaving.value = false }, 500)
     }
