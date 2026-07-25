@@ -908,13 +908,51 @@ a.VPLink[href="/bg/"] {
 }
 
 /* Fix for Latin letters in tables inside grammar-boxes becoming red */
+.grammar-box table strong em:not(:has(.sanskrit-dev)),
+.grammar-box table em strong:not(:has(.sanskrit-dev)),
+.grammar-box table strong:not(.signalrot):not(:has(.sanskrit-dev)),
 .vp-doc .grammar-box table strong em:not(:has(.sanskrit-dev)),
 .vp-doc .grammar-box table em strong:not(:has(.sanskrit-dev)),
 .vp-doc .grammar-box table strong:not(.signalrot):not(:has(.sanskrit-dev)) {
   color: inherit !important;
 }
-.vp-doc .signalrot { color: #ff0000 !important; font-weight: bold; }
-.vp-doc .signalrot .sanskrit-dev { color: #ff0000 !important; font-weight: 600 !important; }
+
+/* Signalrot (Red Highlight) */
+.signalrot,
+.vp-doc .signalrot { 
+  color: #ee2c30 !important; 
+  font-weight: bold !important; 
+}
+.signalrot .sanskrit-dev,
+.vp-doc .signalrot .sanskrit-dev { 
+  color: #ee2c30 !important; 
+  font-weight: 600 !important; 
+}
+
+/* Gelber Leuchtstift (Marker) */
+.marker-yellow,
+mark.marker-yellow,
+.vp-doc .marker-yellow {
+  background-color: #fef08a !important;
+  color: #713f12 !important;
+  padding: 0.1em 0.35em;
+  border-radius: 3px;
+  font-weight: 600;
+}
+.dark .marker-yellow,
+.vscode-dark .marker-yellow,
+.dark .vp-doc .marker-yellow {
+  background-color: #854d0e !important;
+  color: #fef08a !important;
+}
+
+/* Sanskrit Devanagari */
+.sanskrit-dev,
+.vp-doc .sanskrit-dev {
+  font-family: "Sanskrit 2003", "Murty Sanskrit", "Noto Sans Devanagari", "Tiro Devanagari Sanskrit", serif !important;
+  color: #ee2c30 !important;
+  font-weight: 600;
+}
 
 /* Custom settings gear icon */
 .nav-gear-icon {
