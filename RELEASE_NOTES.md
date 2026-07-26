@@ -1,3 +1,30 @@
+# Release Notes — ZenTauri v1.1.0
+
+ZenTauri v1.1.0 is a major feature release introducing seamless **Tauri v2 In-App Auto-Updates**, **Silent Auto-Repair on Save** for Markdown syntax, full integration of the shared **`markdown-it-extensible`** rendering engine, and modern code formatting with Biome.
+
+## Highlights & Key Features (v1.1.0)
+
+### 🚀 In-App Software Updates (Tauri v2 Auto-Updater)
+* **One-Click Update Checker:** Added a dedicated **Software Updates** section to the Settings modal (`Settings.vue`), allowing users to check for new Zentauri releases directly inside the application.
+* **Seamless Download & Installation:** Download and install updates with a single click without manually visiting GitHub Releases.
+* **Signed Automated Releases:** GitHub Actions workflows build and sign releases automatically, generating `latest.json` manifests for seamless desktop updates.
+
+### 🛠️ Silent Auto-Repair on Save (QA Viewer Standard)
+* **Unclosed Container Fences (`:::`):** Automatically detects and auto-closes unclosed container block fences upon save, preventing layout breakage in complex grammar documents.
+* **Unclosed Sanskrit Brackets:** Automatically fixes unclosed Sanskrit brackets (`《...》` and `⟪...⟫`) upon saving.
+* **Non-Intrusive Execution:** Runs silently on file save without disruptive popups or alerts.
+
+### 🧩 Shared `markdown-it-extensible` Integration
+* **Unified Rendering Engine:** Replaced legacy remark plugins with the shared `markdown-it-extensible` core engine across Zentauri, Payer, and VS Code.
+* **Full Directive & Container Support:** Native rendering for custom container blocks (`::: grammar-box`, `::: grammar-box2`, `::: note-box`, `::: important`, `::: center`, `::: media`, `::: indent`, `::: deleteme-box`, `::: no-header`, `::: compact`, `::: laut-table`, `::: metrik-schema`) and inline directives (`:sig[...]`, `:mark[...]`, `:br`, `:indent`).
+* **Robust CJS/ESM Interop:** Hardened module resolution for Vite and Rollup to ensure clean production builds across all platforms.
+
+### 🧹 Developer Tooling & Quality Assurance
+* **Biome Code Formatting:** Adopted Biome as the ultra-fast Rust-powered linter & formatter (`npm run format`).
+* **Vitest Test Suite:** Integrated automated unit tests for Markdown parsing and auto-repair pipelines (`auto-repair.test.ts`, `markdown.test.ts`).
+
+---
+
 # Release Notes — ZenTauri v1.0.6
 
 This release introduces an Obsidian-inspired file management experience built on a native Rust-First IPC architecture, enables MultiMarkdown table cell merging (`rowspan` and `colspan`), fixes dark-mode cursor visibility, repairs container box vector icons, and dynamically links the Snippet Dropdown with the complete Syntax Reference.
