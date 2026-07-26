@@ -20,6 +20,7 @@ import CHEAT_SHEET, { type SyntaxItem } from "./lib/syntax-cheatsheet";
 
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { readTextFile, writeTextFile, mkdir } from "@tauri-apps/plugin-fs";
+import { openUrl as tauriOpenUrl } from "@tauri-apps/plugin-opener";
 import debounce from "lodash.debounce";
 import { listen } from "@tauri-apps/api/event";
 
@@ -28,6 +29,8 @@ interface Tab {
   path: string;
   title: string;
   content: string;
+  isWeb?: boolean;
+  url?: string;
 }
 
 const defaultContent = `# Welcome to Zentauri
@@ -302,7 +305,7 @@ const autoSave = debounce(async () => {
 
 async function forceSave() {
   const tab = tabs.value[activeTabIndex.value];
-  if (tab) {
+  if (tab && !tab.isWeb) {
     const repairResult = autoRepairMarkdown(tab.content);
     if (repairResult.didRepair) {
       tab.content = repairResult.repaired;
@@ -336,7 +339,7 @@ async function handleSaveAll() {
   isSaving.value = true;
   try {
     for (const tab of tabs.value) {
-      if (tab.path && !tab.path.startsWith("untitled://")) {
+      if (tab.path && !tab.path.startsWith("untitled://") && !tab.isWeb) {
         await writeTextFile(tab.path, tab.content);
       }
     }
@@ -352,7 +355,7 @@ async function handleSaveAll() {
 
 async function handleSaveAs() {
   const tab = tabs.value[activeTabIndex.value];
-  if (!tab) return;
+  if (!tab || tab.isWeb) return;
 
   const newPath = await save({
     filters: [
@@ -381,7 +384,7 @@ async function handleSaveAs() {
 
 watch(markdownSource, (newVal) => {
   const tab = tabs.value[activeTabIndex.value];
-  if (tab && tab.content !== newVal) {
+  if (tab && !tab.isWeb && tab.content !== newVal) {
     tab.content = newVal;
     autoSave();
   }
@@ -406,7 +409,7 @@ function focusEditor() {
 }
 
 function openTab(title: string, path: string, content: string) {
-  const existingIndex = tabs.value.findIndex((t) => t.path === path);
+  const existingIndex = tabs.value.findIndex((t) => t.path === path && !t.isWeb);
   if (existingIndex >= 0) {
     activeTabIndex.value = existingIndex;
     markdownSource.value = tabs.value[existingIndex].content;
@@ -416,6 +419,7 @@ function openTab(title: string, path: string, content: string) {
       path,
       title,
       content,
+      isWeb: false,
     });
     activeTabIndex.value = tabs.value.length - 1;
     markdownSource.value = content;
@@ -424,26 +428,49 @@ function openTab(title: string, path: string, content: string) {
   focusEditor();
 }
 
+async function openExternalUrl(rawUrl: string) {
+  let url = rawUrl.trim();
+  if (!url.startsWith("http://") && !url.startsWith("https://")) {
+    url = "https://" + url;
+  }
+  try {
+    if (isTauri) {
+      await tauriOpenUrl(url);
+    } else {
+      window.open(url, "_blank");
+    }
+  } catch (err) {
+    console.error("Failed to open external URL in system browser:", err);
+    window.open(url, "_blank");
+  }
+}
+
 function closeTab(index: number, event?: Event) {
   if (event) event.stopPropagation();
   tabs.value.splice(index, 1);
   if (tabs.value.length === 0) {
     openTab("Untitled Document", `untitled://${Date.now()}`, "");
-  } else if (activeTabIndex.value >= tabs.value.length) {
-    activeTabIndex.value = tabs.value.length - 1;
-    markdownSource.value = tabs.value[activeTabIndex.value].content;
-  } else if (activeTabIndex.value === index) {
-    markdownSource.value = tabs.value[activeTabIndex.value].content;
+  } else {
+    if (activeTabIndex.value >= tabs.value.length) {
+      activeTabIndex.value = tabs.value.length - 1;
+    }
+    const currentTab = tabs.value[activeTabIndex.value];
+    if (currentTab && !currentTab.isWeb) {
+      markdownSource.value = currentTab.content;
+      focusEditor();
+    }
   }
   saveTabsState();
-  focusEditor();
 }
 
 function selectTab(index: number) {
   activeTabIndex.value = index;
-  markdownSource.value = tabs.value[index].content;
+  const tab = tabs.value[index];
+  if (tab && !tab.isWeb) {
+    markdownSource.value = tab.content;
+    focusEditor();
+  }
   saveTabsState();
-  focusEditor();
 }
 
 function showExplorerView() {
@@ -614,7 +641,7 @@ function handlePrint() {
 <template>
   <main class="flex flex-col h-screen w-screen overflow-hidden bg-app-bg text-app-text print:h-auto print:w-auto print:overflow-visible print:bg-white print:text-black">
     <Settings class="print:hidden" :isOpen="showSettings" @close="handleSettingsClose" @update="handleSettingsUpdate" />
-    <HelpSystem class="print:hidden" :isOpen="showHelpSystem" @close="showHelpSystem = false" />
+    <HelpSystem class="print:hidden" :isOpen="showHelpSystem" @close="showHelpSystem = false" @open-url="openExternalUrl" />
     
     <!-- Toolbar -->
     <header class="flex-none flex items-center px-4 py-2 border-b border-app-border bg-app-bg-secondary select-none print:hidden" data-tauri-drag-region>
@@ -759,7 +786,7 @@ function handlePrint() {
 
           <!-- Preview Pane (Right) -->
           <div v-show="showPreview" class="flex-1 h-full bg-app-bg min-w-0 print:!block print:w-full print:h-auto print:overflow-visible print:bg-white">
-            <Preview :source="markdownSource" />
+            <Preview :source="markdownSource" @open-url="openExternalUrl" />
           </div>
         </div>
 

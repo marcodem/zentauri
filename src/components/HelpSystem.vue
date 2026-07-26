@@ -4,7 +4,10 @@ import { HELP_CHAPTERS } from "../lib/helpContent";
 import Preview from "./Preview.vue";
 
 defineProps<{ isOpen: boolean }>();
-const emit = defineEmits<{ (e: "close"): void }>();
+const emit = defineEmits<{ 
+  (e: "close"): void;
+  (e: "open-url", url: string): void;
+}>();
 
 const activeChapterId = ref(HELP_CHAPTERS[0].id);
 
@@ -12,6 +15,11 @@ const activeChapterContent = computed(() => {
   const chapter = HELP_CHAPTERS.find((c) => c.id === activeChapterId.value);
   return chapter ? chapter.content : "";
 });
+
+function handleOpenUrl(url: string) {
+  emit("open-url", url);
+  emit("close");
+}
 </script>
 
 <template>
@@ -44,7 +52,7 @@ const activeChapterContent = computed(() => {
         
         <!-- Rendered Markdown Content using existing Preview component -->
         <div class="flex-1 overflow-hidden relative">
-          <Preview :source="activeChapterContent" />
+          <Preview :source="activeChapterContent" @open-url="handleOpenUrl" />
         </div>
       </div>
 

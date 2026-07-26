@@ -36,6 +36,36 @@ async function updatePreview() {
   }
 }
 
+const emit = defineEmits<{
+  (e: "open-url", url: string): void;
+}>();
+
+function handleContainerClick(event: MouseEvent) {
+  const target = event.target as HTMLElement | null;
+  if (!target) return;
+  const anchor = target.closest("a") as HTMLAnchorElement | null;
+  if (anchor) {
+    const href = anchor.getAttribute("href");
+    if (href) {
+      if (
+        href.startsWith("http://") ||
+        href.startsWith("https://") ||
+        href.startsWith("//") ||
+        href.startsWith("www.")
+      ) {
+        event.preventDefault();
+        event.stopPropagation();
+        const fullUrl = href.startsWith("www.")
+          ? `https://${href}`
+          : href.startsWith("//")
+            ? `https:${href}`
+            : href;
+        emit("open-url", fullUrl);
+      }
+    }
+  }
+}
+
 watch(
   () => props.source,
   () => {
@@ -52,6 +82,7 @@ onMounted(() => {
   <div 
     class="h-full overflow-y-auto bg-app-bg text-app-text print:h-auto print:overflow-visible print:bg-white print:text-black" 
     style="font-size: var(--editor-font-size, 16px);"
+    @click="handleContainerClick"
   >
     <div 
       ref="container" 

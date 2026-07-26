@@ -58,18 +58,24 @@ html {
   --vp-c-gutter: #0a1628;
 }
 
-/* Typografie */
+/* Typografie: Konsistent Source Serif 4 für das gesamte Dokument wie bei Payer */
+.vp-doc {
+  font-family: "Source Serif 4", serif !important;
+}
+
 .vp-doc h1,
 .vp-doc h2,
 .vp-doc h3,
 .vp-doc h4,
 .vp-doc h5,
 .vp-doc h6,
+.vp-doc p,
+.vp-doc li,
+.vp-doc table,
+.vp-doc blockquote,
 .VPHero .name,
-.VPHero .text,
-blockquote {
+.VPHero .text {
   font-family: "Source Serif 4", serif !important;
-  font-style: normal !important;
 }
 
 .vp-doc h1 {
@@ -145,16 +151,17 @@ blockquote {
   margin: 1rem 0;
   width: auto !important;
   max-width: 100%;
-  border: 1px solid #94a3b8 !important;
+  border: 1px solid var(--app-border, #94a3b8) !important;
   border-radius: 8px;
+  color: var(--app-text) !important;
 }
 
 .vp-doc th {
   background-color: transparent !important;
-  color: var(--vp-c-text-1);
+  color: var(--app-text) !important;
   font-weight: 600;
   text-align: left;
-  border-bottom: 1px solid var(--vp-c-divider) !important;
+  border-bottom: 1px solid var(--app-border, #94a3b8) !important;
 }
 
 /* Spezialregel für Tabellen ohne Kopfzeile (explizit via ::: no-header) */
@@ -163,14 +170,15 @@ blockquote {
 }
 
 .vp-doc .no-header table {
-  border-top: 1px solid #94a3b8 !important;
+  border-top: 1px solid var(--app-border, #94a3b8) !important;
   margin-top: 0 !important;
 }
 
 .vp-doc td,
 .vp-doc th {
   padding: 0.6rem 0.8rem;
-  border: 1px solid #94a3b8 !important;
+  border: 1px solid var(--app-border, #94a3b8) !important;
+  color: var(--app-text) !important;
 }
 
 .vp-doc td[colspan],
@@ -587,14 +595,9 @@ html[dir="rtl"] .vp-doc em {
   font-style: normal !important;
 }
 
-/* Hindi-Devanagari (Spalte 4) explizit schwarz */
+/* Hindi-Devanagari (Spalte 4) */
 .vp-doc table td:nth-child(4) {
-  color: #000 !important;
-  font-style: normal !important;
-}
-
-.dark .vp-doc table td:nth-child(4) {
-  color: #fff !important;
+  color: var(--app-text) !important;
   font-style: normal !important;
 }
 
