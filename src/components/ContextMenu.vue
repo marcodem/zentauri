@@ -1,80 +1,84 @@
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
+import { ref, onMounted, onBeforeUnmount, watch, nextTick } from "vue";
 
 interface MenuItem {
-  label?: string
-  action?: string
-  disabled?: boolean
-  divider?: boolean
+  label?: string;
+  action?: string;
+  disabled?: boolean;
+  divider?: boolean;
 }
 
 interface ContextTarget {
-  node: { name: string; path: string; isDirectory: boolean }
-  x: number
-  y: number
+  node: { name: string; path: string; isDirectory: boolean };
+  x: number;
+  y: number;
 }
 
 const props = defineProps<{
-  target: ContextTarget | null
-  items: MenuItem[]
-  onAction: (action: string) => void
-  onClose: () => void
-}>()
+  target: ContextTarget | null;
+  items: MenuItem[];
+  onAction: (action: string) => void;
+  onClose: () => void;
+}>();
 
-const menuRef = ref<HTMLDivElement>()
+const menuRef = ref<HTMLDivElement>();
 
 function handleClick(action: string) {
-  props.onAction(action)
-  props.onClose()
+  props.onAction(action);
+  props.onClose();
 }
 
 function handleContextMenu(e: Event) {
-  e.preventDefault()
-  e.stopPropagation()
+  e.preventDefault();
+  e.stopPropagation();
 }
 
 function handleClickOutside(e: MouseEvent) {
   if (menuRef.value && !menuRef.value.contains(e.target as Node)) {
-    props.onClose()
+    props.onClose();
   }
 }
 
 onMounted(() => {
-  document.addEventListener('click', handleClickOutside, true)
-  document.addEventListener('contextmenu', handleClickOutside, true)
-  positionMenu()
-})
+  document.addEventListener("click", handleClickOutside, true);
+  document.addEventListener("contextmenu", handleClickOutside, true);
+  positionMenu();
+});
 
 onBeforeUnmount(() => {
-  document.removeEventListener('click', handleClickOutside, true)
-  document.removeEventListener('contextmenu', handleClickOutside, true)
-})
+  document.removeEventListener("click", handleClickOutside, true);
+  document.removeEventListener("contextmenu", handleClickOutside, true);
+});
 
-watch(() => props.target, () => {
-  nextTick(() => {
-    positionMenu()
-  })
-}, { immediate: true })
+watch(
+  () => props.target,
+  () => {
+    nextTick(() => {
+      positionMenu();
+    });
+  },
+  { immediate: true },
+);
 
 function positionMenu() {
-  if (!menuRef.value || !props.target) return
-  
-  const rect = menuRef.value.getBoundingClientRect()
-  const vw = window.innerWidth
-  const vh = window.innerHeight
-  
-  let x = props.target.x
-  let y = props.target.y
-  
+  if (!menuRef.value || !props.target) return;
+
+  const rect = menuRef.value.getBoundingClientRect();
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+
+  let x = props.target.x;
+  let y = props.target.y;
+
   if (x + rect.width > vw) {
-    x = Math.max(0, vw - rect.width)
+    x = Math.max(0, vw - rect.width);
   }
   if (y + rect.height > vh) {
-    y = Math.max(0, vh - rect.height)
+    y = Math.max(0, vh - rect.height);
   }
-  
-  menuRef.value.style.left = `${x}px`
-  menuRef.value.style.top = `${y}px`
+
+  menuRef.value.style.left = `${x}px`;
+  menuRef.value.style.top = `${y}px`;
 }
 </script>
 

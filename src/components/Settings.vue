@@ -1,57 +1,57 @@
 <script setup lang="ts">
-import { ref, watch, onMounted } from 'vue'
+import { ref, watch, onMounted } from "vue";
 
 defineProps<{
-  isOpen: boolean
-}>()
+  isOpen: boolean;
+}>();
 
 const emit = defineEmits<{
-  (e: 'close'): void
-  (e: 'update', settings: any): void
-}>()
+  (e: "close"): void;
+  (e: "update", settings: any): void;
+}>();
 
-const currentTheme = ref('system')
-const fontSize = ref(16)
-const autoSave = ref(true)
-const vimMode = ref(false)
+const currentTheme = ref("system");
+const fontSize = ref(16);
+const autoSave = ref(true);
+const vimMode = ref(false);
 
 onMounted(() => {
-  const settingsStr = localStorage.getItem('zentauri-settings')
+  const settingsStr = localStorage.getItem("zentauri-settings");
   if (settingsStr) {
     try {
-      const s = JSON.parse(settingsStr)
-      if (s.theme) currentTheme.value = s.theme
-      if (s.fontSize) fontSize.value = s.fontSize
-      if (s.autoSave !== undefined) autoSave.value = s.autoSave
-      if (s.vimMode !== undefined) vimMode.value = s.vimMode
-    } catch(e) {}
+      const s = JSON.parse(settingsStr);
+      if (s.theme) currentTheme.value = s.theme;
+      if (s.fontSize) fontSize.value = s.fontSize;
+      if (s.autoSave !== undefined) autoSave.value = s.autoSave;
+      if (s.vimMode !== undefined) vimMode.value = s.vimMode;
+    } catch (e) {}
   }
-  applySettings()
-})
+  applySettings();
+});
 
 watch([currentTheme, fontSize, autoSave, vimMode], () => {
   const s = {
     theme: currentTheme.value,
     fontSize: fontSize.value,
     autoSave: autoSave.value,
-    vimMode: vimMode.value
-  }
-  localStorage.setItem('zentauri-settings', JSON.stringify(s))
-  applySettings()
-})
+    vimMode: vimMode.value,
+  };
+  localStorage.setItem("zentauri-settings", JSON.stringify(s));
+  applySettings();
+});
 
 function applySettings() {
-  const html = document.documentElement
-  html.setAttribute('data-theme', currentTheme.value)
-  html.style.setProperty('--editor-font-size', `${fontSize.value}px`)
-  
+  const html = document.documentElement;
+  html.setAttribute("data-theme", currentTheme.value);
+  html.style.setProperty("--editor-font-size", `${fontSize.value}px`);
+
   const s = {
     theme: currentTheme.value,
     fontSize: fontSize.value,
     autoSave: autoSave.value,
-    vimMode: vimMode.value
-  }
-  emit('update', s)
+    vimMode: vimMode.value,
+  };
+  emit("update", s);
 }
 </script>
 

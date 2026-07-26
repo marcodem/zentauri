@@ -1,12 +1,12 @@
 <script setup lang="ts">
 defineProps<{
-  activeView: string | null
-}>()
+  activeView: string | null;
+}>();
 
 defineEmits<{
-  (e: 'toggle-view', view: string): void
-  (e: 'action', action: string): void
-}>()
+  (e: "toggle-view", view: string): void;
+  (e: "action", action: string): void;
+}>();
 </script>
 
 <template>

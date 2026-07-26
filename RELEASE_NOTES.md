@@ -1,4 +1,37 @@
+# Release Notes — ZenTauri v1.0.6
+
+This release introduces an Obsidian-inspired file management experience built on a native Rust-First IPC architecture, enables MultiMarkdown table cell merging (`rowspan` and `colspan`), fixes dark-mode cursor visibility, repairs container box vector icons, and dynamically links the Snippet Dropdown with the complete Syntax Reference.
+
+## Features & Enhancements (v1.0.6)
+
+### 📂 Obsidian-Style File Explorer (Rust-First Architecture)
+* **Native Rust File System IPC:** Directory traversal, file metadata extraction, sorting, Drag & Drop file moves, note duplication, and system Finder/Explorer reveals are executed directly in the Rust backend (`src-tauri`), strictly adhering to our Rust-First File-Explorer architecture rule.
+* **Real-time Quick Filter Bar:** Added a dedicated search & filter input at the top of the File Explorer sidebar for instant live filtering of files and folders by name.
+* **Flexible File Tree Sorting:** Easily toggle between sorting modes: A–Z (Name Ascending), Z–A (Name Descending), and Date Modified (Newest/Oldest).
+* **Drag & Drop Note Moving:** Drag files or folders within the file tree to move them seamlessly on disk with instant visual drop-target feedback.
+* **Note Duplication:** Right-click any note to instantly create a duplicate (`_copy.md`).
+* **System File Manager Reveal:** Native right-click action ("Reveal in Finder / Explorer") opens the system file manager at the exact location of the selected file.
+* **Markdown Link Copying:** Right-click menu action to copy relative Markdown links (`[Title](relative/path.md)`) directly into the clipboard.
+
+### 📊 MultiMarkdown Table Cell Merging (`rowspan` & `colspan`)
+* **MultiMarkdown Table Plugin Integration:** Integrated `markdown-it-multimd-table` into the core renderer pipeline (`markdown.ts`), allowing complex Markdown table layouts.
+* **Vertical Cell Merging (`rowspan`):** Full support for `| ^^ |` syntax across consecutive table rows.
+* **Horizontal Cell Merging (`colspan`):** Support for both leading-pipe syntaxes (`|| text |`, `||| 3-Spalten |`) and standard MultiMarkdown trailing-pipe syntaxes (`| text |||`).
+* **Automated Centering & Alignment:** Merged cells are cleanly centered vertically (`vertical-align: middle`) and horizontally (`text-align: center`) across all themes.
+
+### 🎨 Visual Refinements & Theme Improvements
+* **Dark Mode CodeMirror Caret Visibility:** Replaced subtle or invisible text cursors with a sharp, high-contrast 2.5px solid caret that dynamically adopts the active theme's primary text color across light, dark, and custom themes.
+* **Repaired `::: important` Vector Icon:** Replaced a corrupted SVG base64 string in `payer-theme.css` with a clean inline SVG path, restoring the warning exclamation mark icon inside important container boxes.
+* **Dynamic & Adaptive Snippet Dropdown:** The Snippet Toolbar dropdown selector is now dynamically populated directly from `CHEAT_SHEET` categories (Standard Markdown, Extensions, Container Blocks, Diagrams & Math), featuring `<optgroup>` groupings and descriptive labels.
+
+### 🧹 Code Hygiene & Compatibility
+* **Standardized Plugin Imports:** Cleaned up references from legacy `extensible-markdown-plugin` names to `markdown-it-extensible`.
+* **Cleaned Regex Pipelines:** Removed destructive legacy `.replace(/\|\|/g, '| |')` patterns that previously stripped `colspan` syntax before parser execution.
+
+---
+
 # Release Notes — ZenTauri v1.0.5
+
 
 This release introduces high-fidelity PDF export and printing capabilities. It implements an offline client-side PDF compiler that works on all platforms (bypassing macOS WKWebView print dialog limitations) and formats document prints with dedicated print stylesheets.
 

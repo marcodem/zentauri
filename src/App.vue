@@ -1,23 +1,33 @@
 <script setup lang="ts">
-import { ref, watch, onMounted, computed, nextTick, onBeforeUnmount } from 'vue'
-import Editor from './components/Editor.vue'
-import Preview from './components/Preview.vue'
-import Cheatsheet from './components/Cheatsheet.vue'
-import FileTree from './components/FileTree.vue'
-import Settings from './components/Settings.vue'
-import HelpSystem from './components/HelpSystem.vue'
-import SearchPanel from './components/SearchPanel.vue'
-import ActivityBar from './components/ActivityBar.vue'
-import { open, save } from '@tauri-apps/plugin-dialog'
-import { readTextFile, writeTextFile, mkdir } from '@tauri-apps/plugin-fs'
-import debounce from 'lodash.debounce'
-import { listen } from '@tauri-apps/api/event'
+import {
+  ref,
+  watch,
+  onMounted,
+  computed,
+  nextTick,
+  onBeforeUnmount,
+} from "vue";
+import Editor from "./components/Editor.vue";
+import Preview from "./components/Preview.vue";
+import Cheatsheet from "./components/Cheatsheet.vue";
+import FileTree from "./components/FileTree.vue";
+import Settings from "./components/Settings.vue";
+import HelpSystem from "./components/HelpSystem.vue";
+import SearchPanel from "./components/SearchPanel.vue";
+import ActivityBar from "./components/ActivityBar.vue";
+import { autoRepairMarkdown } from "./lib/auto-repair";
+import CHEAT_SHEET, { type SyntaxItem } from "./lib/syntax-cheatsheet";
+
+import { open, save } from "@tauri-apps/plugin-dialog";
+import { readTextFile, writeTextFile, mkdir } from "@tauri-apps/plugin-fs";
+import debounce from "lodash.debounce";
+import { listen } from "@tauri-apps/api/event";
 
 interface Tab {
-  id: string
-  path: string
-  title: string
-  content: string
+  id: string;
+  path: string;
+  title: string;
+  content: string;
 }
 
 const defaultContent = `# Welcome to Zentauri
@@ -36,393 +46,568 @@ graph TD
   A[Tauri] --> B(Vue)
   B --> C{Zentauri}
 \`\`\`
-`
+`;
 
-const tabs = ref<Tab[]>([])
-const activeTabIndex = ref(-1)
+const tabs = ref<Tab[]>([]);
+const activeTabIndex = ref(-1);
 
 const activeTab = computed(() => {
   if (activeTabIndex.value >= 0 && activeTabIndex.value < tabs.value.length) {
-    return tabs.value[activeTabIndex.value]
+    return tabs.value[activeTabIndex.value];
   }
-  return null
-})
+  return null;
+});
 
-watch(() => activeTab.value?.title, (newTitle) => {
-  if (newTitle) {
-    const nameWithoutExt = newTitle.replace(/\.[^/.]+$/, "")
-    document.title = nameWithoutExt
-  } else {
-    document.title = 'Zentauri'
+watch(
+  () => activeTab.value?.title,
+  (newTitle) => {
+    if (newTitle) {
+      const nameWithoutExt = newTitle.replace(/\.[^/.]+$/, "");
+      document.title = nameWithoutExt;
+    } else {
+      document.title = "Zentauri";
+    }
+  },
+  { immediate: true },
+);
+
+const markdownSource = ref("");
+const editorRef = ref<InstanceType<typeof Editor> | null>(null);
+const fileTreeRef = ref<InstanceType<typeof FileTree> | null>(null);
+
+const workspaceRoot = ref<string | null>(null);
+const showPreview = ref(true);
+const showCheatsheet = ref(false);
+const showSearch = ref(false);
+const showExplorer = ref(true);
+const showSettings = ref(false);
+const showHelpSystem = ref(false);
+const vimMode = ref(false);
+const isSaving = ref(false);
+const isAutoRepaired = ref(false);
+const autoSaveEnabled = ref(true);
+
+const quickSnippets = [
+  {
+    label: "::: grammar-box",
+    before: "\n::: grammar-box\n",
+    after: "\n:::",
+    desc: "Grammar",
+    colorClass: "text-amber-500",
+  },
+  {
+    label: "::: important",
+    before: "\n::: important\n",
+    after: "\n:::",
+    desc: "Important",
+    colorClass: "text-purple-500",
+  },
+  {
+    label: "::: note-box",
+    before: "\n::: note-box\n",
+    after: "\n:::",
+    desc: "Note",
+    colorClass: "text-blue-500",
+  },
+  {
+    label: "《Sanskrit》",
+    before: "《",
+    after: "》",
+    desc: "Sanskrit",
+    colorClass: "text-red-500",
+  },
+  {
+    label: ":sig[Signal]",
+    before: ":sig[",
+    after: "]",
+    desc: "Signal",
+    colorClass: "text-red-600",
+  },
+  {
+    label: "$Math$",
+    before: "$",
+    after: "$",
+    desc: "Math",
+    colorClass: "text-emerald-500",
+  },
+  {
+    label: "|Table|",
+    before: "\n| Header 1 | Header 2 |\n|---|---|\n| Cell 1 | ",
+    after: " |\n",
+    desc: "Table",
+    colorClass: "text-app-text-muted",
+  },
+  {
+    label: "```mermaid",
+    before: "\n```mermaid\ngraph TD\n  A --> B\n",
+    after: "```\n",
+    desc: "Mermaid",
+    colorClass: "text-cyan-500",
+  },
+];
+
+function handleSelectSnippet(event: Event) {
+  const target = event.target as HTMLSelectElement;
+  if (target.value) {
+    try {
+      const item: SyntaxItem = JSON.parse(target.value);
+      handleInsertSnippet(item);
+    } catch (e) {
+      console.error("Failed to parse selected snippet:", e);
+    }
   }
-}, { immediate: true })
-
-const markdownSource = ref('')
-const editorRef = ref<InstanceType<typeof Editor> | null>(null)
-const fileTreeRef = ref<InstanceType<typeof FileTree> | null>(null)
-
-const workspaceRoot = ref<string | null>(null)
-const showPreview = ref(true)
-const showCheatsheet = ref(false)
-const showSearch = ref(false)
-const showExplorer = ref(true)
-const showSettings = ref(false)
-const showHelpSystem = ref(false)
-const vimMode = ref(false)
-const isSaving = ref(false)
-const autoSaveEnabled = ref(true)
+  target.value = "";
+}
 
 const activeActivityView = computed(() => {
-  if (showSettings.value) return 'settings'
-  if (showCheatsheet.value) return 'cheatsheet'
-  if (showSearch.value) return 'search'
-  if (showExplorer.value) return 'explorer'
-  return null
-})
+  if (showSettings.value) return "settings";
+  if (showCheatsheet.value) return "cheatsheet";
+  if (showSearch.value) return "search";
+  if (showExplorer.value) return "explorer";
+  return null;
+});
 
 function handleActivityToggle(view: string) {
-  if (view === 'explorer') {
-    showExplorer.value = !showExplorer.value
-    showSettings.value = false
-    showCheatsheet.value = false
-    showSearch.value = false
-  } else if (view === 'settings') {
-    showSettings.value = !showSettings.value
-    showExplorer.value = false
-    showCheatsheet.value = false
-    showSearch.value = false
-  } else if (view === 'cheatsheet') {
-    showCheatsheet.value = !showCheatsheet.value
-    showExplorer.value = false
-    showSettings.value = false
-    showSearch.value = false
-  } else if (view === 'search') {
-    showSearch.value = !showSearch.value
-    showExplorer.value = false
-    showSettings.value = false
-    showCheatsheet.value = false
-  } else if (view === 'help') {
-    showHelpSystem.value = !showHelpSystem.value
-    showCheatsheet.value = false
-    showSettings.value = false
-    showSearch.value = false
+  if (view === "explorer") {
+    showExplorer.value = !showExplorer.value;
+    showSettings.value = false;
+    showCheatsheet.value = false;
+    showSearch.value = false;
+  } else if (view === "settings") {
+    showSettings.value = !showSettings.value;
+    showExplorer.value = false;
+    showCheatsheet.value = false;
+    showSearch.value = false;
+  } else if (view === "cheatsheet") {
+    showCheatsheet.value = !showCheatsheet.value;
+    showExplorer.value = false;
+    showSettings.value = false;
+    showSearch.value = false;
+  } else if (view === "search") {
+    showSearch.value = !showSearch.value;
+    showExplorer.value = false;
+    showSettings.value = false;
+    showCheatsheet.value = false;
+  } else if (view === "help") {
+    showHelpSystem.value = !showHelpSystem.value;
+    showCheatsheet.value = false;
+    showSettings.value = false;
+    showSearch.value = false;
   }
 }
 
 function handleActivityAction(action: string) {
-  if (action === 'print') {
-    handlePrint()
+  if (action === "print") {
+    handlePrint();
   }
 }
 
 // Check if running inside Tauri
-const isTauri = typeof window !== 'undefined' && (window as any).__TAURI_INTERNALS__ !== undefined
+const isTauri =
+  typeof window !== "undefined" &&
+  (window as any).__TAURI_INTERNALS__ !== undefined;
 
 // Memory
 onMounted(() => {
-  window.addEventListener('keydown', handleGlobalKeydown)
-  const savedWorkspace = localStorage.getItem('zentauri-workspace')
-  if (savedWorkspace) workspaceRoot.value = savedWorkspace
-  
-  const savedTabsStr = localStorage.getItem('zentauri-tabs')
+  window.addEventListener("keydown", handleGlobalKeydown);
+  const savedWorkspace = localStorage.getItem("zentauri-workspace");
+  if (savedWorkspace) workspaceRoot.value = savedWorkspace;
+
+  const savedTabsStr = localStorage.getItem("zentauri-tabs");
   if (savedTabsStr) {
     try {
-      const savedData = JSON.parse(savedTabsStr)
+      const savedData = JSON.parse(savedTabsStr);
       if (savedData.tabs && savedData.tabs.length > 0) {
-        tabs.value = savedData.tabs
-        activeTabIndex.value = savedData.activeIndex
-        markdownSource.value = tabs.value[activeTabIndex.value]?.content || ''
+        tabs.value = savedData.tabs;
+        activeTabIndex.value = savedData.activeIndex;
+        markdownSource.value = tabs.value[activeTabIndex.value]?.content || "";
       }
-    } catch(e) {}
+    } catch (e) {}
   } else {
     // Default tab if none
-    openTab('Untitled Document', 'untitled://1', defaultContent)
+    openTab("Untitled Document", "untitled://1", defaultContent);
   }
 
-  const settingsStr = localStorage.getItem('zentauri-settings')
+  const settingsStr = localStorage.getItem("zentauri-settings");
   if (settingsStr) {
     try {
-      const s = JSON.parse(settingsStr)
-      if (s.autoSave !== undefined) autoSaveEnabled.value = s.autoSave
-    } catch(e) {}
+      const s = JSON.parse(settingsStr);
+      if (s.autoSave !== undefined) autoSaveEnabled.value = s.autoSave;
+    } catch (e) {}
   }
 
   if (isTauri) {
-    listen<string>('menu-event', (event) => {
+    listen<string>("menu-event", (event) => {
       switch (event.payload) {
-        case 'new_file': handleNewFile(); break;
-        case 'new_folder': handleNewFolder(); break;
-        case 'open_file': handleOpenFile(); break;
-        case 'open_folder': handleOpenFolder(); break;
-        case 'save': forceSave(); break;
-        case 'save_as': handleSaveAs(); break;
-        case 'print': handlePrint(); break;
+        case "new_file":
+          handleNewFile();
+          break;
+        case "new_folder":
+          handleNewFolder();
+          break;
+        case "open_file":
+          handleOpenFile();
+          break;
+        case "open_folder":
+          handleOpenFolder();
+          break;
+        case "save":
+          forceSave();
+          break;
+        case "save_as":
+          handleSaveAs();
+          break;
+        case "print":
+          handlePrint();
+          break;
       }
-    }).catch(err => {
-      console.error('Failed to setup Tauri menu event listener:', err)
-    })
+    }).catch((err) => {
+      console.error("Failed to setup Tauri menu event listener:", err);
+    });
   }
-})
+});
 
 onBeforeUnmount(() => {
-  window.removeEventListener('keydown', handleGlobalKeydown)
-})
+  window.removeEventListener("keydown", handleGlobalKeydown);
+});
 
 function handleGlobalKeydown(e: KeyboardEvent) {
-  if ((e.metaKey || e.ctrlKey) && e.key === 's') {
-    e.preventDefault()
-    forceSave()
-  } else if ((e.metaKey || e.ctrlKey) && e.key === 'p') {
-    e.preventDefault()
-    handlePrint()
+  if ((e.metaKey || e.ctrlKey) && e.key === "s") {
+    e.preventDefault();
+    forceSave();
+  } else if ((e.metaKey || e.ctrlKey) && e.key === "p") {
+    e.preventDefault();
+    handlePrint();
   }
 }
 
 const saveTabsState = () => {
-  localStorage.setItem('zentauri-tabs', JSON.stringify({
-    tabs: tabs.value,
-    activeIndex: activeTabIndex.value
-  }))
-}
+  localStorage.setItem(
+    "zentauri-tabs",
+    JSON.stringify({
+      tabs: tabs.value,
+      activeIndex: activeTabIndex.value,
+    }),
+  );
+};
 
 // Auto-Save
 const autoSave = debounce(async () => {
   if (!autoSaveEnabled.value) {
-    saveTabsState() // just save to memory
-    return
+    saveTabsState(); // just save to memory
+    return;
   }
-  await forceSave()
-}, 1000)
+  await forceSave();
+}, 1000);
 
 async function forceSave() {
-  const tab = tabs.value[activeTabIndex.value]
-  if (tab && tab.path && !tab.path.startsWith('untitled://')) {
-    isSaving.value = true
-    try {
-      await writeTextFile(tab.path, tab.content)
-      saveTabsState()
-    } catch (err) {
-      console.error('Auto-save failed', err)
-    } finally {
-      setTimeout(() => { isSaving.value = false }, 500)
+  const tab = tabs.value[activeTabIndex.value];
+  if (tab) {
+    const repairResult = autoRepairMarkdown(tab.content);
+    if (repairResult.didRepair) {
+      tab.content = repairResult.repaired;
+      markdownSource.value = repairResult.repaired;
+      isAutoRepaired.value = true;
+      setTimeout(() => {
+        isAutoRepaired.value = false;
+      }, 1500);
     }
-  } else {
-    // If untitled, do Save As
-    await handleSaveAs()
+
+    if (tab.path && !tab.path.startsWith("untitled://")) {
+      isSaving.value = true;
+      try {
+        await writeTextFile(tab.path, tab.content);
+        saveTabsState();
+      } catch (err) {
+        console.error("Auto-save failed", err);
+      } finally {
+        setTimeout(() => {
+          isSaving.value = false;
+        }, 500);
+      }
+    } else {
+      // If untitled, do Save As
+      await handleSaveAs();
+    }
   }
 }
 
 async function handleSaveAll() {
-  isSaving.value = true
+  isSaving.value = true;
   try {
     for (const tab of tabs.value) {
-      if (tab.path && !tab.path.startsWith('untitled://')) {
-        await writeTextFile(tab.path, tab.content)
+      if (tab.path && !tab.path.startsWith("untitled://")) {
+        await writeTextFile(tab.path, tab.content);
       }
     }
-    saveTabsState()
+    saveTabsState();
   } catch (err) {
-    console.error('Save all failed', err)
+    console.error("Save all failed", err);
   } finally {
-    setTimeout(() => { isSaving.value = false }, 500)
+    setTimeout(() => {
+      isSaving.value = false;
+    }, 500);
   }
 }
 
 async function handleSaveAs() {
-  const tab = tabs.value[activeTabIndex.value]
-  if (!tab) return
+  const tab = tabs.value[activeTabIndex.value];
+  if (!tab) return;
 
   const newPath = await save({
     filters: [
-      { name: 'Markdown', extensions: ['md', 'markdown'] },
-      { name: 'All Files', extensions: ['*'] }
-    ]
-  })
+      { name: "Markdown", extensions: ["md", "markdown"] },
+      { name: "All Files", extensions: ["*"] },
+    ],
+  });
 
   if (newPath) {
-    isSaving.value = true
+    isSaving.value = true;
     try {
-      await writeTextFile(newPath, tab.content)
-      tab.path = newPath
-      tab.title = newPath.split(/[/\\]/).pop() || 'Unknown'
-      saveTabsState()
+      await writeTextFile(newPath, tab.content);
+      tab.path = newPath;
+      tab.title = newPath.split(/[/\\]/).pop() || "Unknown";
+      saveTabsState();
     } catch (err) {
-      console.error('Save As failed', err)
-      alert(`Failed to save: ${err}`)
+      console.error("Save As failed", err);
+      alert(`Failed to save: ${err}`);
     } finally {
-      setTimeout(() => { isSaving.value = false }, 500)
+      setTimeout(() => {
+        isSaving.value = false;
+      }, 500);
     }
   }
 }
 
 watch(markdownSource, (newVal) => {
-  const tab = tabs.value[activeTabIndex.value]
+  const tab = tabs.value[activeTabIndex.value];
   if (tab && tab.content !== newVal) {
-    tab.content = newVal
-    autoSave()
+    tab.content = newVal;
+    autoSave();
   }
-})
+});
 
 // Tab Management
 function focusEditor() {
   // Use setTimeout to ensure CodeMirror has completed its view.dispatch and DOM updates
   setTimeout(() => {
     // 1. Vue ref method (calls view.focus() on CodeMirror)
-    if (editorRef.value && typeof editorRef.value.focus === 'function') {
-      editorRef.value.focus()
-      return
+    if (editorRef.value && typeof editorRef.value.focus === "function") {
+      editorRef.value.focus();
+      return;
     }
-    
+
     // 2. Fallback: Direct DOM focus
-    const cmContent = document.querySelector('.cm-content') as HTMLElement
+    const cmContent = document.querySelector(".cm-content") as HTMLElement;
     if (cmContent) {
-      cmContent.focus()
+      cmContent.focus();
     }
-  }, 50)
+  }, 50);
 }
 
 function openTab(title: string, path: string, content: string) {
-  const existingIndex = tabs.value.findIndex(t => t.path === path)
+  const existingIndex = tabs.value.findIndex((t) => t.path === path);
   if (existingIndex >= 0) {
-    activeTabIndex.value = existingIndex
-    markdownSource.value = tabs.value[existingIndex].content
+    activeTabIndex.value = existingIndex;
+    markdownSource.value = tabs.value[existingIndex].content;
   } else {
     tabs.value.push({
       id: Date.now().toString(),
       path,
       title,
-      content
-    })
-    activeTabIndex.value = tabs.value.length - 1
-    markdownSource.value = content
+      content,
+    });
+    activeTabIndex.value = tabs.value.length - 1;
+    markdownSource.value = content;
   }
-  saveTabsState()
-  focusEditor()
+  saveTabsState();
+  focusEditor();
 }
 
 function closeTab(index: number, event?: Event) {
-  if (event) event.stopPropagation()
-  tabs.value.splice(index, 1)
+  if (event) event.stopPropagation();
+  tabs.value.splice(index, 1);
   if (tabs.value.length === 0) {
-    openTab('Untitled Document', `untitled://${Date.now()}`, '')
+    openTab("Untitled Document", `untitled://${Date.now()}`, "");
   } else if (activeTabIndex.value >= tabs.value.length) {
-    activeTabIndex.value = tabs.value.length - 1
-    markdownSource.value = tabs.value[activeTabIndex.value].content
+    activeTabIndex.value = tabs.value.length - 1;
+    markdownSource.value = tabs.value[activeTabIndex.value].content;
   } else if (activeTabIndex.value === index) {
-    markdownSource.value = tabs.value[activeTabIndex.value].content
+    markdownSource.value = tabs.value[activeTabIndex.value].content;
   }
-  saveTabsState()
-  focusEditor()
+  saveTabsState();
+  focusEditor();
 }
 
 function selectTab(index: number) {
-  activeTabIndex.value = index
-  markdownSource.value = tabs.value[index].content
-  saveTabsState()
-  focusEditor()
+  activeTabIndex.value = index;
+  markdownSource.value = tabs.value[index].content;
+  saveTabsState();
+  focusEditor();
 }
 
 function showExplorerView() {
-  showExplorer.value = true
-  showSettings.value = false
-  showCheatsheet.value = false
-  showSearch.value = false
+  showExplorer.value = true;
+  showSettings.value = false;
+  showCheatsheet.value = false;
+  showSearch.value = false;
 }
 
 async function handleOpenFile() {
-  const selected = await open({
-    multiple: false,
-    filters: [
-      { name: 'Markdown', extensions: ['md', 'markdown'] },
-      { name: 'All Files', extensions: ['*'] }
-    ]
-  })
-  
-  if (selected && typeof selected === 'string') {
-    await loadFile(selected)
+  if (!isTauri) {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".md,.markdown,.txt";
+    input.onchange = async (e: Event) => {
+      const target = e.target as HTMLInputElement;
+      if (target.files && target.files[0]) {
+        const file = target.files[0];
+        const text = await file.text();
+        openTab(file.name, `browser://${file.name}`, text);
+        showExplorerView();
+      }
+    };
+    input.click();
+    return;
+  }
+
+  try {
+    const selected = await open({
+      multiple: false,
+      filters: [
+        { name: "Markdown", extensions: ["md", "markdown"] },
+        { name: "All Files", extensions: ["*"] },
+      ],
+    });
+
+    if (selected && typeof selected === "string") {
+      await loadFile(selected);
+    }
+  } catch (err) {
+    console.error("Failed to open file via Tauri dialog:", err);
   }
 }
 
 async function handleOpenFolder() {
-  const selected = await open({
-    directory: true,
-    multiple: false
-  })
-  
-  if (selected && typeof selected === 'string') {
-    workspaceRoot.value = selected
-    showExplorerView()
-    localStorage.setItem('zentauri-workspace', selected)
+  if (!isTauri) {
+    // Try HTML5 Directory Picker API or Fallback
+    if ("showDirectoryPicker" in window) {
+      try {
+        const dirHandle = await (window as any).showDirectoryPicker();
+        workspaceRoot.value = dirHandle.name;
+        showExplorerView();
+        localStorage.setItem("zentauri-workspace", dirHandle.name);
+        return;
+      } catch (err) {
+        // User cancelled or not supported
+      }
+    }
+
+    const promptPath = window.prompt(
+      "Geben Sie einen Workspace-Pfad oder Namen ein:",
+      workspaceRoot.value || "Zentauri-Workspace",
+    );
+    if (promptPath) {
+      workspaceRoot.value = promptPath;
+      showExplorerView();
+      localStorage.setItem("zentauri-workspace", promptPath);
+    }
+    return;
+  }
+
+  try {
+    const selected = await open({
+      directory: true,
+      multiple: false,
+    });
+
+    if (selected && typeof selected === "string") {
+      workspaceRoot.value = selected;
+      showExplorerView();
+      localStorage.setItem("zentauri-workspace", selected);
+    }
+  } catch (err) {
+    console.error("Failed to open folder via Tauri dialog:", err);
   }
 }
 
 async function loadFile(path: string) {
-  const existingIndex = tabs.value.findIndex(t => t.path === path || t.id === path)
+  const existingIndex = tabs.value.findIndex(
+    (t) => t.path === path || t.id === path,
+  );
   if (existingIndex >= 0) {
-    selectTab(existingIndex)
-    showExplorerView()
-    return
+    selectTab(existingIndex);
+    showExplorerView();
+    return;
   }
 
-  if (path.startsWith('untitled://')) {
-    return
+  if (path.startsWith("untitled://")) {
+    return;
   }
 
   try {
-    const text = await readTextFile(path)
-    const title = path.split(/[/\\]/).pop() || 'Unknown'
-    openTab(title, path, text)
-    showExplorerView()
-    focusEditor()
+    const text = await readTextFile(path);
+    const title = path.split(/[/\\]/).pop() || "Unknown";
+    openTab(title, path, text);
+    showExplorerView();
+    focusEditor();
   } catch (err) {
-    console.error('Failed to load file', err)
+    console.error("Failed to load file", err);
   }
 }
 
 async function handleNewFile() {
   if (workspaceRoot.value && fileTreeRef.value) {
-    showExplorerView()
+    showExplorerView();
     nextTick(() => {
-      fileTreeRef.value?.triggerNewRootFile()
-    })
+      fileTreeRef.value?.triggerNewRootFile();
+    });
   } else {
-    openTab('Untitled Document', `untitled://${Date.now()}`, '')
+    openTab("Untitled Document", `untitled://${Date.now()}`, "");
   }
 }
 
 async function handleNewFolder() {
   if (workspaceRoot.value && fileTreeRef.value) {
-    showExplorerView()
+    showExplorerView();
     nextTick(() => {
-      fileTreeRef.value?.triggerNewRootFolder()
-    })
+      fileTreeRef.value?.triggerNewRootFolder();
+    });
   }
 }
 
 function handleSettingsUpdate(settings: any) {
-  if (settings.autoSave !== undefined) autoSaveEnabled.value = settings.autoSave
-  if (settings.vimMode !== undefined) vimMode.value = settings.vimMode
-  if (settings.showCheatsheet !== undefined) showCheatsheet.value = settings.showCheatsheet
+  if (settings.autoSave !== undefined)
+    autoSaveEnabled.value = settings.autoSave;
+  if (settings.vimMode !== undefined) vimMode.value = settings.vimMode;
+  if (settings.showCheatsheet !== undefined)
+    showCheatsheet.value = settings.showCheatsheet;
 }
 
 function handleSettingsClose() {
-  showSettings.value = false
+  showSettings.value = false;
 }
 
 function handleInsertFromCheatsheet(text: string) {
   if (editorRef.value) {
-    editorRef.value.insertText(text + '\n')
+    editorRef.value.insertText(text + "\n");
+  }
+}
+
+function handleInsertSnippet(item: SyntaxItem) {
+  if (editorRef.value) {
+    editorRef.value.wrapSelection(item.before, item.after);
   }
 }
 
 function handleJumpToLine(lineNum: number) {
   if (editorRef.value) {
-    editorRef.value.jumpToLine(lineNum)
+    editorRef.value.jumpToLine(lineNum);
   }
 }
 
 function handlePrint() {
-  window.print()
+  window.print();
 }
 </script>
 
@@ -433,14 +618,16 @@ function handlePrint() {
     
     <!-- Toolbar -->
     <header class="flex-none flex items-center px-4 py-2 border-b border-app-border bg-app-bg-secondary select-none print:hidden" data-tauri-drag-region>
-      <!-- Auto-Save Status -->
+      <!-- Auto-Save & Auto-Repair Status -->
       <div class="flex-1 text-center text-sm font-medium text-app-text-muted absolute left-0 right-0 pointer-events-none flex items-center justify-center gap-2">
-        <span v-if="isSaving" class="inline-block w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+        <span v-if="isAutoRepaired" class="inline-block w-2.5 h-2.5 rounded-full bg-amber-400 animate-bounce" title="Auto-Repaired Syntax"></span>
+        <span v-else-if="isSaving" class="inline-block w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
         <span v-else class="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
-        {{ isSaving ? 'Saving...' : 'Saved' }}
+        {{ isAutoRepaired ? 'Auto-Repaired & Saved' : (isSaving ? 'Saving...' : 'Saved') }}
       </div>
       
       <div class="flex gap-1 z-10 relative ml-auto">
+
         <button 
           @click="showPreview = !showPreview"
           class="px-2 py-1.5 text-sm font-medium rounded-md hover:bg-app-bg transition-colors border border-transparent shadow-sm flex items-center justify-center text-app-text-muted hover:text-app-text"
@@ -481,7 +668,7 @@ function handlePrint() {
 
       <!-- Cheatsheet Sidebar -->
       <div v-show="showCheatsheet" class="flex-none print:hidden h-full">
-        <Cheatsheet @insert="handleInsertFromCheatsheet" class="h-full" />
+        <Cheatsheet @insertSnippet="handleInsertSnippet" @insert="handleInsertFromCheatsheet" class="h-full" />
       </div>
 
       <!-- Search Sidebar -->
@@ -493,7 +680,7 @@ function handlePrint() {
         />
       </div>
 
-      <!-- Main Editor Area -->
+      <!-- Main Workspace Area -->
       <div class="flex-1 flex flex-col min-w-0 bg-app-bg relative print:block print:overflow-visible print:h-auto">
         <!-- Tab Bar -->
         <div class="flex-none flex items-center overflow-x-auto border-b border-app-border bg-app-bg-secondary print:hidden">
@@ -518,18 +705,64 @@ function handlePrint() {
           </div>
         </div>
         
-        <!-- Editor/Preview Split -->
+        <!-- Editor/Preview Split (Editor Left, Preview Right) -->
         <div class="flex-1 flex overflow-hidden print:block print:overflow-visible print:h-auto">
-          <!-- Editor Pane -->
-          <div class="flex-1 h-full border-r border-app-border min-w-0 print:hidden">
-            <Editor ref="editorRef" v-model="markdownSource" :vimMode="vimMode" />
+          <!-- Editor Pane (Left) -->
+          <div class="flex-1 h-full min-w-0 flex flex-col border-r border-app-border print:hidden">
+            <!-- Quick Snippet Toolbar (Dynamic Dropdown populated directly from Syntax Reference CHEAT_SHEET) -->
+            <div class="flex-none flex items-center justify-between gap-2 px-3 py-1.5 bg-app-bg-secondary border-b border-app-border text-xs select-none">
+              <div class="flex items-center gap-2 min-w-0 flex-1 overflow-x-auto">
+                <span class="text-app-text-muted font-medium shrink-0">Snippets:</span>
+
+                <!-- Always Visible Dynamic Dropdown Select (All Syntax Reference Items grouped by category) -->
+                <div class="flex items-center shrink-0 min-w-[200px] max-w-[280px]">
+                  <select 
+                    @change="handleSelectSnippet" 
+                    class="w-full bg-app-bg text-app-text text-xs border border-app-border rounded px-2 py-1 focus:outline-none focus:border-blue-500 cursor-pointer font-mono shadow-xs"
+                  >
+                    <option value="" disabled selected>-- Syntax Snippet wählen --</option>
+                    <optgroup v-for="cat in CHEAT_SHEET" :key="cat.id" :label="cat.title">
+                      <option 
+                        v-for="item in cat.items" 
+                        :key="item.label" 
+                        :value="JSON.stringify(item)"
+                      >
+                        {{ item.label }} ({{ item.desc }})
+                      </option>
+                    </optgroup>
+                  </select>
+                </div>
+
+                <!-- Extra Wide View: Inline Horizontal Quick Buttons -->
+                <div class="hidden xl:flex items-center gap-1.5 overflow-x-auto">
+                  <button 
+                    v-for="s in quickSnippets" 
+                    :key="s.label"
+                    @click="handleInsertSnippet({ label: s.label, before: s.before, after: s.after, desc: s.desc })" 
+                    class="px-2 py-0.5 rounded bg-app-bg hover:bg-app-bg-hover border border-app-border font-mono transition-colors whitespace-nowrap shrink-0"
+                    :class="s.colorClass"
+                  >
+                    {{ s.label }}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+
+
+
+            <!-- CodeMirror Editor -->
+            <div class="flex-1 h-full min-w-0 overflow-hidden">
+              <Editor ref="editorRef" v-model="markdownSource" :vimMode="vimMode" />
+            </div>
           </div>
-          
-          <!-- Preview Pane -->
+
+          <!-- Preview Pane (Right) -->
           <div v-show="showPreview" class="flex-1 h-full bg-app-bg min-w-0 print:!block print:w-full print:h-auto print:overflow-visible print:bg-white">
             <Preview :source="markdownSource" />
           </div>
         </div>
+
       </div>
     </div>
   </main>

@@ -1,303 +1,419 @@
 <script setup lang="ts">
-import { ref, computed, watch, nextTick, onMounted } from 'vue'
-import { readDir, mkdir, writeTextFile, rename, remove } from '@tauri-apps/plugin-fs'
+import { ref, computed, watch, nextTick, onMounted } from "vue";
+import {
+  readDir,
+  mkdir,
+  writeTextFile,
+  rename,
+  remove,
+} from "@tauri-apps/plugin-fs";
 
 export interface FileEntry {
-  name: string
-  path: string
-  isDirectory: boolean
-  isNew?: boolean
-  newType?: 'file' | 'directory'
+  name: string;
+  path: string;
+  isDirectory: boolean;
+  isNew?: boolean;
+  newType?: "file" | "directory";
 }
 
 const props = defineProps<{
-  node: FileEntry
-  depth: number
-  activePath?: string
-  collapseTrigger?: number
-  activeCreateRequest?: { parentPath: string; type: 'file' | 'directory' } | null
-  activeRenamePath?: string | null
-}>()
+  node: FileEntry;
+  depth: number;
+  activePath?: string;
+  collapseTrigger?: number;
+  activeCreateRequest?: {
+    parentPath: string;
+    type: "file" | "directory";
+  } | null;
+  activeRenamePath?: string | null;
+}>();
 
 const emit = defineEmits<{
-  (e: 'select', path: string): void
-  (e: 'contextmenu', payload: { node: FileEntry; x: number; y: number }): void
-  (e: 'create-confirm', payload: { parentPath: string, name: string, type: 'file' | 'directory' }): void
-  (e: 'create-cancel'): void
-  (e: 'rename-confirm', payload: { path: string, newName: string }): void
-  (e: 'delete-confirm', payload: { path: string }): void
-}>()
+  (e: "select", path: string): void;
+  (e: "contextmenu", payload: { node: FileEntry; x: number; y: number }): void;
+  (
+    e: "create-confirm",
+    payload: { parentPath: string; name: string; type: "file" | "directory" },
+  ): void;
+  (e: "create-cancel"): void;
+  (e: "rename-confirm", payload: { path: string; newName: string }): void;
+  (e: "delete-confirm", payload: { path: string }): void;
+  (
+    e: "move-confirm",
+    payload: { sourcePath: string; targetDirPath: string },
+  ): void;
+}>();
 
-const isOpen = ref(false)
-const children = ref<FileEntry[]>([])
-const isLoading = ref(false)
-const nodeRef = ref<HTMLElement>()
+const isOpen = ref(false);
+const children = ref<FileEntry[]>([]);
+const isLoading = ref(false);
+const nodeRef = ref<HTMLElement>();
+const isDragOver = ref(false);
 
-const isEditing = ref(false)
-const editName = ref('')
-const inputRef = ref<HTMLInputElement>()
+const isEditing = ref(false);
+const editName = ref("");
+const inputRef = ref<HTMLInputElement>();
 
 const isMarkdown = computed(() => {
-  return props.node.name.toLowerCase().endsWith('.md') || props.node.name.toLowerCase().endsWith('.markdown')
-})
+  return (
+    props.node.name.toLowerCase().endsWith(".md") ||
+    props.node.name.toLowerCase().endsWith(".markdown")
+  );
+});
 
 const fileIconType = computed(() => {
   if (props.node.isNew) {
-    return props.node.newType === 'directory' ? 'directory' : 'markdown'
+    return props.node.newType === "directory" ? "directory" : "markdown";
   }
-  if (props.node.isDirectory) return 'directory'
-  const name = props.node.name.toLowerCase()
-  if (name.endsWith('.md') || name.endsWith('.markdown')) return 'markdown'
-  if (name.endsWith('.pdf')) return 'pdf'
-  if (name.endsWith('.png') || name.endsWith('.jpg') || name.endsWith('.jpeg') || name.endsWith('.gif') || name.endsWith('.webp')) return 'image'
-  if (name.endsWith('.json') || name.endsWith('.toml') || name.endsWith('.yaml') || name.endsWith('.yml')) return 'config'
-  return 'default'
-})
+  if (props.node.isDirectory) return "directory";
+  const name = props.node.name.toLowerCase();
+  if (name.endsWith(".md") || name.endsWith(".markdown")) return "markdown";
+  if (name.endsWith(".pdf")) return "pdf";
+  if (
+    name.endsWith(".png") ||
+    name.endsWith(".jpg") ||
+    name.endsWith(".jpeg") ||
+    name.endsWith(".gif") ||
+    name.endsWith(".webp")
+  )
+    return "image";
+  if (
+    name.endsWith(".json") ||
+    name.endsWith(".toml") ||
+    name.endsWith(".yaml") ||
+    name.endsWith(".yml")
+  )
+    return "config";
+  return "default";
+});
 
 const ensureOpen = async () => {
-  if (!props.node.isDirectory) return
-  if (isOpen.value) return
-  
-  isOpen.value = true
-  
+  if (!props.node.isDirectory) return;
+  if (isOpen.value) return;
+
+  isOpen.value = true;
+
   if (children.value.length === 0) {
-    isLoading.value = true
+    isLoading.value = true;
     try {
-      const entries = await readDir(props.node.path)
+      const entries = await readDir(props.node.path);
       children.value = entries
-        .map(e => ({
-          name: e.name || 'unknown',
+        .map((e) => ({
+          name: e.name || "unknown",
           path: `${props.node.path}/${e.name}`,
-          isDirectory: e.isDirectory
+          isDirectory: e.isDirectory,
         }))
-        .filter(e => e.isDirectory || e.name.toLowerCase().endsWith('.md') || e.name.toLowerCase().endsWith('.markdown'))
+        .filter(
+          (e) =>
+            e.isDirectory ||
+            e.name.toLowerCase().endsWith(".md") ||
+            e.name.toLowerCase().endsWith(".markdown"),
+        )
         .sort((a, b) => {
-          if (a.isDirectory && !b.isDirectory) return -1
-          if (!a.isDirectory && b.isDirectory) return 1
-          return a.name.localeCompare(b.name)
-        })
+          if (a.isDirectory && !b.isDirectory) return -1;
+          if (!a.isDirectory && b.isDirectory) return 1;
+          return a.name.localeCompare(b.name);
+        });
     } catch (e) {
-      console.error('Failed to read dir', e)
+      console.error("Failed to read dir", e);
     } finally {
-      isLoading.value = false
+      isLoading.value = false;
     }
   }
-}
+};
 
 const toggleDir = async () => {
   if (isOpen.value) {
-    isOpen.value = false
+    isOpen.value = false;
   } else {
-    await ensureOpen()
+    await ensureOpen();
   }
-}
+};
 
 const onClick = () => {
-  if (isEditing.value || props.node.isNew) return
+  if (isEditing.value || props.node.isNew) return;
   if (props.node.isDirectory) {
-    toggleDir()
+    toggleDir();
   } else {
-    emit('select', props.node.path)
+    emit("select", props.node.path);
   }
-}
+};
 
 const onContextMenu = (e: MouseEvent) => {
-  if (isEditing.value || props.node.isNew) return
-  e.preventDefault()
-  e.stopPropagation()
-  emit('contextmenu', { node: props.node, x: e.clientX, y: e.clientY })
-}
+  if (isEditing.value || props.node.isNew) return;
+  e.preventDefault();
+  e.stopPropagation();
+  emit("contextmenu", { node: props.node, x: e.clientX, y: e.clientY });
+};
 
 const onKeyDown = (e: KeyboardEvent) => {
-  if (isEditing.value || props.node.isNew) return
-  if (e.key === 'ArrowRight' && props.node.isDirectory && !isOpen.value) {
-    toggleDir()
-  } else if (e.key === 'ArrowLeft' && props.node.isDirectory && isOpen.value) {
-    isOpen.value = false
-  } else if (e.key === 'Enter' && !props.node.isDirectory) {
-    emit('select', props.node.path)
+  if (isEditing.value || props.node.isNew) return;
+  if (e.key === "ArrowRight" && props.node.isDirectory && !isOpen.value) {
+    toggleDir();
+  } else if (e.key === "ArrowLeft" && props.node.isDirectory && isOpen.value) {
+    isOpen.value = false;
+  } else if (e.key === "Enter" && !props.node.isDirectory) {
+    emit("select", props.node.path);
   }
-}
+};
 
 // Watchers
-watch(() => props.collapseTrigger, () => {
-  if (props.node.isDirectory) {
-    isOpen.value = false
-  }
-})
-
-watch(() => props.activeRenamePath, (newVal) => {
-  if (newVal === props.node.path) {
-    isEditing.value = true
-    editName.value = props.node.name
-    nextTick(() => {
-      if (inputRef.value) {
-        inputRef.value.focus()
-        const dotIndex = props.node.name.lastIndexOf('.')
-        if (dotIndex > 0 && !props.node.isDirectory) {
-          inputRef.value.setSelectionRange(0, dotIndex)
-        } else {
-          inputRef.value.select()
-        }
-      }
-    })
-  } else {
-    isEditing.value = false
-  }
-})
-
-watch(() => props.activeCreateRequest, (newVal) => {
-  if (newVal && newVal.parentPath === props.node.path) {
-    ensureOpen().then(() => {
-      if (!children.value.some(c => c.isNew)) {
-        children.value.unshift({
-          name: '',
-          path: props.node.path, // parent path
-          isDirectory: newVal.type === 'directory',
-          isNew: true,
-          newType: newVal.type
-        })
-      }
-    })
-  }
-})
-
-watch(() => props.activePath, (newVal) => {
-  if (newVal && props.node.isDirectory) {
-    const normalizedNode = props.node.path.replace(/\\/g, '/')
-    const normalizedActive = newVal.replace(/\\/g, '/')
-    if (normalizedActive.startsWith(normalizedNode + '/')) {
-      ensureOpen()
+watch(
+  () => props.collapseTrigger,
+  () => {
+    if (props.node.isDirectory) {
+      isOpen.value = false;
     }
-  }
-  
-  if (newVal === props.node.path) {
-    nextTick(() => {
-      nodeRef.value?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
-      nodeRef.value?.focus()
-    })
-  }
-}, { immediate: true })
+  },
+);
+
+watch(
+  () => props.activeRenamePath,
+  (newVal) => {
+    if (newVal === props.node.path) {
+      isEditing.value = true;
+      editName.value = props.node.name;
+      nextTick(() => {
+        if (inputRef.value) {
+          inputRef.value.focus();
+          const dotIndex = props.node.name.lastIndexOf(".");
+          if (dotIndex > 0 && !props.node.isDirectory) {
+            inputRef.value.setSelectionRange(0, dotIndex);
+          } else {
+            inputRef.value.select();
+          }
+        }
+      });
+    } else {
+      isEditing.value = false;
+    }
+  },
+);
+
+watch(
+  () => props.activeCreateRequest,
+  (newVal) => {
+    if (newVal && newVal.parentPath === props.node.path) {
+      ensureOpen().then(() => {
+        if (!children.value.some((c) => c.isNew)) {
+          children.value.unshift({
+            name: "",
+            path: props.node.path, // parent path
+            isDirectory: newVal.type === "directory",
+            isNew: true,
+            newType: newVal.type,
+          });
+        }
+      });
+    }
+  },
+);
+
+watch(
+  () => props.activePath,
+  (newVal) => {
+    if (newVal && props.node.isDirectory) {
+      const normalizedNode = props.node.path.replace(/\\/g, "/");
+      const normalizedActive = newVal.replace(/\\/g, "/");
+      if (normalizedActive.startsWith(normalizedNode + "/")) {
+        ensureOpen();
+      }
+    }
+
+    if (newVal === props.node.path) {
+      nextTick(() => {
+        nodeRef.value?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+        nodeRef.value?.focus();
+      });
+    }
+  },
+  { immediate: true },
+);
 
 onMounted(() => {
   if (props.node.isNew) {
-    editName.value = props.node.newType === 'file' ? 'new_file.md' : 'new_folder'
+    editName.value =
+      props.node.newType === "file" ? "new_file.md" : "new_folder";
     nextTick(() => {
       if (inputRef.value) {
-        inputRef.value.focus()
-        if (props.node.newType === 'file') {
-          inputRef.value.setSelectionRange(0, 8) // "new_file" length
+        inputRef.value.focus();
+        if (props.node.newType === "file") {
+          inputRef.value.setSelectionRange(0, 8); // "new_file" length
         } else {
-          inputRef.value.select()
+          inputRef.value.select();
         }
       }
-    })
+    });
   }
-})
+});
 
 async function submitEdit() {
-  const trimmed = editName.value.trim()
+  const trimmed = editName.value.trim();
   if (!trimmed) {
-    cancelEdit()
-    return
+    cancelEdit();
+    return;
   }
-  
+
   if (props.node.isNew) {
-    emit('create-confirm', {
+    emit("create-confirm", {
       parentPath: props.node.path,
       name: trimmed,
-      type: props.node.newType!
-    })
+      type: props.node.newType!,
+    });
   } else {
     if (trimmed !== props.node.name) {
-      emit('rename-confirm', {
+      emit("rename-confirm", {
         path: props.node.path,
-        newName: trimmed
-      })
+        newName: trimmed,
+      });
     } else {
-      isEditing.value = false
+      isEditing.value = false;
     }
   }
 }
 
 function cancelEdit() {
   if (props.node.isNew) {
-    emit('create-cancel')
+    emit("create-cancel");
   } else {
-    isEditing.value = false
+    isEditing.value = false;
   }
 }
 
+function onDragStart(e: DragEvent) {
+  if (isEditing.value || props.node.isNew || !e.dataTransfer) return;
+  e.dataTransfer.setData("text/plain", props.node.path);
+  e.dataTransfer.effectAllowed = "move";
+}
+
+function onDragOver(e: DragEvent) {
+  if (!e.dataTransfer) return;
+  e.preventDefault();
+  e.dataTransfer.dropEffect = "move";
+  if (props.node.isDirectory) {
+    isDragOver.value = true;
+  }
+}
+
+function onDragLeave() {
+  isDragOver.value = false;
+}
+
+function onDrop(e: DragEvent) {
+  e.preventDefault();
+  isDragOver.value = false;
+  if (!e.dataTransfer) return;
+  const sourcePath = e.dataTransfer.getData("text/plain");
+  if (!sourcePath || sourcePath === props.node.path) return;
+
+  const targetDir = props.node.isDirectory
+    ? props.node.path
+    : props.node.path.substring(0, props.node.path.lastIndexOf("/"));
+
+  emit("move-confirm", { sourcePath, targetDirPath: targetDir });
+}
+
 // Child node handlers
-async function handleChildCreateConfirm(payload: { parentPath: string, name: string, type: 'file' | 'directory' }) {
-  const fullPath = `${payload.parentPath}/${payload.name}`
+
+async function handleChildCreateConfirm(payload: {
+  parentPath: string;
+  name: string;
+  type: "file" | "directory";
+}) {
+  const fullPath = `${payload.parentPath}/${payload.name}`;
   try {
-    if (payload.type === 'file') {
-      await writeTextFile(fullPath, '# ' + payload.name.replace(/\.md$/, '') + '\n\n')
-      emit('select', fullPath)
+    if (payload.type === "file") {
+      await writeTextFile(
+        fullPath,
+        "# " + payload.name.replace(/\.md$/, "") + "\n\n",
+      );
+      emit("select", fullPath);
     } else {
-      await mkdir(fullPath)
+      await mkdir(fullPath);
     }
-    await refresh()
+    await refresh();
   } catch (err) {
-    alert(`Fehler beim Erstellen: ${err}`)
+    alert(`Fehler beim Erstellen: ${err}`);
   }
 }
 
 function handleChildCreateCancel() {
-  children.value = children.value.filter(c => !c.isNew)
+  children.value = children.value.filter((c) => !c.isNew);
 }
 
-async function handleChildRenameConfirm(payload: { path: string, newName: string }) {
-  const parentDir = payload.path.substring(0, payload.path.lastIndexOf('/'))
-  const newPath = `${parentDir}/${payload.newName}`
+async function handleChildRenameConfirm(payload: {
+  path: string;
+  newName: string;
+}) {
+  const parentDir = payload.path.substring(0, payload.path.lastIndexOf("/"));
+  const newPath = `${parentDir}/${payload.newName}`;
   try {
-    await rename(payload.path, newPath)
-    await refresh()
+    await rename(payload.path, newPath);
+    await refresh();
   } catch (err) {
-    alert(`Fehler beim Umbenennen: ${err}`)
+    alert(`Fehler beim Umbenennen: ${err}`);
   }
 }
 
 async function handleChildDeleteConfirm(payload: { path: string }) {
   try {
-    await remove(payload.path)
-    await refresh()
+    await remove(payload.path);
+    await refresh();
   } catch (err) {
-    alert(`Fehler beim Löschen: ${err}`)
+    alert(`Fehler beim Löschen: ${err}`);
   }
 }
 
 async function refresh() {
-  if (!props.node.isDirectory) return
+  if (!props.node.isDirectory) return;
   try {
-    const entries = await readDir(props.node.path)
+    const entries = await readDir(props.node.path);
     children.value = entries
-      .map(e => ({
-        name: e.name || 'unknown',
+      .map((e) => ({
+        name: e.name || "unknown",
         path: `${props.node.path}/${e.name}`,
-        isDirectory: e.isDirectory
+        isDirectory: e.isDirectory,
       }))
-      .filter(e => e.isDirectory || e.name.toLowerCase().endsWith('.md') || e.name.toLowerCase().endsWith('.markdown'))
+      .filter(
+        (e) =>
+          e.isDirectory ||
+          e.name.toLowerCase().endsWith(".md") ||
+          e.name.toLowerCase().endsWith(".markdown"),
+      )
       .sort((a, b) => {
-        if (a.isDirectory && !b.isDirectory) return -1
-        if (!a.isDirectory && b.isDirectory) return 1
-        return a.name.localeCompare(b.name)
-      })
+        if (a.isDirectory && !b.isDirectory) return -1;
+        if (!a.isDirectory && b.isDirectory) return 1;
+        return a.name.localeCompare(b.name);
+      });
   } catch (e) {
-    console.error('Failed to read dir', e)
+    console.error("Failed to read dir", e);
   }
 }
 </script>
 
 <template>
-  <div ref="nodeRef" @contextmenu="onContextMenu" @keydown="onKeyDown" tabindex="0" class="outline-none">
+  <div 
+    ref="nodeRef" 
+    @contextmenu="onContextMenu" 
+    @keydown="onKeyDown" 
+    tabindex="0" 
+    class="outline-none"
+    :draggable="!isEditing && !node.isNew"
+    @dragstart="onDragStart"
+    @dragover="onDragOver"
+    @dragleave="onDragLeave"
+    @drop="onDrop"
+  >
     <div 
-      class="flex items-center py-1.5 px-2 cursor-pointer hover:bg-app-bg-hover transition-colors rounded-md mx-1 my-0.5"
-      :class="{ 'bg-app-bg-active text-blue-500 font-medium': activePath === node.path }"
-      :style="{ paddingLeft: (depth * 1 + 0.25) + 'rem' }"
+      class="flex items-center py-1.5 px-2 cursor-pointer hover:bg-app-bg-hover transition-all rounded-md mx-1 my-0.5"
+      :class="{ 
+        'bg-app-bg-active text-blue-500 font-medium': activePath === node.path,
+        'ring-2 ring-blue-500 bg-blue-500/15': isDragOver 
+      }"
+      :style="{ paddingLeft: (depth * 0.85 + 0.25) + 'rem' }"
       @click="onClick"
     >
+
       <!-- Icon -->
       <span class="mr-2 flex items-center justify-center shrink-0" :class="{ 'text-app-text-muted opacity-70': activePath !== node.path }">
         <template v-if="node.isDirectory">
@@ -387,6 +503,7 @@ async function refresh() {
         @create-cancel="handleChildCreateCancel"
         @rename-confirm="$emit('rename-confirm', $event)"
         @delete-confirm="$emit('delete-confirm', $event)"
+        @move-confirm="$emit('move-confirm', $event)"
       />
     </div>
   </div>

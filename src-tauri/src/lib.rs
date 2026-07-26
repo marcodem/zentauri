@@ -1,7 +1,231 @@
-// Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
 fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Debug)]
+pub struct HeadingItem {
+    pub level: u32,
+    pub text: String,
+    pub line: usize,
+}
+
+
+#[tauri::command]
+fn parse_outline(content: &str) -> Vec<HeadingItem> {
+    use pulldown_cmark::{Event, HeadingLevel, Parser, Tag, TagEnd};
+
+    let mut headings = Vec::new();
+    let mut current_heading_level: Option<u32> = None;
+    let mut current_heading_text = String::new();
+    let mut current_heading_offset = 0;
+
+    let parser = Parser::new(content).into_offset_iter();
+
+    for (event, range) in parser {
+        match event {
+            Event::Start(Tag::Heading { level, .. }) => {
+                let lvl = match level {
+                    HeadingLevel::H1 => 1,
+                    HeadingLevel::H2 => 2,
+                    HeadingLevel::H3 => 3,
+                    HeadingLevel::H4 => 4,
+                    HeadingLevel::H5 => 5,
+                    HeadingLevel::H6 => 6,
+                };
+                current_heading_level = Some(lvl);
+                current_heading_text.clear();
+                current_heading_offset = range.start;
+            }
+            Event::Text(text) | Event::Code(text) if current_heading_level.is_some() => {
+                current_heading_text.push_str(&text);
+            }
+            Event::End(TagEnd::Heading(_)) => {
+                if let Some(lvl) = current_heading_level.take() {
+                    let line_number = content[..current_heading_offset.min(content.len())]
+                        .bytes()
+                        .filter(|&b| b == b'\n')
+                        .count()
+                        + 1;
+
+                    headings.push(HeadingItem {
+                        level: lvl,
+                        text: current_heading_text.trim().to_string(),
+                        line: line_number,
+                    });
+                }
+            }
+            _ => {}
+        }
+    }
+
+    headings
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+pub struct FileItemNode {
+    pub name: String,
+    pub path: String,
+    pub is_directory: bool,
+    pub modified_at: u64,
+    pub size_bytes: u64,
+}
+
+#[tauri::command]
+fn read_workspace_tree(path: &str, sort_mode: &str) -> Result<Vec<FileItemNode>, String> {
+    use std::fs;
+
+    let entries = fs::read_dir(path).map_err(|e| e.to_string())?;
+    let mut nodes = Vec::new();
+
+    for entry in entries.flatten() {
+        let file_name = entry.file_name().to_string_lossy().to_string();
+        
+        if file_name.starts_with('.') {
+            continue;
+        }
+
+        let file_path = entry.path().to_string_lossy().to_string();
+        let metadata = entry.metadata().ok();
+        let is_dir = metadata.as_ref().map(|m| m.is_dir()).unwrap_or(false);
+
+        if !is_dir && !file_name.to_lowercase().ends_with(".md") && !file_name.to_lowercase().ends_with(".markdown") {
+            continue;
+        }
+
+        let modified_at = metadata
+            .as_ref()
+            .and_then(|m| m.modified().ok())
+            .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+            .map(|d| d.as_secs())
+            .unwrap_or(0);
+
+        let size_bytes = metadata.as_ref().map(|m| m.len()).unwrap_or(0);
+
+        nodes.push(FileItemNode {
+            name: file_name,
+            path: file_path,
+            is_directory: is_dir,
+            modified_at,
+            size_bytes,
+        });
+    }
+
+    match sort_mode {
+        "name-desc" => nodes.sort_by(|a, b| {
+            if a.is_directory != b.is_directory {
+                b.is_directory.cmp(&a.is_directory)
+            } else {
+                b.name.to_lowercase().cmp(&a.name.to_lowercase())
+            }
+        }),
+        "date-desc" => nodes.sort_by(|a, b| {
+            if a.is_directory != b.is_directory {
+                b.is_directory.cmp(&a.is_directory)
+            } else {
+                b.modified_at.cmp(&a.modified_at)
+            }
+        }),
+        "date-asc" => nodes.sort_by(|a, b| {
+            if a.is_directory != b.is_directory {
+                b.is_directory.cmp(&a.is_directory)
+            } else {
+                a.modified_at.cmp(&b.modified_at)
+            }
+        }),
+        _ => {
+            nodes.sort_by(|a, b| {
+                if a.is_directory != b.is_directory {
+                    b.is_directory.cmp(&a.is_directory)
+                } else {
+                    a.name.to_lowercase().cmp(&b.name.to_lowercase())
+                }
+            });
+        }
+    }
+
+    Ok(nodes)
+}
+
+#[tauri::command]
+fn move_file_item(source_path: &str, target_dir_path: &str) -> Result<String, String> {
+    use std::fs;
+    use std::path::Path;
+
+    let source = Path::new(source_path);
+    let file_name = source
+        .file_name()
+        .ok_or_else(|| "Invalid source path".to_string())?;
+
+    let destination = Path::new(target_dir_path).join(file_name);
+
+    if source == destination {
+        return Ok(destination.to_string_lossy().to_string());
+    }
+
+    fs::rename(&source, &destination).map_err(|e| format!("Failed to move file: {}", e))?;
+
+    Ok(destination.to_string_lossy().to_string())
+}
+
+#[tauri::command]
+fn duplicate_file_item(source_path: &str) -> Result<String, String> {
+    use std::fs;
+    use std::path::Path;
+
+    let source = Path::new(source_path);
+    if !source.exists() || !source.is_file() {
+        return Err("Source file does not exist".to_string());
+    }
+
+    let parent = source.parent().ok_or_else(|| "Invalid parent dir".to_string())?;
+    let stem = source.file_stem().unwrap_or_default().to_string_lossy();
+    let ext = source.extension().map(|e| e.to_string_lossy().to_string()).unwrap_or_default();
+
+    let new_name = if ext.is_empty() {
+        format!("{}_copy", stem)
+    } else {
+        format!("{}_copy.{}", stem, ext)
+    };
+
+    let destination = parent.join(new_name);
+    fs::copy(&source, &destination).map_err(|e| format!("Failed to copy file: {}", e))?;
+
+    Ok(destination.to_string_lossy().to_string())
+}
+
+#[tauri::command]
+fn reveal_in_explorer(path: &str) -> Result<(), String> {
+    use std::process::Command;
+
+    #[cfg(target_os = "macos")]
+    {
+        Command::new("open")
+            .arg("-R")
+            .arg(path)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        Command::new("explorer")
+            .arg("/select,")
+            .arg(path)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        let parent = std::path::Path::new(path).parent().unwrap_or(std::path::Path::new(path));
+        Command::new("xdg-open")
+            .arg(parent)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+
+    Ok(())
 }
 
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
@@ -16,7 +240,14 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_persisted_scope::init())
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![greet])
+        .invoke_handler(tauri::generate_handler![
+            greet,
+            parse_outline,
+            read_workspace_tree,
+            move_file_item,
+            duplicate_file_item,
+            reveal_in_explorer
+        ])
         .setup(|app| {
             // -- Build File Menu --
             let file_menu = Submenu::with_items(

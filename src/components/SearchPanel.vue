@@ -1,68 +1,68 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed } from "vue";
 
 const props = defineProps<{
-  fileContent: string
-}>()
+  fileContent: string;
+}>();
 
 const emit = defineEmits<{
-  (e: 'jump-to-line', lineNum: number): void
-}>()
+  (e: "jump-to-line", lineNum: number): void;
+}>();
 
-const searchQuery = ref('')
-const caseSensitive = ref(false)
+const searchQuery = ref("");
+const caseSensitive = ref(false);
 
 interface SearchMatch {
-  lineNum: number
-  text: string
-  beforeMatch: string
-  matchText: string
-  afterMatch: string
+  lineNum: number;
+  text: string;
+  beforeMatch: string;
+  matchText: string;
+  afterMatch: string;
 }
 
 const matches = computed<SearchMatch[]>(() => {
-  const query = searchQuery.value
-  if (!query) return []
-  
-  const lines = props.fileContent.split('\n')
-  const results: SearchMatch[] = []
-  
-  const lowerQuery = query.toLowerCase()
-  
+  const query = searchQuery.value;
+  if (!query) return [];
+
+  const lines = props.fileContent.split("\n");
+  const results: SearchMatch[] = [];
+
+  const lowerQuery = query.toLowerCase();
+
   for (let i = 0; i < lines.length; i++) {
-    const lineText = lines[i]
-    let index = -1
-    
+    const lineText = lines[i];
+    let index = -1;
+
     if (caseSensitive.value) {
-      index = lineText.indexOf(query)
+      index = lineText.indexOf(query);
     } else {
-      index = lineText.toLowerCase().indexOf(lowerQuery)
+      index = lineText.toLowerCase().indexOf(lowerQuery);
     }
-    
+
     if (index !== -1) {
-      const matchText = lineText.substring(index, index + query.length)
-      const beforeMatch = lineText.substring(0, index)
-      const afterMatch = lineText.substring(index + query.length)
-      
+      const matchText = lineText.substring(index, index + query.length);
+      const beforeMatch = lineText.substring(0, index);
+      const afterMatch = lineText.substring(index + query.length);
+
       results.push({
         lineNum: i + 1,
         text: lineText,
         beforeMatch,
         matchText,
-        afterMatch
-      })
-      
+        afterMatch,
+      });
+
       if (results.length >= 100) {
-        break // Cap at 100 matches
+        break; // Cap at 100 matches
       }
     }
   }
-  
-  return results
-})
+
+  return results;
+});
 
 function handleMatchClick(lineNum: number) {
-  emit('jump-to-line', lineNum)
+  emit("jump-to-line", lineNum);
 }
 </script>
 

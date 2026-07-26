@@ -1,81 +1,51 @@
 <script setup lang="ts">
-import { ref, watch, onMounted, nextTick } from 'vue'
-import { renderMarkdown } from '../lib/markdown'
-import mermaid from 'mermaid'
-import debounce from 'lodash.debounce'
+import { ref, watch, onMounted, nextTick } from "vue";
+import { renderMarkdown } from "../lib/markdown";
+import mermaid from "mermaid";
 
-const props = defineProps<{ source: string }>()
+const props = defineProps<{ source: string }>();
 
-const container = ref<HTMLElement>()
-const html = ref('')
+const container = ref<HTMLElement>();
+const html = ref("");
 
-const mermaidCache = new Map<string, string>()
-
-const renderMermaid = debounce(async () => {
-  if (!container.value) return
-  const mermaidNodes = container.value.querySelectorAll('.mermaid')
-  if (mermaidNodes.length === 0) return
-
-  const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-  mermaid.initialize({ 
-    startOnLoad: false, 
-    theme: isDark ? 'dark' : 'default',
-    suppressErrorRendering: true
-  })
-
-  for (let i = 0; i < mermaidNodes.length; i++) {
-    const node = mermaidNodes[i]
-    if (node.querySelector('svg')) continue
-
-    const source = node.getAttribute('data-mermaid-source') || node.textContent
-    if (source) {
-      const id = `mermaid-svg-${Date.now()}-${i}`
-      try {
-        const result = await mermaid.render(id, source)
-        mermaidCache.set(source, result.svg)
-        if (container.value && container.value.contains(node)) {
-          node.innerHTML = result.svg
-        }
-      } catch (e) {
-        if (container.value && container.value.contains(node)) {
-          node.innerHTML = `<pre class="text-red-500 text-sm">Mermaid Syntax Error</pre>`
-        }
-      }
-    }
-  }
-}, 300)
+// Initialize Mermaid once
+mermaid.initialize({
+  startOnLoad: false,
+  theme: document.documentElement.classList.contains("dark")
+    ? "dark"
+    : "default",
+  securityLevel: "loose",
+});
 
 async function updatePreview() {
-  html.value = renderMarkdown(props.source)
-  
-  await nextTick()
-  if (container.value) {
-    const mermaidNodes = container.value.querySelectorAll('.mermaid')
-    if (mermaidNodes.length > 0) {
-      let needsRender = false
-      for (let i = 0; i < mermaidNodes.length; i++) {
-        const node = mermaidNodes[i]
-        const source = node.getAttribute('data-mermaid-source') || node.textContent
-        if (source && mermaidCache.has(source)) {
-          node.innerHTML = mermaidCache.get(source)!
-        } else if (source) {
-          needsRender = true
-        }
-      }
-      if (needsRender) {
-        renderMermaid()
-      }
-    }
+  html.value = renderMarkdown(props.source);
+
+  await nextTick();
+  try {
+    const isDark = document.documentElement.classList.contains("dark");
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: isDark ? "dark" : "default",
+      securityLevel: "loose",
+    });
+    await mermaid.run({
+      querySelector: ".mermaid",
+    });
+  } catch (e) {
+    console.error("Mermaid render failed:", e);
   }
 }
 
-watch(() => props.source, () => {
-  updatePreview()
-})
+watch(
+  () => props.source,
+  () => {
+    updatePreview();
+  },
+);
 
 onMounted(() => {
-  updatePreview()
-})
+  updatePreview();
+});
 </script>
 
 <template>
@@ -85,7 +55,7 @@ onMounted(() => {
   >
     <div 
       ref="container" 
-      class="prose dark:prose-invert max-w-none p-4"
+      class="vp-doc prose dark:prose-invert max-w-none p-4"
       v-html="html"
     ></div>
   </div>

@@ -12,7 +12,7 @@ If you wish to introduce your own Markdown syntax extensions, check out the help
 - **Vue 3** — Highly reactive and responsive component-driven interface.
 - **CodeMirror 6** — Modern, modular, and extensible editor experience.
 - **Tailwind CSS v4** — Premium styling system with dark mode and custom palettes.
-- **Unified / Remark / Rehype** — Custom AST-driven Markdown parsing and sanitization pipeline.
+- **markdown-it** — Custom extensible Markdown parsing and rendering pipeline using the shared `markdown-it-extensible` plugin.
 
 ---
 

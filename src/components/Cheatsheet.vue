@@ -1,20 +1,23 @@
 <script setup lang="ts">
-import CHEAT_SHEET from '../lib/syntax-cheatsheet'
+import CHEAT_SHEET, { SyntaxItem } from "../lib/syntax-cheatsheet";
 
-const emit = defineEmits<{ (e: 'insert', text: string): void }>()
+const emit = defineEmits<{
+  (e: "insert", text: string): void;
+  (e: "insertSnippet", item: SyntaxItem): void;
+}>();
 
-async function handleClick(text: string) {
+async function handleClick(item: SyntaxItem) {
   try {
-    await navigator.clipboard.writeText(text)
+    await navigator.clipboard.writeText(item.label);
   } catch (err) {
-    console.error('Failed to copy text: ', err)
+    console.error("Failed to copy text: ", err);
   }
-  emit('insert', text)
+  emit("insertSnippet", item);
 }
 </script>
 
 <template>
-  <div class="w-64 flex-none border-r border-app-border bg-app-bg-secondary overflow-y-auto p-4 text-sm shadow-inner">
+  <div class="w-64 flex-none border-r border-app-border bg-app-bg-secondary overflow-y-auto p-4 text-sm shadow-inner select-none">
     <h2 class="font-bold mb-4 text-app-text">Syntax Reference</h2>
     
     <div v-for="cat in CHEAT_SHEET" :key="cat.id" class="mb-6">
@@ -23,9 +26,9 @@ async function handleClick(text: string) {
         <li v-for="item in cat.items" :key="item.label" class="flex flex-col gap-1">
           <div class="flex items-center justify-between">
             <code 
-              @click="handleClick(item.label)"
-              class="px-1.5 py-0.5 bg-app-bg hover:bg-app-bg-hover cursor-pointer rounded font-mono text-xs text-app-text select-all transition-colors border border-app-border"
-              title="Click to insert and copy"
+              @click="handleClick(item)"
+              class="px-1.5 py-0.5 bg-app-bg hover:bg-app-bg-hover cursor-pointer rounded font-mono text-xs text-app-text transition-colors border border-app-border"
+              title="Click to insert template into active document"
             >
               {{ item.label }}
             </code>

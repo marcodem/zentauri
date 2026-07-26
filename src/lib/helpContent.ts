@@ -68,36 +68,40 @@ const scholarlyContent = `# Scholarly & Math Extensions
 
 Zentauri supports extended syntax for academic writing.
 
-## Mathematics
-Use \`$\` for inline math and \`$$\` for block math.
-Einstein's equation: $E=mc^2$
+## Mathematics (KaTeX)
+Use \`$\` for inline math and \`$$\` for block math. The math syntax follows **KaTeX** (standard LaTeX math subset).
 
-Block:
+- **Inline Math:** \`$E=mc^2$\` renders as $E=mc^2$
+- **Square Root:** \`$\\sqrt{a^2 + b^2} = c$\` renders as $\\sqrt{a^2 + b^2} = c$
+- **Exponents / Subscripts:** \`$2^{10} = 1024$\` renders as $2^{10} = 1024$ and \`$\\text{H}_2\\text{O}$\` renders as $\\text{H}_2\\text{O}$
+
+### Block Math Example:
 $$
-\\int_{a}^{b} x^2 \\,dx
+\\int_{a}^{b} x^2 \\,dx = \\frac{b^3 - a^3}{3}
 $$
 
-## Highlights & Super/Subscripts
+## Extended Inline Formatting (Payer Standard)
 
-Highlight text using \`==\`: ==This is highlighted==
-
-**Signalrot:** Use \`:sig[Text]\` to make inline text bright red for emphasis: :sig[Warning]
-
-Superscripts use \`^^\`: 2^^10^^ = 1024
-
-Subscripts use \`~\`: H~2~O is water.
+- **Signalrot (Red Highlight):** Extended Markdown syntax \`:sig[Signalrot Text]\` renders as: :sig[Signalrot Text]
+- **Gelber Leuchtstift (Marker):** Extended Markdown syntax \`:mark[Gelber Leuchtstift]\` renders as: :mark[Gelber Leuchtstift]
+- **Sanskrit Formatting:** Extended Markdown syntax \`《संस्कृतम्》\` renders as: 《संस्कृतम्》
+- **Inline Line Break:** Extended Markdown syntax \`:br\` inserts an in-cell line break.
+- **Inline Indent:** Extended Markdown syntax \`:indent\` inserts an in-cell tab indentation.
 `;
 
 const advancedContent = `# Advanced Formatting
 
-## Tables with Colspans
-Standard Markdown tables don't support merging cells. Zentauri does!
-Use \`>|\` in a cell to merge it with the cell to the left.
+## Tables with Cell Merging (Rowspan & Colspan)
+Zentauri supports MultiMarkdown table cell merging:
+
+- **Vertical Merging (Rowspan):** Place \`| ^^ |\` in the cell directly below to merge it vertically.
+- **Horizontal Merging (Colspan):** Place double/triple pipes \`|||\` or \`| text ||\` to merge cells horizontally across columns.
 
 | Header 1 | Header 2 | Header 3 |
 | -------- | -------- | -------- |
-| Cell 1   | Cell 2   | Cell 3   |
-| Merged across all 3 |>|>|
+| Spanning across 3 columns |||
+| Rowspan Cell | Column B | Column C |
+| ^^ | Column B2 | Column C2 |
 
 ## Mermaid Diagrams
 Create flowcharts, sequence diagrams, and more using \`mermaid\` code blocks.
@@ -111,53 +115,43 @@ graph TD
 \`\`\`
 `;
 
-const developerGuideContent = `# Developer Guide: Extending Markdown
+const developerGuideContent = `# Developer Guide: Shared Syntax Architecture
 
-Zentauri uses \`unified\`, \`remark\`, and \`rehype\` to process Markdown into HTML. 
-This makes it incredibly easy to add new syntax features.
+Zentauri uses \`markdown-it\` and the shared \`markdown-it-extensible\` plugin as its core Markdown rendering engine. 
+This guarantees 100% rendering compatibility across Zentauri, the VS Code Extension, and the Payer web application.
 
-## Architecture
-The processing pipeline is defined in \`src/lib/markdown.ts\`.
-1. **Remark:** Parses Markdown into a Markdown Syntax Tree (mdast).
-2. **Remark Plugins:** Transforms the mdast (e.g. \`remark-math\` parses \`$math$\`).
-3. **Rehype:** Converts the mdast into an HTML Syntax Tree (hast).
-4. **Rehype Plugins:** Transforms the hast (e.g. \`rehype-katex\` converts math nodes to HTML).
-5. **Stringify:** Outputs the final HTML string.
+---
 
-## How to add a new plugin
+## Creating, Customizing & Removing Syntax Elements
 
-1. **Install the plugin:**
-   \`\`\`bash
-   npm install remark-your-plugin
+All Markdown syntax extensions (container blocks, warnings, inline tags, Sanskrit formatting) are managed centrally by **\`markdown-it-extensible\`**.
+
+> [!TIP]
+> **Complete Plugin Documentation on GitHub:**  
+> Detailed instructions on how to create, customize, or remove inline directives (\`:<name>[<content>]\`) and block containers (\`:::<name>[Title]\`) purely via JSON configuration and CSS (without editing parser code) are documented in the official repository:  
+> **[markdown-it-extensible GitHub Documentation](https://github.com/marcodem/markdown-it-extensible#readme)**
+
+---
+
+## Quick Summary: Zero-Code Inline Styling in Zentauri
+
+Zentauri supports zero-code custom inline elements via CSS:
+
+1. **Write any directive in Markdown:**  
+   \`\`\`markdown
+   This is a :my-custom-style[highlighted badge] in Zentauri.
    \`\`\`
-
-2. **Import it in \`src/lib/markdown.ts\`:**
-   \`\`\`typescript
-   import yourPlugin from 'remark-your-plugin'
+2. **Style it in your theme CSS (\`src/payer-theme.css\`):**  
+   \`\`\`css
+   .vp-doc .my-custom-style {
+     background-color: #e0e7ff;
+     color: #3730a3;
+     padding: 0.1em 0.4em;
+     border-radius: 4px;
+   }
    \`\`\`
-
-3. **Add it to the processor pipeline:**
-   \`\`\`typescript
-   const processor = unified()
-     .use(remarkParse)
-     .use(yourPlugin) // <-- Add it here!
-     .use(remarkRehype, { allowDangerousHtml: true })
-     // ...
-   \`\`\`
-
-## Creating custom directives
-For custom block types like \`:::mybox\`, Zentauri uses \`remark-directive\`.
-You can add handling for your new directive in the \`remarkCustomBoxes\` plugin found in \`src/lib/markdown.ts\`.
-
-Simply look for the \`visit(tree, (node) => { ... })\` block and add your logic:
-\`\`\`typescript
-if (node.type === 'containerDirective' && node.name === 'mybox') {
-  const data = node.data || (node.data = {})
-  data.hName = 'div'
-  data.hProperties = { className: ['md-box', 'md-box--mybox'] }
-}
-\`\`\`
-Then add the styling for \`.md-box--mybox\` in \`src/custom-boxes.css\`.
+3. **Register in Editor Snippet Toolbar (\`src/lib/syntax-cheatsheet.ts\`):**  
+   Add an entry to \`syntax-cheatsheet.ts\` to automatically populate the item in the editor's Snippet Dropdown toolbar.
 `;
 
 const vimContent = `# Vim Mode
@@ -194,10 +188,14 @@ To return to Normal Mode from Insert or Visual mode, simply press the **\`Esc\`*
 `;
 
 export const HELP_CHAPTERS: HelpChapter[] = [
-  { id: 'welcome', title: 'Welcome', content: welcomeContent },
-  { id: 'vim', title: 'Vim Mode', content: vimContent },
-  { id: 'info_boxes', title: 'Info Boxes', content: infoBoxesContent },
-  { id: 'scholarly', title: 'Scholarly & Math', content: scholarlyContent },
-  { id: 'advanced', title: 'Advanced Formatting', content: advancedContent },
-  { id: 'developer_guide', title: 'Developer Guide', content: developerGuideContent }
+  { id: "welcome", title: "Welcome", content: welcomeContent },
+  { id: "vim", title: "Vim Mode", content: vimContent },
+  { id: "info_boxes", title: "Info Boxes", content: infoBoxesContent },
+  { id: "scholarly", title: "Scholarly & Math", content: scholarlyContent },
+  { id: "advanced", title: "Advanced Formatting", content: advancedContent },
+  {
+    id: "developer_guide",
+    title: "Developer Guide",
+    content: developerGuideContent,
+  },
 ];

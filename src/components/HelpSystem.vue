@@ -1,18 +1,17 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { HELP_CHAPTERS } from '../lib/helpContent'
-import Preview from './Preview.vue'
+import { ref, computed } from "vue";
+import { HELP_CHAPTERS } from "../lib/helpContent";
+import Preview from "./Preview.vue";
 
-defineProps<{ isOpen: boolean }>()
-const emit = defineEmits<{ (e: 'close'): void }>()
+defineProps<{ isOpen: boolean }>();
+const emit = defineEmits<{ (e: "close"): void }>();
 
-const activeChapterId = ref(HELP_CHAPTERS[0].id)
+const activeChapterId = ref(HELP_CHAPTERS[0].id);
 
 const activeChapterContent = computed(() => {
-  const chapter = HELP_CHAPTERS.find(c => c.id === activeChapterId.value)
-  return chapter ? chapter.content : ''
-})
-
+  const chapter = HELP_CHAPTERS.find((c) => c.id === activeChapterId.value);
+  return chapter ? chapter.content : "";
+});
 </script>
 
 <template>

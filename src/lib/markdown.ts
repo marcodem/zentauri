@@ -1,579 +1,375 @@
-import { unified } from 'unified'
-import DOMPurify from 'dompurify'
-import remarkParse from 'remark-parse'
-import remarkGfm from 'remark-gfm'
-import remarkBreaks from 'remark-breaks'
-import remarkMath from 'remark-math'
-import remarkFrontmatter from 'remark-frontmatter'
-import remarkDirective from 'remark-directive'
-import remarkRehype from 'remark-rehype'
-import rehypeRaw from 'rehype-raw'
-import rehypeKatex from 'rehype-katex'
-import rehypeHighlight from 'rehype-highlight'
-import rehypeStringify from 'rehype-stringify'
-import { visit, SKIP } from 'unist-util-visit'
-import type { Root as MdRoot } from 'mdast'
-import type { Root as HastRoot, Element as HastElement } from 'hast'
-import { recordRendererPerf } from './perf'
-import { classifyLocalAssetHref } from './local-assets'
-import remarkBoxes from './remark-boxes'
-import remarkScholarly from './remark-scholarly'
-import remarkDirectiveFilter from './remark-directive-filter'
+import DOMPurify from "dompurify";
+import MarkdownIt from "markdown-it";
+import markdownItAttrs from "markdown-it-attrs";
+// @ts-ignore
+import multimdTable from "markdown-it-multimd-table";
+import katex from "katex";
+// @ts-ignore
+import * as extensiblePluginModule from "markdown-it-extensible";
+const extensiblePlugin =
+  (extensiblePluginModule as any).default || extensiblePluginModule;
+import "markdown-it-extensible/css";
+import { recordRendererPerf } from "./perf";
 
-/**
- * Remark plugin: `[[target]]` and `[[target|label]]` → link nodes
- * tagged with class `wikilink` so the renderer can post-process them.
- */
-type AnyNode = { type: string; [k: string]: unknown }
-type AnyParent = { type: string; children: AnyNode[] }
-
-const URI_SCHEME_RE = /^[a-zA-Z][a-zA-Z\d+.-]*:/
-const ALLOWED_RENDERED_URI_SCHEME_RE = /^(?:https?|mailto|zen|zen-asset|blob|data):/i
+const URI_SCHEME_RE = /^[a-zA-Z][a-zA-Z\d+.-]*:/;
+const ALLOWED_RENDERED_URI_SCHEME_RE =
+  /^(?:https?|mailto|zen|zen-asset|blob|data):/i;
 const ALLOWED_RENDERED_URI_RE =
-  /^(?:(?:https?|mailto|zen|zen-asset|blob|data):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i
+  /^(?:(?:https?|mailto|zen|zen-asset|blob|data):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i;
 const ALLOWED_RENDERED_DATA_ATTRS = [
-  'data-callout',
-  'data-function-plot-source',
-  'data-jsxgraph-source',
-  'data-local-asset-href',
-  'data-local-asset-kind',
-  'data-local-asset-url',
-  'data-mermaid-source',
-  'data-resolved-path',
-  'data-tag',
-  'data-tikz-source',
-  'data-wikilink',
-  'data-zen-diagram-expanded',
-  'data-zen-diagram-kind',
-  'data-zen-diagram-source'
-]
-let sanitizerHooksInstalled = false
+  "data-callout",
+  "data-function-plot-source",
+  "data-jsxgraph-source",
+  "data-local-asset-href",
+  "data-local-asset-kind",
+  "data-local-asset-url",
+  "data-mermaid-source",
+  "data-resolved-path",
+  "data-tag",
+  "data-tikz-source",
+  "data-zen-diagram-expanded",
+  "data-zen-diagram-kind",
+  "data-zen-diagram-source",
+  "translate",
+  "lang",
+  "rowspan",
+  "colspan",
+];
+
+let sanitizerHooksInstalled = false;
+
+let purifiedInstance: any = null;
 
 function getPurify(): any {
-  return (DOMPurify as any).default || DOMPurify;
+  if (purifiedInstance) return purifiedInstance;
+
+  const raw = (DOMPurify as any).default || DOMPurify;
+  if (typeof raw?.sanitize === "function") {
+    purifiedInstance = raw;
+    return purifiedInstance;
+  }
+  if (typeof raw === "function") {
+    const win =
+      typeof window !== "undefined"
+        ? window
+        : typeof globalThis !== "undefined"
+          ? (globalThis as any).window
+          : null;
+    if (win) {
+      purifiedInstance = raw(win);
+      return purifiedInstance;
+    }
+  }
+  purifiedInstance = raw;
+  return purifiedInstance;
 }
 
 function ensureSanitizerHooks(): void {
-  if (sanitizerHooksInstalled) return
+  if (sanitizerHooksInstalled) return;
   try {
-    getPurify().addHook('uponSanitizeAttribute', (_node: any, data: any) => {
-      if (data.attrName !== 'href' && data.attrName !== 'src' && data.attrName !== 'xlink:href') {
-        return
-      }
-      const value = data.attrValue?.trim()
-      if (value && URI_SCHEME_RE.test(value) && !ALLOWED_RENDERED_URI_SCHEME_RE.test(value)) {
-        data.keepAttr = false
-      }
-    })
-    sanitizerHooksInstalled = true
+    const purify = getPurify();
+    if (purify && typeof purify.addHook === "function") {
+      purify.addHook("uponSanitizeAttribute", (_node: any, data: any) => {
+        if (
+          data.attrName !== "href" &&
+          data.attrName !== "src" &&
+          data.attrName !== "xlink:href"
+        ) {
+          return;
+        }
+        const value = data.attrValue?.trim();
+        if (
+          value &&
+          URI_SCHEME_RE.test(value) &&
+          !ALLOWED_RENDERED_URI_SCHEME_RE.test(value)
+        ) {
+          data.keepAttr = false;
+        }
+      });
+      sanitizerHooksInstalled = true;
+    } else if (typeof window !== "undefined") {
+      console.warn("DOMPurify instance does not support addHook");
+    }
   } catch (e) {
-    console.warn('Could not install DOMPurify hook:', e)
+    console.warn("Could not install DOMPurify hook:", e);
   }
 }
 
+const MATHML_TAGS = [
+  "annotation",
+  "annotation-xml",
+  "math",
+  "mrow",
+  "mi",
+  "mn",
+  "mo",
+  "ms",
+  "mspace",
+  "mtext",
+  "menclose",
+  "merror",
+  "mfenced",
+  "frac",
+  "mfrac",
+  "mpadded",
+  "mphantom",
+  "mroot",
+  "msqrt",
+  "mstyle",
+  "mmultiscripts",
+  "mover",
+  "munder",
+  "munderover",
+  "mtable",
+  "mtr",
+  "mtd",
+  "semantics",
+  "svg",
+  "path",
+  "use",
+  "g",
+  "line",
+  "rect",
+  "circle",
+];
+
 function sanitizeRenderedHtml(html: string): string {
-  ensureSanitizerHooks()
+  ensureSanitizerHooks();
   try {
-    return getPurify().sanitize(html, {
+    const purify = getPurify();
+    if (!purify || typeof purify.sanitize !== "function") {
+      return html;
+    }
+    return purify.sanitize(html, {
       ALLOW_DATA_ATTR: true,
       ALLOW_ARIA_ATTR: true,
       ALLOWED_URI_REGEXP: ALLOWED_RENDERED_URI_RE,
-      ADD_ATTR: ALLOWED_RENDERED_DATA_ATTRS
-    })
+      ADD_ATTR: ALLOWED_RENDERED_DATA_ATTRS,
+      ADD_TAGS: MATHML_TAGS,
+    });
   } catch (e) {
-    console.warn('DOMPurify sanitize failed:', e)
-    return html // fallback
+    console.warn("DOMPurify sanitize failed:", e);
+    return html; // fallback
   }
 }
 
-function remarkWikilinks() {
-  function buildWikilinkNode(bang: string, target: string, label: string): AnyNode {
-    const assetKind = classifyLocalAssetHref(target)
-    if (bang === '!' && assetKind === 'image') {
-      return {
-        type: 'image',
-        url: target,
-        title: null,
-        alt: label
-      }
-    }
-    if (bang === '!' && assetKind) {
-      return {
-        type: 'link',
-        url: target,
-        title: null,
-        children: [{ type: 'text', value: label }]
-      }
-    }
-    return {
-      type: 'link',
-      url: `zen://note/${encodeURIComponent(target)}`,
-      title: null,
-      data: {
-        hProperties: {
-          className: ['wikilink'],
-          'data-wikilink': target
+const MARKDOWN_RENDER_CACHE_LIMIT = 24;
+const markdownRenderCache = new Map<string, string>();
+
+const md = new MarkdownIt({ html: true })
+  .use(multimdTable, {
+    multiline: true,
+    rowspan: true,
+    headerless: true,
+    multibody: true,
+    autolabel: true,
+  })
+  .use(markdownItAttrs)
+  .use(extensiblePlugin);
+
+// Custom KaTeX Math Plugin
+function katexMathPlugin(mdInstance: any) {
+  // Inline math rule: $...$
+  mdInstance.inline.ruler.after(
+    "escape",
+    "math_inline",
+    (state: any, silent: boolean) => {
+      if (state.src.charCodeAt(state.pos) !== 0x24 /* $ */) return false;
+      if (state.src.charCodeAt(state.pos + 1) === 0x24 /* $$ */) return false;
+
+      const start = state.pos + 1;
+      let match = start;
+      while ((match = state.src.indexOf("$", match)) !== -1) {
+        if (state.src.charCodeAt(match - 1) !== 0x5c /* \ */) {
+          break;
         }
-      },
-      children: [{ type: 'text', value: label }]
-    }
-  }
-
-  function inlineText(node: AnyNode): string | null {
-    if (node.type === 'text') return String(node.value ?? '')
-    const children = (node as Partial<AnyParent>).children
-    if (Array.isArray(children)) {
-      const parts = children.map((child) => inlineText(child))
-      return parts.every((part): part is string => part != null) ? parts.join('') : null
-    }
-    return null
-  }
-
-  function replaceSplitWikilinks(parent: AnyParent): void {
-    for (let index = 0; index < parent.children.length; index += 1) {
-      const first = inlineText(parent.children[index]!)
-      if (!first || !first.includes('[[')) continue
-
-      const open = first.indexOf('[[')
-      const hasBang = open > 0 && first[open - 1] === '!'
-      const prefixEnd = hasBang ? open - 1 : open
-      let combined = first.slice(open + 2)
-      let endIndex = combined.indexOf(']]')
-      let endNodeIndex = index
-
-      while (endIndex === -1 && endNodeIndex + 1 < parent.children.length) {
-        endNodeIndex += 1
-        const next = inlineText(parent.children[endNodeIndex]!)
-        if (next == null) return
-        combined += next
-        endIndex = combined.indexOf(']]')
+        match++;
       }
 
-      if (endIndex === -1 || endNodeIndex === index) continue
+      if (match === -1) return false;
+      const content = state.src.slice(start, match);
 
-      const raw = combined.slice(0, endIndex)
-      const [rawTarget, rawLabel] = raw.split('|', 2)
-      const target = rawTarget?.trim() ?? ''
-      if (!target) continue
-
-      const label = (rawLabel ?? rawTarget ?? '').trim()
-      const replacement: AnyNode[] = []
-      const prefix = first.slice(0, prefixEnd)
-      const suffix = combined.slice(endIndex + 2)
-      if (prefix) replacement.push({ type: 'text', value: prefix })
-      replacement.push(buildWikilinkNode(hasBang ? '!' : '', target, label))
-      if (suffix) replacement.push({ type: 'text', value: suffix })
-
-      parent.children.splice(index, endNodeIndex - index + 1, ...replacement)
-      index += replacement.length - 1
-    }
-  }
-
-  return (tree: MdRoot): void => {
-    visit(tree, 'paragraph', (node) => {
-      replaceSplitWikilinks(node as unknown as AnyParent)
-    })
-
-    visit(tree, 'text', (node, index, parent) => {
-      if (!parent || index === undefined) return
-      const p = parent as unknown as AnyParent
-      if (p.type === 'link' || p.type === 'linkReference') return
-      const value = (node as { value: string }).value
-      if (!value.includes('[[')) return
-      const regex = /(!?)\[\[([^\]|]+?)(?:\|([^\]]+))?\]\]/g
-      const next: AnyNode[] = []
-      let last = 0
-      let m: RegExpExecArray | null
-      let changed = false
-      while ((m = regex.exec(value)) !== null) {
-        changed = true
-        if (m.index > last) {
-          next.push({ type: 'text', value: value.slice(last, m.index) })
-        }
-        const bang = m[1] ?? ''
-        const target = m[2].trim()
-        const label = (m[3] ?? m[2]).trim()
-        next.push(buildWikilinkNode(bang, target, label))
-        last = regex.lastIndex
-      }
-      if (!changed) return
-      if (last < value.length) {
-        next.push({ type: 'text', value: value.slice(last) })
-      }
-      p.children.splice(index, 1, ...next)
-      return [SKIP, index + next.length]
-    })
-  }
-}
-
-/**
- * Remark plugin: inline `#tag` tokens become styled links.
- * Matches only when preceded by start-of-line or whitespace to avoid
- * catching fragments inside URLs and emoji codes.
- */
-function remarkHashtags() {
-  return (tree: MdRoot): void => {
-    visit(tree, 'text', (node, index, parent) => {
-      if (!parent || index === undefined) return
-      const p = parent as unknown as AnyParent
-      if (p.type === 'link' || p.type === 'linkReference' || p.type === 'heading') return
-      const value = (node as { value: string }).value
-      if (!value.includes('#')) return
-      const regex = /(^|\s)#([a-zA-Z][\w\-/]*)/g
-      const next: AnyNode[] = []
-      let last = 0
-      let m: RegExpExecArray | null
-      let changed = false
-      while ((m = regex.exec(value)) !== null) {
-        const start = m.index + m[1].length
-        if (start > last) {
-          next.push({ type: 'text', value: value.slice(last, start) })
-        }
-        next.push({
-          type: 'link',
-          url: `zen://tag/${encodeURIComponent(m[2])}`,
-          title: null,
-          data: {
-            hProperties: {
-              className: ['hashtag'],
-              'data-tag': m[2]
-            }
-          },
-          children: [{ type: 'text', value: `#${m[2]}` }]
-        })
-        last = regex.lastIndex
-        changed = true
-      }
-      if (!changed) return
-      if (last < value.length) {
-        next.push({ type: 'text', value: value.slice(last) })
-      }
-      p.children.splice(index, 1, ...next)
-      return [SKIP, index + next.length]
-    })
-  }
-}
-
-/**
- * Remark plugin: rewrites Obsidian-style callouts.
- *
- *     > [!note] Optional title
- *     > body
- *
- * → `<div class="callout" data-callout="note">` with a `.callout-title` header.
- */
-function remarkCallouts() {
-  return (tree: MdRoot): void => {
-    visit(tree, 'blockquote', (node) => {
-      const first = node.children?.[0]
-      if (!first || first.type !== 'paragraph') return
-      const firstText = first.children?.[0]
-      if (!firstText || firstText.type !== 'text') return
-
-      const raw = firstText.value
-      const headerEnd = raw.indexOf('\n')
-      const header = headerEnd >= 0 ? raw.slice(0, headerEnd) : raw
-      const match = header.match(/^\[!(\w+)\](?:\s+(.*))?$/)
-      if (!match) return
-
-      const type = match[1].toLowerCase()
-      const title = (match[2] ?? '').trim() || type.charAt(0).toUpperCase() + type.slice(1)
-      const rest = headerEnd >= 0 ? raw.slice(headerEnd + 1) : ''
-
-      firstText.value = rest
-      if (rest === '') {
-        first.children.shift()
-      }
-      if (first.children.length === 0) {
-        node.children.shift()
+      if (!silent) {
+        const token = state.push("math_inline", "math", 0);
+        token.content = content;
       }
 
-      // Turn the blockquote into a styled div.
-      node.data = {
-        ...(node.data || {}),
-        hName: 'div',
-        hProperties: {
-          className: ['callout'],
-          'data-callout': type
-        }
-      }
-
-      // Prepend a title paragraph that renders as `<div class="callout-title">`.
-      node.children.unshift({
-        type: 'paragraph',
-        data: {
-          hName: 'div',
-          hProperties: { className: ['callout-title'] }
-        },
-        children: [{ type: 'text', value: title }]
-      } as never)
-    })
-  }
-}
-
-/**
- * Rehype plugin: convert fenced mermaid blocks to a div the runtime can
- * pick up after mount. Runs *before* rehype-highlight so the diagram body
- * isn't mangled by syntax coloring.
- */
-function rehypeMermaid() {
-  return (tree: HastRoot): void => {
-    visit(tree, 'element', (node, index, parent) => {
-      if (node.tagName !== 'pre' || !parent || index === undefined) return
-      const first = node.children?.[0] as HastElement | undefined
-      if (!first || first.type !== 'element' || first.tagName !== 'code') return
-      const classNames = (first.properties?.className as string[] | undefined) ?? []
-      if (!classNames.includes('language-mermaid')) return
-      const textNode = first.children?.[0] as { type: string; value: string } | undefined
-      const source = textNode && textNode.type === 'text' ? textNode.value : ''
-      const replacement: HastElement = {
-        type: 'element',
-        tagName: 'div',
-        // Source is mirrored into `data-mermaid-source` so the runtime can
-        // re-render the SVG (e.g. on theme change) after its first render
-        // has replaced the div's text with the rendered output.
-        properties: {
-          className: ['mermaid'],
-          'data-mermaid-source': source
-        },
-        children: [{ type: 'text', value: source }]
-      }
-      ;(parent as unknown as AnyParent).children[index] = replacement as unknown as AnyNode
-      return [SKIP, index]
-    })
-  }
-}
-
-/**
- * Rehype plugin: replace fenced blocks tagged `tikz`, `jsxgraph`, and
- * `function-plot` with placeholder divs. Each placeholder keeps the raw
- * source in a `data-*-source` attribute so the runtime side (Preview.tsx)
- * can render and re-render on demand — the same pattern as
- * `rehypeMermaid`.
- */
-function rehypeMathDiagrams() {
-  const map: Record<string, { className: string; sourceAttr: string }> = {
-    'language-tikz': { className: 'zen-tikz', sourceAttr: 'data-tikz-source' },
-    'language-jsxgraph': {
-      className: 'zen-jsxgraph',
-      sourceAttr: 'data-jsxgraph-source'
+      state.pos = match + 1;
+      return true;
     },
-    'language-function-plot': {
-      className: 'zen-function-plot',
-      sourceAttr: 'data-function-plot-source'
-    },
-    'language-functionplot': {
-      className: 'zen-function-plot',
-      sourceAttr: 'data-function-plot-source'
-    }
-  }
-  return (tree: HastRoot): void => {
-    visit(tree, 'element', (node, index, parent) => {
-      if (node.tagName !== 'pre' || !parent || index === undefined) return
-      const first = node.children?.[0] as HastElement | undefined
-      if (!first || first.type !== 'element' || first.tagName !== 'code') return
-      const classNames = (first.properties?.className as string[] | undefined) ?? []
-      const matchKey = classNames.find((c) => map[c])
-      if (!matchKey) return
-      const entry = map[matchKey]
-      const textNode = first.children?.[0] as
-        | { type: string; value: string }
-        | undefined
-      const source = textNode && textNode.type === 'text' ? textNode.value : ''
-      const replacement: HastElement = {
-        type: 'element',
-        tagName: 'div',
-        properties: {
-          className: [entry.className],
-          [entry.sourceAttr]: source
-        },
-        children: [{ type: 'text', value: source }]
-      }
-      ;(parent as unknown as AnyParent).children[index] =
-        replacement as unknown as AnyNode
-      return [SKIP, index]
-    })
-  }
-}
+  );
 
-const MARKDOWN_RENDER_CACHE_LIMIT = 24
+  // Block math rule: $$...$$
+  mdInstance.block.ruler.after(
+    "blockquote",
+    "math_block",
+    (state: any, startLine: number, endLine: number, silent: boolean) => {
+      const startPos = state.bMarks[startLine] + state.tShift[startLine];
+      const maxPos = state.eMarks[startLine];
 
-/**
- * Pre-process markdown to normalize multimd-table `||` syntax to GFM-compatible empty cells.
- * Also handles `^^` rowspan markers (converts to empty cells, rowspan requires HTML post-processing).
- * Also pads body rows and separator rows to match logical column count from header.
- * Only operates on lines that appear to be table rows (start with | and end with |).
- * Preserves code blocks and other non-table content.
- */
-function normalizeMultimdTableSyntax(md: string): string {
-  // Split into lines to process table rows individually
-  const lines = md.split('\n')
-  let inCodeBlock = false
-  const result: string[] = []
+      if (startPos + 2 > maxPos) return false;
+      if (state.src.slice(startPos, startPos + 2) !== "$$") return false;
 
-  // Track table state
-  let inTable = false
-  let logicalCols = 0
-  let pendingTableLines: string[] = []
-  let pendingRowspans: Map<number, number> = new Map() // colIndex -> remaining rows
+      let nextLine = startLine;
+      let content = "";
 
-  function flushTable(): void {
-    if (pendingTableLines.length === 0) return
-
-    // Process the pending table lines
-    // First pass: normalize header row and count logical columns
-    const headerLine = pendingTableLines[0]
-    const normalizedHeader = headerLine.replace(/\|\|/g, '| |').replace(/\|\^/g, '|')
-    // Count logical columns: after || → | | normalization, each cell is a column
-    const headerCellsArr = normalizedHeader.split('|').slice(1, -1) // remove empty first/last
-    logicalCols = headerCellsArr.length
-
-    // Now rebuild all table lines with correct column counts
-    for (let i = 0; i < pendingTableLines.length; i++) {
-      const line = pendingTableLines[i]
-      const trimmed = line.trim()
-
-      if (i === 0) {
-        // Header row: normalize || and ^^
-        result.push(normalizedHeader)
-      } else if (/^\|[\s\-:|]*$/.test(trimmed)) {
-        // Separator row: rebuild with logicalCols cells
-        const parts = trimmed.split('|').slice(1, -1)
-        const newParts: string[] = []
-        for (let j = 0; j < logicalCols; j++) {
-          const part = parts[j] || '---'
-          newParts.push(part.trim())
-        }
-        result.push('| ' + newParts.join(' | ') + ' |')
+      const restOfLine = state.src.slice(startPos + 2, maxPos).trim();
+      if (restOfLine.endsWith("$$") && restOfLine.length >= 2) {
+        content = restOfLine.slice(0, -2);
+        nextLine = startLine;
       } else {
-        // Body row: normalize || and ^^ to empty cells, pad to logicalCols
-        let normalizedLine = line.replace(/\|\|/g, '| |').replace(/\|\^/g, '|')
-        const parts = normalizedLine.trim().split('|').slice(1, -1)
-        const newParts: string[] = []
-        for (let j = 0; j < logicalCols; j++) {
-          const part = parts[j] || ''
-          newParts.push(part.trim())
+        let foundEnd = false;
+        const lines: string[] = [];
+        if (restOfLine) lines.push(restOfLine);
+
+        while (++nextLine < endLine) {
+          const lineStart = state.bMarks[nextLine] + state.tShift[nextLine];
+          const lineEnd = state.eMarks[nextLine];
+          const lineText = state.src.slice(lineStart, lineEnd).trim();
+
+          if (lineText === "$$" || lineText.endsWith("$$")) {
+            foundEnd = true;
+            if (lineText !== "$$") {
+              lines.push(lineText.slice(0, -2).trim());
+            }
+            break;
+          }
+          lines.push(lineText);
         }
-        result.push('| ' + newParts.join(' | ') + ' |')
+
+        if (!foundEnd && silent) return false;
+        content = lines.join("\n");
       }
-    }
 
-    pendingTableLines = []
-    inTable = false
-    logicalCols = 0
-    pendingRowspans.clear()
-  }
-
-  for (const line of lines) {
-    // Track code block fences
-    if (/^\s*```/.test(line)) {
-      flushTable()
-      inCodeBlock = !inCodeBlock
-      result.push(line)
-      continue
-    }
-
-    if (inCodeBlock) {
-      result.push(line)
-      continue
-    }
-
-    const trimmed = line.trim()
-
-    // Check if this line looks like a table row
-    const isTableRow = trimmed.startsWith('|') && trimmed.endsWith('|')
-
-    if (isTableRow) {
-      // Potential table row
-      if (!inTable) {
-        // Starting a new table
-        inTable = true
+      if (!silent) {
+        const token = state.push("math_block", "math", 0);
+        token.block = true;
+        token.content = content;
+        token.map = [startLine, nextLine + 1];
       }
-      pendingTableLines.push(line)
-    } else {
-      // Not a table row - flush any pending table
-      flushTable()
-      result.push(line)
+
+      state.line = nextLine + 1;
+      return true;
+    },
+  );
+
+  // Renderers
+  mdInstance.renderer.rules.math_inline = (tokens: any[], idx: number) => {
+    try {
+      return katex.renderToString(tokens[idx].content, {
+        displayMode: false,
+        throwOnError: false,
+      });
+    } catch (err) {
+      return `<span class="text-red-500 font-mono">${mdInstance.utils.escapeHtml(tokens[idx].content)}</span>`;
     }
-  }
+  };
 
-  // Flush any remaining table at end
-  flushTable()
-
-  return result.join('\n')
+  mdInstance.renderer.rules.math_block = (tokens: any[], idx: number) => {
+    try {
+      return `<div class="katex-block my-4 flex justify-center">${katex.renderToString(tokens[idx].content, { displayMode: true, throwOnError: false })}</div>`;
+    } catch (err) {
+      return `<pre class="text-red-500 font-mono">${mdInstance.utils.escapeHtml(tokens[idx].content)}</pre>`;
+    }
+  };
 }
 
-// Export for tests
-export { normalizeMultimdTableSyntax }
+md.use(katexMathPlugin);
 
-// Create two processors: one with extensions, one without
-function createProcessor(withExtensions: boolean) {
-  return unified()
-    .use(remarkParse)
-    .use(remarkFrontmatter, ['yaml', 'toml'])
-    .use(remarkGfm)
-    .use(remarkBreaks)
-    .use(remarkMath)
-    .use(remarkDirective)
-    .use(withExtensions ? remarkBoxes : () => {})
-    .use(remarkDirectiveFilter)
-    .use(withExtensions ? remarkScholarly : () => {})
-    .use(remarkWikilinks)
-    .use(remarkHashtags)
-    .use(remarkCallouts)
-    .use(remarkRehype, { allowDangerousHtml: true })
-    .use(rehypeRaw)
-    .use(rehypeMermaid)
-    .use(rehypeMathDiagrams)
-    .use(rehypeHighlight, { detect: true, ignoreMissing: true })
-    .use(rehypeKatex)
-    .use(rehypeStringify)
-}
+// Custom fence rule for Mermaid & Math block rendering
+const defaultFence = md.renderer.rules.fence;
+md.renderer.rules.fence = (tokens, idx, options, env, self) => {
+  const token = tokens[idx];
+  const info = token.info.trim();
+  if (info === "mermaid") {
+    const code = token.content.trim();
+    return `<pre class="mermaid" data-mermaid-source="${md.utils.escapeHtml(code)}">${md.utils.escapeHtml(code)}</pre>`;
+  }
+  if (info === "math" || info === "katex") {
+    try {
+      return `<div class="katex-block my-4 flex justify-center">${katex.renderToString(token.content.trim(), { displayMode: true, throwOnError: false })}</div>`;
+    } catch (err) {
+      return `<pre class="text-red-500 font-mono">${md.utils.escapeHtml(token.content)}</pre>`;
+    }
+  }
+  return defaultFence ? defaultFence(tokens, idx, options, env, self) : "";
+};
 
-const processorWithExtensions = createProcessor(true)
-const processorWithoutExtensions = createProcessor(false)
+export function renderMarkdown(
+  src: string,
+  options?: { markdownExtensionsEnabled?: boolean },
+): string {
+  const markdownExtensionsEnabled = options?.markdownExtensionsEnabled ?? true;
 
-const markdownRenderCache = new Map<string, string>()
+  // Table cell merge & Payer compatibility normalize
+  let normalizedSrc = src
+    .replace(/^([ \t]*)(:{3,})([a-zA-Z0-9_-]+)[ \t]+(\[)/gm, "$1$2$3$4")
+    .replace(
+      /^([ \t]*)(:{3,})[ \t]*([a-zA-Z0-9_-]+)[ \t]+([^\[\s\n\r][^\n\r]*)$/gm,
+      "$1$2$3[$4]",
+    )
+    .replace(/^([ \t]*)(:{3,})[ \t]+([a-zA-Z0-9_-]+)/gm, "$1$2$3");
 
-export function renderMarkdown(src: string, options?: { markdownExtensionsEnabled?: boolean }): string {
-  const markdownExtensionsEnabled = options?.markdownExtensionsEnabled ?? true
-  const processor = markdownExtensionsEnabled ? processorWithExtensions : processorWithoutExtensions
+  // Normalize leading-pipe colspan syntaxes like "|| text |" or "||text|" into MultiMarkdown trailing-pipe syntax "| text ||"
+  normalizedSrc = normalizedSrc
+    .split("\n")
+    .map((line) => {
+      const trimmed = line.trim();
+      if (!trimmed.endsWith("|")) return line;
 
-  // Strict Payer alignment: disable colspan normalization
-  // Normalize ::: spaces (e.g. `   :::: grammarbox` -> `   ::::grammarbox`)
-  // Also normalize multimd-table syntax (|| for colspan, ^^ for rowspan, multiline cells)
-  const normalizedSrc = src
-    .replace(/^([ \t]*)(:{3,})([a-zA-Z0-9_-]+)[ \t]+(\[)/gm, '$1$2$3$4')
-    .replace(/^([ \t]*)(:{3,})[ \t]*([a-zA-Z0-9_-]+)[ \t]+([^\[\s\n\r][^\n\r]*)$/gm, '$1$2$3[$4]')
-    .replace(/^([ \t]*)(:{3,})[ \t]+([a-zA-Z0-9_-]+)/gm, '$1$2$3')
-    .replace(/\|\|/g, '| |')  // colspan marker → empty cell
-    .replace(/\|\^/g, '|')    // rowspan marker → empty cell (rowspan requires HTML)
+      // Row starts with multiple pipes: e.g. "|| test |" or "||test|"
+      if (trimmed.match(/^\|\|+\s*[^|\n]/)) {
+        const pipeCount = (trimmed.match(/^\|+/)?.[0] || "").length;
+        const rest = trimmed.replace(/^\|+/, "").trim();
+        const content = rest.replace(/\|$/, "").trim();
+        const trailingPipes = "|".repeat(pipeCount);
+        return `| ${content} ${trailingPipes}`;
+      }
 
-  const cacheKey = markdownExtensionsEnabled ? `ext:${normalizedSrc}` : `noext:${normalizedSrc}`
-  const cached = markdownRenderCache.get(cacheKey)
+      // Cell inside row has leading extra pipes: e.g. "| || test |"
+      let updated = line;
+      updated = updated.replace(
+        /\|(\|+)\s*([^|\n]+?)\s*\|/g,
+        (match, extraPipes, content) => {
+          if (content.trim() === "^^") return match;
+          return `| ${content.trim()} |${extraPipes}`;
+        },
+      );
+      return updated;
+    })
+    .join("\n");
+
+  const cacheKey = markdownExtensionsEnabled
+    ? `ext:${normalizedSrc}`
+    : `noext:${normalizedSrc}`;
+  const cached = markdownRenderCache.get(cacheKey);
   if (cached != null) {
-    recordRendererPerf('markdown.render.cache-hit', 0, { chars: normalizedSrc.length })
-    return cached
+    recordRendererPerf("markdown.render.cache-hit", 0, {
+      chars: normalizedSrc.length,
+    });
+    return cached;
   }
 
-  const startedAt = performance.now()
+  const startedAt = performance.now();
   try {
-    const html = sanitizeRenderedHtml(String(processor.processSync(normalizedSrc)))
-    markdownRenderCache.set(cacheKey, html)
+    let rawHtml = md.render(normalizedSrc);
+
+    const html = sanitizeRenderedHtml(rawHtml);
+    markdownRenderCache.set(cacheKey, html);
     while (markdownRenderCache.size > MARKDOWN_RENDER_CACHE_LIMIT) {
-      const oldest = markdownRenderCache.keys().next().value
-      if (!oldest) break
-      markdownRenderCache.delete(oldest)
+      const oldest = markdownRenderCache.keys().next().value;
+      if (!oldest) break;
+      markdownRenderCache.delete(oldest);
     }
-    recordRendererPerf('markdown.render', performance.now() - startedAt, {
-      chars: normalizedSrc.length
-    })
-    return html
+    recordRendererPerf("markdown.render", performance.now() - startedAt, {
+      chars: normalizedSrc.length,
+    });
+    return html;
   } catch (err) {
-    recordRendererPerf('markdown.render.error', performance.now() - startedAt, {
-      chars: normalizedSrc.length
-    })
-    console.error('markdown render failed', err)
-    return `<pre class="text-sm text-red-600">Markdown error: ${(err as Error).message}</pre>`
+    recordRendererPerf("markdown.render.error", performance.now() - startedAt, {
+      chars: normalizedSrc.length,
+    });
+    console.error("markdown render failed", err);
+    return `<pre class="text-sm text-red-600">Markdown error: ${(err as Error).message}</pre>`;
   }
 }

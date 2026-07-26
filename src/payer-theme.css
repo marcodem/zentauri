@@ -1,5 +1,3 @@
-
-
 html {
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -8,11 +6,12 @@ html {
 
 :root {
   --vp-font-family-base: "Source Serif 4", serif;
-  --vp-font-family-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-  
+  --vp-font-family-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    "Liberation Mono", monospace;
+
   --vp-c-bg: #fcf9f2;
   --vp-c-bg-alt: #f1eee7;
-  --vp-c-bg-elv: #f1eee7; 
+  --vp-c-bg-elv: #f1eee7;
   --vp-c-bg-soft: #f1eee7;
 
   --vp-c-text-1: #03192e;
@@ -21,17 +20,13 @@ html {
 
   --vp-c-brand-1: #03192e;
   --vp-c-brand-2: #1e2d37;
-  --vp-c-brand-3: #241500; 
+  --vp-c-brand-3: #241500;
   --vp-c-brand-soft: rgba(3, 25, 46, 0.05);
 
-  --vp-c-divider: #a1a1a1; 
+  --vp-c-divider: #a1a1a1;
   --vp-c-border: #a1a1a1;
   --vp-c-gutter: transparent;
 }
-
-
-
-
 
 .dark {
   /* ── Scholarly Synthesis Dark · "Die illuminierte Handschrift bei Kerzenlicht" ── */
@@ -63,9 +58,16 @@ html {
   --vp-c-gutter: #0a1628;
 }
 
-
 /* Typografie */
-.vp-doc h1, .vp-doc h2, .vp-doc h3, .vp-doc h4, .vp-doc h5, .vp-doc h6, .VPHero .name, .VPHero .text, blockquote {
+.vp-doc h1,
+.vp-doc h2,
+.vp-doc h3,
+.vp-doc h4,
+.vp-doc h5,
+.vp-doc h6,
+.VPHero .name,
+.VPHero .text,
+blockquote {
   font-family: "Source Serif 4", serif !important;
   font-style: normal !important;
 }
@@ -101,22 +103,36 @@ html {
   font-size: 1.1rem;
 }
 
-.VPNavBar, .VPSidebar, .VPNav, .VPDocFooter, .outline-link, .outline-title, .badge, .VPLink, .VPButton {
+.VPNavBar,
+.VPSidebar,
+.VPNav,
+.VPDocFooter,
+.outline-link,
+.outline-title,
+.badge,
+.VPLink,
+.VPButton {
   font-family: "Inter", sans-serif !important;
 }
 
-.vp-doc p, .vp-doc li, .vp-doc table {
+.vp-doc p,
+.vp-doc li,
+.vp-doc table {
   font-size: 1.1rem;
   line-height: 1.55;
 }
 
 /* Lists Refinement */
-.vp-doc ul li, .vp-doc ol li {
+.vp-doc ul li,
+.vp-doc ol li {
   margin-top: 0.35rem !important;
   line-height: 1.5 !important;
 }
 
-.vp-doc ul ul li, .vp-doc ol ol li, .vp-doc ul ol li, .vp-doc ol ul li {
+.vp-doc ul ul li,
+.vp-doc ol ol li,
+.vp-doc ul ol li,
+.vp-doc ol ul li {
   list-style-type: circle !important;
   line-height: 1.4 !important;
   margin-top: 0.1rem !important;
@@ -130,13 +146,8 @@ html {
   width: auto !important;
   max-width: 100%;
   border: 1px solid #94a3b8 !important;
-  border-radius: 8px; 
+  border-radius: 8px;
 }
-
-
-
-
-
 
 .vp-doc th {
   background-color: transparent !important;
@@ -156,19 +167,23 @@ html {
   margin-top: 0 !important;
 }
 
-.vp-doc td, .vp-doc th {
+.vp-doc td,
+.vp-doc th {
   padding: 0.6rem 0.8rem;
   border: 1px solid #94a3b8 !important;
 }
 
-.vp-doc td[colspan], .vp-doc th[colspan],
-.vp-doc td[rowspan], .vp-doc th[rowspan] {
+.vp-doc td[colspan],
+.vp-doc th[colspan],
+.vp-doc td[rowspan],
+.vp-doc th[rowspan] {
   text-align: center !important;
   vertical-align: middle !important;
 }
 
 /* Yellow Highlighter (:mark[Text]) */
-.vp-doc mark.marker-yellow, .vp-doc mark {
+.vp-doc mark.marker-yellow,
+.vp-doc mark {
   background-color: #fef08a !important;
   color: #1e293b !important;
   padding: 0.1em 0.35em !important;
@@ -178,12 +193,11 @@ html {
   -webkit-box-decoration-break: clone;
 }
 
-.dark .vp-doc mark.marker-yellow, .dark .vp-doc mark {
+.dark .vp-doc mark.marker-yellow,
+.dark .vp-doc mark {
   background-color: #854d0e !important;
   color: #fef08a !important;
 }
-
-
 
 /* Phonetic Tables (Lektion 1, etc.) */
 .vp-doc .custom-block.laut-table table td:first-child {
@@ -192,16 +206,9 @@ html {
   font-weight: 600;
 }
 
-
-
-
 .vp-doc tr:nth-child(even) {
   background-color: var(--vp-c-bg-soft);
 }
-
-
-
-
 
 /* Blockquotes & Grammatik-Boxen */
 .vp-doc blockquote {
@@ -255,7 +262,6 @@ html[dir="rtl"] .vp-doc em {
   unicode-bidi: plaintext;
 }
 
-
 /* Hindi Devanagari — same font as Sanskrit but no color override */
 .hindi-dev {
   font-family: "Sanskrit2003", "ITR Vijay", serif;
@@ -281,7 +287,6 @@ html[dir="rtl"] .vp-doc em {
 
 /* Devanagari in grammar-box tables: same red as everywhere else */
 
-
 /* Custom Blocks (Grammar, Media, etc.) */
 .vp-doc .custom-block.grammar-box {
   background-color: #fefce8 !important; /* Light yellow parity with original */
@@ -290,7 +295,7 @@ html[dir="rtl"] .vp-doc em {
   margin: 1.5rem 0;
   padding: 1.25rem;
   border-radius: 0 8px 8px 0;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
   font-size: 1.1rem !important; /* Standardize font size for the whole box */
   color: var(--vp-c-text-1) !important; /* Use primary ink color */
 }
@@ -308,7 +313,7 @@ html[dir="rtl"] .vp-doc em {
   margin: 1.5rem 0;
   padding: 1.25rem;
   border-radius: 0 8px 8px 0;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
   font-size: 1.1rem !important;
   color: var(--vp-c-text-1) !important;
   font-weight: 600 !important; /* Bold styling - wie im original */
@@ -350,7 +355,7 @@ html[dir="rtl"] .vp-doc em {
   margin: 1.5rem 0;
   padding: 0.85rem 1.25rem;
   border-radius: 0 6px 6px 0;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
   font-size: 1.05rem !important;
   color: #334155 !important;
 }
@@ -496,7 +501,7 @@ html[dir="rtl"] .vp-doc em {
   padding: 1.25rem 1.25rem 1.25rem 4.5rem !important;
   border-radius: 0 8px 8px 0;
   position: relative;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
 .dark .custom-block.important,
@@ -541,7 +546,6 @@ html[dir="rtl"] .vp-doc em {
   padding-top: 0 !important;
 }
 
-
 /* Native VitePress Prev/Next ausgeblendet – ersetzt durch PayerDocFooter */
 .VPDocFooter .prev-next {
   display: none;
@@ -582,8 +586,6 @@ html[dir="rtl"] .vp-doc em {
   color: #8b1a1a !important;
   font-style: normal !important;
 }
-
-
 
 /* Hindi-Devanagari (Spalte 4) explizit schwarz */
 .vp-doc table td:nth-child(4) {
@@ -753,7 +755,8 @@ html.is-embedded .VPContent {
 
 /* Tamil — Noto Sans Tamil font */
 html[lang="ta-IN"] {
-  --vp-font-family-base: "Noto Sans Tamil", "Latha", "Tamil Sangam MN", sans-serif;
+  --vp-font-family-base: "Noto Sans Tamil", "Latha", "Tamil Sangam MN",
+    sans-serif;
 }
 
 /* Body text: leicht reduziert (war 1.15em — zu gross) */
@@ -764,9 +767,15 @@ html[lang="ta-IN"] .vp-doc th {
   font-size: 1.05em;
 }
 
-html[lang="ta-IN"] .vp-doc h1 { font-size: 2rem; }
-html[lang="ta-IN"] .vp-doc h2 { font-size: 1.6rem; }
-html[lang="ta-IN"] .vp-doc h3 { font-size: 1.3rem; }
+html[lang="ta-IN"] .vp-doc h1 {
+  font-size: 2rem;
+}
+html[lang="ta-IN"] .vp-doc h2 {
+  font-size: 1.6rem;
+}
+html[lang="ta-IN"] .vp-doc h3 {
+  font-size: 1.3rem;
+}
 
 /* Navigation + Sidebar: Noto Sans Tamil, etwas grösser */
 html[lang="ta-IN"] .VPNavBar,
@@ -789,7 +798,7 @@ html[lang="ta-IN"] .VPDocFooter {
   padding: 12px 24px;
   background: #03192e;
   color: #fcf9f2;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 14px;
   font-weight: 500;
   border: none;
@@ -806,8 +815,14 @@ html[lang="ta-IN"] .VPDocFooter {
 }
 
 @keyframes pwa-fadeIn {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Dark Mode */
@@ -843,7 +858,7 @@ html[lang="ta-IN"] .VPDocFooter {
   border-radius: 8px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
   color: var(--vp-c-text-1, #03192e);
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
 .pwa-progress-title {
@@ -890,7 +905,6 @@ html[lang="ta-IN"] .VPDocFooter {
   font-variant-numeric: tabular-nums;
 }
 
-
 /* === Locale Visibility Filter (Plan 20-2) ===
  * Elements matching inactive locales get .locale-hidden applied
  * by filterSidebarByLocales() in locale-filter.js
@@ -900,7 +914,7 @@ html[lang="ta-IN"] .VPDocFooter {
 }
 
 /* Phase 23: Hide Bulgarian (bg) from the language switcher */
-.VPNav a[href="/bg/"], 
+.VPNav a[href="/bg/"],
 .VPFlyout a[href="/bg/"],
 .VPMenuLink a[href="/bg/"],
 a.VPLink[href="/bg/"] {
@@ -919,14 +933,14 @@ a.VPLink[href="/bg/"] {
 
 /* Signalrot (Red Highlight) */
 .signalrot,
-.vp-doc .signalrot { 
-  color: #ee2c30 !important; 
-  font-weight: bold !important; 
+.vp-doc .signalrot {
+  color: #ee2c30 !important;
+  font-weight: bold !important;
 }
 .signalrot .sanskrit-dev,
-.vp-doc .signalrot .sanskrit-dev { 
-  color: #ee2c30 !important; 
-  font-weight: 600 !important; 
+.vp-doc .signalrot .sanskrit-dev {
+  color: #ee2c30 !important;
+  font-weight: 600 !important;
 }
 
 /* Gelber Leuchtstift (Marker) */
@@ -949,7 +963,8 @@ mark.marker-yellow,
 /* Sanskrit Devanagari */
 .sanskrit-dev,
 .vp-doc .sanskrit-dev {
-  font-family: "Sanskrit 2003", "Murty Sanskrit", "Noto Sans Devanagari", "Tiro Devanagari Sanskrit", serif !important;
+  font-family: "Sanskrit 2003", "Murty Sanskrit", "Noto Sans Devanagari",
+    "Tiro Devanagari Sanskrit", serif !important;
   color: #ee2c30 !important;
   font-weight: 600;
 }
@@ -974,7 +989,7 @@ select.control-btn,
 .VPNavBarTranslations button,
 .VPNavBarTranslations select,
 .VPNavBarMenuLink.translations {
-  font-family: 'Inter', sans-serif !important;
+  font-family: "Inter", sans-serif !important;
   font-size: 11px !important;
   font-weight: 600 !important;
   text-transform: uppercase !important;
@@ -1022,7 +1037,7 @@ select.control-btn,
 .VPNavBarTranslations .action {
   color: var(--color-ink, #03192e) !important;
   font-weight: 600 !important;
-  font-family: 'Inter', sans-serif !important;
+  font-family: "Inter", sans-serif !important;
   font-size: 11px !important;
   text-transform: uppercase !important;
 }
@@ -1031,7 +1046,6 @@ select.control-btn,
 .VPNavBarTranslations .action:hover {
   background-color: var(--color-parchment-dark, #f1eee7) !important;
 }
-
 
 /* ── PRINT STYLES (Stufe 1) ──────────────────────────────────────────────── */
 @media print {
@@ -1052,36 +1066,53 @@ select.control-btn,
   }
 
   /* 2. Reset Layout to Full Width */
-  #app, .Layout, .VPContent, .VPDoc, .vp-doc, .container {
+  #app,
+  .Layout,
+  .VPContent,
+  .VPDoc,
+  .vp-doc,
+  .container {
     padding: 0 !important;
     margin: 0 !important;
     max-width: 100% !important;
     width: 100% !important;
   }
-  
+
   .VPContent.has-sidebar {
     padding-left: 0 !important;
   }
 
   /* 3. Typography & Colors (Force light mode) */
-  body, html {
+  body,
+  html {
     background: white !important;
     color: black !important;
     font-size: 11pt !important;
   }
-  .vp-doc h1, .vp-doc h2, .vp-doc h3, .vp-doc h4, .vp-doc p, .vp-doc li, .vp-doc td, .vp-doc th {
+  .vp-doc h1,
+  .vp-doc h2,
+  .vp-doc h3,
+  .vp-doc h4,
+  .vp-doc p,
+  .vp-doc li,
+  .vp-doc td,
+  .vp-doc th {
     color: black !important;
   }
-  
+
   /* Borders and Boxes */
-  .grammar-box, .indent, .deleteme-box {
+  .grammar-box,
+  .indent,
+  .deleteme-box {
     border: 1px solid #ccc !important;
     background: transparent !important;
     box-shadow: none !important;
   }
 
   /* 4. Page Breaks */
-  h1, h2, h3 {
+  h1,
+  h2,
+  h3 {
     page-break-after: avoid !important;
     break-after: avoid !important;
     margin-top: 2em !important;
@@ -1096,18 +1127,24 @@ select.control-btn,
     break-before: avoid !important;
     margin-top: 0 !important;
   }
-  
-  table, tr, img, .grammar-box, .deleteme-box, .indent {
+
+  table,
+  tr,
+  img,
+  .grammar-box,
+  .deleteme-box,
+  .indent {
     page-break-inside: avoid !important;
     break-inside: avoid !important;
   }
-  
+
   /* Tables */
   table {
     border-collapse: collapse !important;
     width: 100% !important;
   }
-  th, td {
+  th,
+  td {
     border: 1px solid #999 !important;
   }
 }

@@ -1,37 +1,43 @@
 const IMAGE_EXTENSIONS = new Set([
-  '.apng',
-  '.avif',
-  '.gif',
-  '.jpeg',
-  '.jpg',
-  '.png',
-  '.svg',
-  '.webp'
-])
-const PDF_EXTENSIONS = new Set(['.pdf'])
-const AUDIO_EXTENSIONS = new Set(['.aac', '.flac', '.m4a', '.mp3', '.ogg', '.wav'])
-const VIDEO_EXTENSIONS = new Set(['.m4v', '.mov', '.mp4', '.ogv', '.webm'])
+  ".apng",
+  ".avif",
+  ".gif",
+  ".jpeg",
+  ".jpg",
+  ".png",
+  ".svg",
+  ".webp",
+]);
+const PDF_EXTENSIONS = new Set([".pdf"]);
+const AUDIO_EXTENSIONS = new Set([
+  ".aac",
+  ".flac",
+  ".m4a",
+  ".mp3",
+  ".ogg",
+  ".wav",
+]);
+const VIDEO_EXTENSIONS = new Set([".m4v", ".mov", ".mp4", ".ogv", ".webm"]);
 
-export type LocalAssetKind = 'image' | 'pdf' | 'audio' | 'video' | 'file'
+export type LocalAssetKind = "image" | "pdf" | "audio" | "video" | "file";
 
 function stripQueryAndHash(href: string): string {
-  return href.split('#')[0]?.split('?')[0] ?? href
+  return href.split("#")[0]?.split("?")[0] ?? href;
 }
 
 function assetExtension(href: string): string {
-  const clean = stripQueryAndHash(href)
-  const lastDot = clean.lastIndexOf('.')
-  return lastDot === -1 ? '' : clean.slice(lastDot).toLowerCase()
+  const clean = stripQueryAndHash(href);
+  const lastDot = clean.lastIndexOf(".");
+  return lastDot === -1 ? "" : clean.slice(lastDot).toLowerCase();
 }
 
 export function classifyLocalAssetHref(href: string): LocalAssetKind | null {
-  if (!href || href.startsWith('#') || href.startsWith('//')) return null
-  if (/^[a-zA-Z][a-zA-Z\d+.-]*:/.test(href)) return null
-  const ext = assetExtension(href)
-  if (IMAGE_EXTENSIONS.has(ext)) return 'image'
-  if (PDF_EXTENSIONS.has(ext)) return 'pdf'
-  if (AUDIO_EXTENSIONS.has(ext)) return 'audio'
-  if (VIDEO_EXTENSIONS.has(ext)) return 'video'
-  return 'file'
+  if (!href || href.startsWith("#") || href.startsWith("//")) return null;
+  if (/^[a-zA-Z][a-zA-Z\d+.-]*:/.test(href)) return null;
+  const ext = assetExtension(href);
+  if (IMAGE_EXTENSIONS.has(ext)) return "image";
+  if (PDF_EXTENSIONS.has(ext)) return "pdf";
+  if (AUDIO_EXTENSIONS.has(ext)) return "audio";
+  if (VIDEO_EXTENSIONS.has(ext)) return "video";
+  return "file";
 }
-
