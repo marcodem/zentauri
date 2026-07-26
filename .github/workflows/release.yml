@@ -63,3 +63,37 @@ jobs:
           releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
+
+      - name: Generate and upload updater manifest (macOS runner)
+        if: matrix.platform == 'macos-latest'
+        run: |
+          TAG_NAME="${{ github.ref_name }}"
+          CLEAN_VER="${TAG_NAME#v}"
+          cat <<EOF > latest.json
+          {
+            "version": "${TAG_NAME}",
+            "notes": "Zentauri ${TAG_NAME} Release",
+            "pub_date": "$(date -u +'%Y-%m-%dT%H:%M:%SZ')",
+            "platforms": {
+              "darwin-aarch64": {
+                "signature": "",
+                "url": "https://github.com/marcodem/zentauri/releases/download/${TAG_NAME}/ZenTauri_universal.app.tar.gz"
+              },
+              "darwin-x86_64": {
+                "signature": "",
+                "url": "https://github.com/marcodem/zentauri/releases/download/${TAG_NAME}/ZenTauri_universal.app.tar.gz"
+              },
+              "windows-x86_64": {
+                "signature": "",
+                "url": "https://github.com/marcodem/zentauri/releases/download/${TAG_NAME}/ZenTauri_${CLEAN_VER}_x64-setup.exe"
+              },
+              "linux-x86_64": {
+                "signature": "",
+                "url": "https://github.com/marcodem/zentauri/releases/download/${TAG_NAME}/ZenTauri_${CLEAN_VER}_amd64.AppImage"
+              }
+            }
+          }
+          EOF
+          gh release upload "${TAG_NAME}" latest.json --clobber
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
