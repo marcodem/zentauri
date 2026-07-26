@@ -122,36 +122,61 @@ This guarantees 100% rendering compatibility across Zentauri, the VS Code Extens
 
 ---
 
-## Creating, Customizing & Removing Syntax Elements
+## Programmatic Documentation & Syntax API
 
-All Markdown syntax extensions (container blocks, warnings, inline tags, Sanskrit formatting) are managed centrally by **\`markdown-it-extensible\`**.
+\`markdown-it-extensible\` exports programmatic helper methods and constants that allow host applications (like Zentauri) to query active syntax definitions dynamically:
 
-> [!TIP]
-> **Complete Plugin Documentation on GitHub:**  
-> Detailed instructions on how to create, customize, or remove inline directives (\`:<name>[<content>]\`) and block containers (\`:::<name>[Title]\`) purely via JSON configuration and CSS (without editing parser code) are documented in the official repository:  
-> **[markdown-it-extensible GitHub Documentation](https://github.com/marcodem/markdown-it-extensible#readme)**
+- **\`getSyntaxHelp()\`**: Returns structured JSON containing all active block containers, inline directives, and Sanskrit formatting rules.
+- **\`DEFAULT_BLOCK_CONTAINERS\`**: Exported array of default container definitions (\`name\`, \`className\`).
+- **\`DEFAULT_INLINE_DIRECTIVES\`**: Exported array of default inline directive definitions (\`name\`, \`className\`, \`tag\`).
 
 ---
 
-## Quick Summary: Zero-Code Inline Styling in Zentauri
+## Full TypeScript Declarations (\`index.d.ts\`)
 
-Zentauri supports zero-code custom inline elements via CSS:
+The plugin includes complete TypeScript typings (\`index.d.ts\`). Developers using \`markdown-it-extensible\` receive instant hover documentation, JSDoc explanations, and type-safe autocompletion in VS Code / WebStorm when configuring:
+
+\`\`\`typescript
+import mdIt from 'markdown-it';
+import extensiblePlugin from 'markdown-it-extensible';
+
+const md = mdIt().use(extensiblePlugin, {
+  blockContainers: [
+    { name: 'warning-box', className: 'alert-red' }
+  ],
+  inlineDirectives: [
+    { name: 'badge', className: 'badge-blue', tag: 'span' }
+  ]
+});
+\`\`\`
+
+---
+
+## Zero-Code Custom Inline Styling in Zentauri
+
+Zentauri supports zero-code custom inline elements via CSS without modifying any parser code:
 
 1. **Write any directive in Markdown:**  
    \`\`\`markdown
    This is a :my-custom-style[highlighted badge] in Zentauri.
    \`\`\`
+   *(Unregistered directives automatically fall back to \`<span class="my-custom-style">Text</span>\`)*
 2. **Style it in your theme CSS (\`src/payer-theme.css\`):**  
    \`\`\`css
-   .vp-doc .my-custom-style {
+   .my-custom-style {
      background-color: #e0e7ff;
      color: #3730a3;
      padding: 0.1em 0.4em;
      border-radius: 4px;
    }
    \`\`\`
-3. **Register in Editor Snippet Toolbar (\`src/lib/syntax-cheatsheet.ts\`):**  
-   Add an entry to \`syntax-cheatsheet.ts\` to automatically populate the item in the editor's Snippet Dropdown toolbar.
+
+---
+
+> [!TIP]
+> **Complete Plugin Documentation on GitHub:**  
+> For complete instructions on publishing, customizing, or extending syntax elements, see the official repository:  
+> **[markdown-it-extensible GitHub Documentation](https://github.com/marcodem/markdown-it-extensible#readme)**
 `;
 
 const vimContent = `# Vim Mode
