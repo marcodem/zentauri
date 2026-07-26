@@ -9,6 +9,7 @@
     "opener:default",
     "fs:default",
     "dialog:default",
+    "updater:default",
     "fs:read-all",
     "fs:write-all",
     {

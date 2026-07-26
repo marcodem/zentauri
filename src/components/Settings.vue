@@ -53,6 +53,51 @@ function applySettings() {
   };
   emit("update", s);
 }
+
+import { checkForUpdates, installAppUpdate } from "../lib/updater";
+
+const updateState = ref<
+  "idle" | "checking" | "available" | "up-to-date" | "downloading" | "error"
+>("idle");
+const updateMessage = ref("");
+const activeUpdate = ref<any>(null);
+
+async function checkUpdates() {
+  updateState.value = "checking";
+  updateMessage.value = "Checking for updates...";
+  activeUpdate.value = null;
+
+  const result = await checkForUpdates();
+  if (result.error) {
+    updateState.value = "error";
+    updateMessage.value = `Update check failed: ${result.error}`;
+  } else if (result.available && result.update) {
+    updateState.value = "available";
+    activeUpdate.value = result.update;
+    updateMessage.value = `New version v${result.version} is available!`;
+  } else {
+    updateState.value = "up-to-date";
+    updateMessage.value = "ZenTauri is up to date.";
+  }
+}
+
+async function installUpdate() {
+  if (!activeUpdate.value) return;
+  updateState.value = "downloading";
+  updateMessage.value = "Downloading update...";
+  try {
+    await installAppUpdate(activeUpdate.value, (downloaded, total) => {
+      if (total && total > 0) {
+        const pct = Math.round((downloaded / total) * 100);
+        updateMessage.value = `Downloading update... ${pct}%`;
+      }
+    });
+    updateMessage.value = "Update installed! Restarting app...";
+  } catch (err: any) {
+    updateState.value = "error";
+    updateMessage.value = `Installation failed: ${err?.message || String(err)}`;
+  }
+}
 </script>
 
 <template>
@@ -104,6 +149,33 @@ function applySettings() {
         <div class="flex items-center justify-between">
           <label class="text-sm font-medium text-app-text">Vim Mode</label>
           <input type="checkbox" v-model="vimMode" class="w-5 h-5 text-blue-600 bg-app-bg border-app-border rounded cursor-pointer focus:ring-blue-500">
+        </div>
+
+        <!-- Software Updates -->
+        <div class="pt-4 border-t border-app-border flex flex-col gap-2">
+          <label class="text-sm font-medium text-app-text">Software Updates</label>
+          <div class="flex items-center justify-between gap-2">
+            <span class="text-xs text-app-text-muted">ZenTauri</span>
+            <button 
+              @click="checkUpdates" 
+              :disabled="updateState === 'checking' || updateState === 'downloading'"
+              class="px-3 py-1.5 bg-app-bg-secondary hover:bg-app-border border border-app-border text-app-text text-xs font-medium rounded-md transition-colors disabled:opacity-50"
+            >
+              {{ updateState === 'checking' ? 'Checking...' : updateState === 'downloading' ? 'Downloading...' : 'Check for Updates' }}
+            </button>
+          </div>
+
+          <div v-if="updateMessage" :class="['text-xs mt-1 p-2 rounded', updateState === 'available' ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20' : updateState === 'error' ? 'bg-red-500/10 text-red-500' : 'text-app-text-muted']">
+            {{ updateMessage }}
+          </div>
+
+          <button
+            v-if="updateState === 'available' && activeUpdate"
+            @click="installUpdate"
+            class="mt-1 w-full py-1.5 bg-amber-500 hover:bg-amber-600 text-black text-xs font-semibold rounded-md transition-colors"
+          >
+            Download & Install Update
+          </button>
         </div>
       </div>
       
