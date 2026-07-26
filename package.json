@@ -46,7 +46,7 @@
     "lodash.debounce": "^4.0.8",
     "markdown-it": "^14.3.0",
     "markdown-it-attrs": "^5.0.0",
-    "markdown-it-extensible": "file:../markdown-it-extensible",
+    "markdown-it-extensible": "^1.1.0",
     "markdown-it-multimd-table": "^4.2.3",
     "mermaid": "^11.16.0",
     "puppeteer": "^25.1.0",
