@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { ref, watch, onMounted } from "vue";
+import { ref, shallowRef, toRaw, watch, onMounted } from "vue";
+import { checkForUpdates, installAppUpdate } from "../lib/updater";
+import type { Update } from "@tauri-apps/plugin-updater";
 
 defineProps<{
   isOpen: boolean;
@@ -54,13 +56,11 @@ function applySettings() {
   emit("update", s);
 }
 
-import { checkForUpdates, installAppUpdate } from "../lib/updater";
-
 const updateState = ref<
   "idle" | "checking" | "available" | "up-to-date" | "downloading" | "error"
 >("idle");
 const updateMessage = ref("");
-const activeUpdate = ref<any>(null);
+const activeUpdate = shallowRef<Update | null>(null);
 
 async function checkUpdates() {
   updateState.value = "checking";
@@ -86,7 +86,8 @@ async function installUpdate() {
   updateState.value = "downloading";
   updateMessage.value = "Downloading update...";
   try {
-    await installAppUpdate(activeUpdate.value, (downloaded, total) => {
+    const rawUpdate = toRaw(activeUpdate.value);
+    await installAppUpdate(rawUpdate, (downloaded, total) => {
       if (total && total > 0) {
         const pct = Math.round((downloaded / total) * 100);
         updateMessage.value = `Downloading update... ${pct}%`;

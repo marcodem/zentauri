@@ -8,7 +8,7 @@ Markdown extensions
 
 ## Scholarly Editing (e.g. Sanskrit Grammar)
 ::: important[Check it out]
-Try the extensive Markdown extensions ported from ZenNotes!
+Try the extensive Markdown extensions
 :::
 
 ## Formulae
