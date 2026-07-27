@@ -1,0 +1,12 @@
+# ZenTauri
+
+> ZenTauri is a minimalistic Markdown editor with an extensible syntax plugin (markdown-it-extensible) and KaTeX for math formulae and mermaid for diagrams. It is preloaded with syntax extensions for scholarly display of Sanskrit Grammar.
+
+## Overview
+ZenTauri is a lightweight, cross-platform desktop Markdown note-taking application built with Tauri, Vue 3, CodeMirror 6, and Tailwind CSS.
+
+## Key Features
+- **Extensible Syntax**: Uses `markdown-it-extensible` for custom container boxes, Sanskrit Devanagari highlighting, signal red highlights, yellow markers, and in-cell line breaks/indents.
+- **Math & Diagrams**: Integrated KaTeX math rendering and Mermaid diagram support.
+- **Scholarly Sanskrit Formatting**: Native Payer project compatibility (`:::grammar-box`, `:::important`, `《Sanskrit》`).
+- **Native Tauri IPC**: Desktop file tree management, custom outlines, and system finder integration via Rust.

@@ -747,7 +747,7 @@ function handlePrint() {
                     @change="handleSelectSnippet" 
                     class="w-full bg-app-bg text-app-text text-xs border border-app-border rounded px-2 py-1 focus:outline-none focus:border-blue-500 cursor-pointer font-mono shadow-xs"
                   >
-                    <option value="" disabled selected>-- Syntax Snippet wählen --</option>
+                    <option value="" disabled selected>-- Select Syntax Snippet --</option>
                     <optgroup v-for="cat in CHEAT_SHEET" :key="cat.id" :label="cat.title">
                       <option 
                         v-for="item in cat.items" 

@@ -333,7 +333,7 @@ async function handleChildCreateConfirm(payload: {
     }
     await refresh();
   } catch (err) {
-    alert(`Fehler beim Erstellen: ${err}`);
+    alert(`Failed to create: ${err}`);
   }
 }
 
@@ -351,7 +351,7 @@ async function handleChildRenameConfirm(payload: {
     await rename(payload.path, newPath);
     await refresh();
   } catch (err) {
-    alert(`Fehler beim Umbenennen: ${err}`);
+    alert(`Failed to rename: ${err}`);
   }
 }
 
@@ -360,7 +360,7 @@ async function handleChildDeleteConfirm(payload: { path: string }) {
     await remove(payload.path);
     await refresh();
   } catch (err) {
-    alert(`Fehler beim Löschen: ${err}`);
+    alert(`Failed to delete: ${err}`);
   }
 }
 
@@ -486,7 +486,7 @@ async function refresh() {
     <!-- Children -->
     <div v-if="node.isDirectory && isOpen">
       <div v-if="isLoading" class="text-xs text-app-text-muted py-1 opacity-80" :style="{ paddingLeft: ((depth + 1) * 1 + 0.5) + 'rem' }">
-        Lade...
+        Loading...
       </div>
       <FileTreeNode 
         v-for="child in children" 

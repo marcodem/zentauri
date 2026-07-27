@@ -88,13 +88,13 @@ const CHEAT_SHEET: SyntaxCategory[] = [
         label: "| Colspan ||",
         before: "\n| A | B |\n|---|---|\n| 1 | 2 |\n| 1 ||\n",
         after: "",
-        desc: "Table Colspan (Spalten verbinden)",
+        desc: "Table Colspan (Merge columns)",
       },
       {
         label: "| Rowspan ^^ |",
         before: "\n| A | B |\n|---|---|\n| 1 | 2 |\n| ^^ | 2 |\n",
         after: "",
-        desc: "Table Rowspan (Zeilen verbinden)",
+        desc: "Table Rowspan (Merge rows)",
       },
       {
         label: "| Table Spans |",

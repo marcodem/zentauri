@@ -3,6 +3,14 @@
 @import "./payer-theme.css";
 @plugin "@tailwindcss/typography";
 
+body,
+input,
+button,
+select,
+textarea {
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
 .prose {
   --tw-prose-body: var(--app-text);
   --tw-prose-headings: var(--app-text);

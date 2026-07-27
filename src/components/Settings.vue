@@ -3,6 +3,7 @@ import { ref, shallowRef, toRaw, watch, onMounted } from "vue";
 import { checkForUpdates, installAppUpdate } from "../lib/updater";
 import type { Update } from "@tauri-apps/plugin-updater";
 import { getVersion } from "@tauri-apps/api/app";
+import { relaunch } from "@tauri-apps/plugin-process";
 
 defineProps<{
   isOpen: boolean;
@@ -103,6 +104,7 @@ async function installUpdate() {
       }
     });
     updateMessage.value = "Update installed! Restarting app...";
+    await relaunch();
   } catch (err: any) {
     updateState.value = "error";
     updateMessage.value = `Installation failed: ${err?.message || String(err)}`;

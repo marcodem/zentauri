@@ -82,8 +82,8 @@ $$
 
 ## Extended Inline Formatting (Payer Standard)
 
-- **Signalrot (Red Highlight):** Extended Markdown syntax \`:sig[Signalrot Text]\` renders as: :sig[Signalrot Text]
-- **Gelber Leuchtstift (Marker):** Extended Markdown syntax \`:mark[Gelber Leuchtstift]\` renders as: :mark[Gelber Leuchtstift]
+- **Signal Red Highlight:** Extended Markdown syntax \`:sig[Signal Red Text]\` renders as: :sig[Signal Red Text]
+- **Yellow Highlighter (Marker):** Extended Markdown syntax \`:mark[Yellow Highlight]\` renders as: :mark[Yellow Highlight]
 - **Sanskrit Formatting:** Extended Markdown syntax \`《संस्कृतम्》\` renders as: 《संस्कृतम्》
 - **Inline Line Break:** Extended Markdown syntax \`:br\` inserts an in-cell line break.
 - **Inline Indent:** Extended Markdown syntax \`:indent\` inserts an in-cell tab indentation.

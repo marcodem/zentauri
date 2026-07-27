@@ -116,8 +116,8 @@ const loadRoot = async () => {
         isDirectory: false,
       },
       {
-        name: "Grammatik_Uebungen",
-        path: `${props.rootPath}/Grammatik_Uebungen`,
+        name: "Grammar_Exercises",
+        path: `${props.rootPath}/Grammar_Exercises`,
         isDirectory: true,
       },
     ];
@@ -145,7 +145,7 @@ async function handleMoveConfirm(payload: {
     }
     await loadRoot();
   } catch (err) {
-    alert(`Fehler beim Verschieben: ${err}`);
+    alert(`Failed to move item: ${err}`);
   }
 }
 
@@ -158,7 +158,7 @@ async function revealActiveFile() {
       console.error("Failed to reveal active file:", err);
     }
   } else {
-    alert(`Aktive Datei im Browser: ${props.activePath}`);
+    alert(`Active file in browser: ${props.activePath}`);
   }
 }
 
@@ -331,7 +331,7 @@ async function onContextAction(action: string) {
         if (isTauri) {
           await invoke("duplicate_file_item", { sourcePath: node.path });
         } else {
-          alert(`Duplizieren im Browser-Modus: ${node.name}`);
+          alert(`Duplicate in browser mode: ${node.name}`);
         }
         await loadRoot();
       } catch (err) {
@@ -359,7 +359,7 @@ async function onContextAction(action: string) {
         if (isTauri) {
           await invoke("reveal_in_explorer", { path: node.path });
         } else {
-          alert(`Datei-Pfad: ${node.path}`);
+          alert(`File path: ${node.path}`);
         }
       } catch (err) {
         console.error("Reveal failed:", err);
