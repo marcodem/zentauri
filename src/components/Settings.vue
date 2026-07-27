@@ -2,6 +2,7 @@
 import { ref, shallowRef, toRaw, watch, onMounted } from "vue";
 import { checkForUpdates, installAppUpdate } from "../lib/updater";
 import type { Update } from "@tauri-apps/plugin-updater";
+import { getVersion } from "@tauri-apps/api/app";
 
 defineProps<{
   isOpen: boolean;
@@ -17,7 +18,10 @@ const fontSize = ref(16);
 const autoSave = ref(true);
 const vimMode = ref(false);
 
-onMounted(() => {
+const appVersion = ref(typeof __APP_VERSION__ !== "undefined" ? __APP_VERSION__ : "1.1.10");
+const buildNumber = ref(typeof __BUILD_NUMBER__ !== "undefined" ? __BUILD_NUMBER__ : "dev");
+
+onMounted(async () => {
   const settingsStr = localStorage.getItem("zentauri-settings");
   if (settingsStr) {
     try {
@@ -29,6 +33,11 @@ onMounted(() => {
     } catch (e) {}
   }
   applySettings();
+
+  try {
+    const v = await getVersion();
+    if (v) appVersion.value = v;
+  } catch (e) {}
 });
 
 watch([currentTheme, fontSize, autoSave, vimMode], () => {
@@ -103,32 +112,32 @@ async function installUpdate() {
 
 <template>
   <div v-if="isOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" @click.self="$emit('close')">
-    <div class="bg-app-bg border border-app-border rounded-xl shadow-2xl w-[400px] overflow-hidden flex flex-col">
+    <div class="bg-app-bg border border-app-border rounded-xl shadow-2xl w-[440px] overflow-hidden flex flex-col">
       <div class="px-4 py-3 border-b border-app-border flex justify-between items-center bg-app-bg-secondary">
         <h2 class="font-semibold text-app-text">Settings</h2>
         <button @click="$emit('close')" class="text-app-text-muted hover:text-app-text text-xl leading-none">&times;</button>
       </div>
       
-      <div class="p-6 flex flex-col gap-6">
+      <div class="p-6 flex flex-col gap-6 max-h-[80vh] overflow-y-auto">
         <!-- Theme -->
         <div class="flex flex-col gap-2">
           <label class="text-sm font-medium text-app-text">Theme</label>
-            <select 
-              id="theme" 
-              v-model="currentTheme"
-              class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-app-border bg-app-bg text-app-text focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
-            >
-              <option value="system">System</option>
-              <option value="light">Light</option>
-              <option value="dark">Dark</option>
-              <option value="gruvbox">Gruvbox</option>
-              <option value="solarized">Solarized Light</option>
-              <option value="solarized-dark">Solarized Dark</option>
-              <option value="catppuccin">Catppuccin (Mocha)</option>
-              <option value="tokyonight">Tokyo Night</option>
-              <option value="nord">Nord</option>
-              <option value="dracula">Dracula</option>
-            </select>
+          <select 
+            id="theme" 
+            v-model="currentTheme"
+            class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-app-border bg-app-bg text-app-text focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
+          >
+            <option value="system">System</option>
+            <option value="light">Light</option>
+            <option value="dark">Dark</option>
+            <option value="gruvbox">Gruvbox</option>
+            <option value="solarized">Solarized Light</option>
+            <option value="solarized-dark">Solarized Dark</option>
+            <option value="catppuccin">Catppuccin (Mocha)</option>
+            <option value="tokyonight">Tokyo Night</option>
+            <option value="nord">Nord</option>
+            <option value="dracula">Dracula</option>
+          </select>
         </div>
         
         <!-- Font Size -->
@@ -152,11 +161,21 @@ async function installUpdate() {
           <input type="checkbox" v-model="vimMode" class="w-5 h-5 text-blue-600 bg-app-bg border-app-border rounded cursor-pointer focus:ring-blue-500">
         </div>
 
-        <!-- Software Updates -->
-        <div class="pt-4 border-t border-app-border flex flex-col gap-2">
-          <label class="text-sm font-medium text-app-text">Software Updates</label>
-          <div class="flex items-center justify-between gap-2">
-            <span class="text-xs text-app-text-muted">ZenTauri</span>
+        <!-- About ZenTauri & Software Updates -->
+        <div class="pt-5 border-t border-app-border flex flex-col gap-4">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-lg bg-blue-600/10 border border-blue-500/20 flex items-center justify-center text-blue-500 font-bold text-lg shadow-sm">
+                Z
+              </div>
+              <div class="flex flex-col">
+                <span class="text-sm font-semibold text-app-text">ZenTauri</span>
+                <span class="text-xs text-app-text-muted">
+                  Version {{ appVersion }} <span class="font-mono text-[11px] opacity-75">({{ buildNumber }})</span>
+                </span>
+              </div>
+            </div>
+            
             <button 
               @click="checkUpdates" 
               :disabled="updateState === 'checking' || updateState === 'downloading'"
@@ -166,17 +185,21 @@ async function installUpdate() {
             </button>
           </div>
 
-          <div v-if="updateMessage" :class="['text-xs mt-1 p-2 rounded', updateState === 'available' ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20' : updateState === 'error' ? 'bg-red-500/10 text-red-500' : 'text-app-text-muted']">
+          <div v-if="updateMessage" :class="['text-xs p-2.5 rounded-md', updateState === 'available' ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20' : updateState === 'error' ? 'bg-red-500/10 text-red-500 border border-red-500/20' : 'bg-app-bg-secondary text-app-text-muted border border-app-border']">
             {{ updateMessage }}
           </div>
 
           <button
             v-if="updateState === 'available' && activeUpdate"
             @click="installUpdate"
-            class="mt-1 w-full py-1.5 bg-amber-500 hover:bg-amber-600 text-black text-xs font-semibold rounded-md transition-colors"
+            class="w-full py-2 bg-amber-500 hover:bg-amber-600 text-black text-xs font-semibold rounded-md transition-colors shadow-sm"
           >
             Download & Install Update
           </button>
+
+          <p class="text-[11px] text-app-text-muted leading-relaxed">
+            Fast, extensible Markdown editor powered by Tauri, Vue 3, and <span class="font-mono text-app-text">markdown-it-extensible</span>.
+          </p>
         </div>
       </div>
       
