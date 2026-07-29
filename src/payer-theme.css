@@ -296,7 +296,12 @@ html[dir="rtl"] .vp-doc em {
 /* Devanagari in grammar-box tables: same red as everywhere else */
 
 /* Custom Blocks (Grammar, Media, etc.) */
-.vp-doc .custom-block.grammar-box {
+.vp-doc .custom-block.grammar-box,
+.custom-block.grammar-box,
+.grammar-box,
+.vp-doc .custom-block.grammarbox,
+.custom-block.grammarbox,
+.grammarbox {
   background-color: #fefce8 !important; /* Light yellow parity with original */
   border: none !important;
   border-left: 5px solid #eab308 !important; /* Golden Yellow */
@@ -308,35 +313,84 @@ html[dir="rtl"] .vp-doc em {
   color: var(--vp-c-text-1) !important; /* Use primary ink color */
 }
 
-.dark .vp-doc .custom-block.grammar-box {
-  background-color: #241500 !important;
-  border-left-color: #eab308 !important;
+/* Dark Mode Grammar Box 1 (Yellow) */
+.dark .grammar-box,
+.dark .grammarbox,
+.dark .custom-block.grammar-box,
+.dark .custom-block.grammarbox,
+.dark .vp-doc .custom-block.grammar-box,
+.dark .vp-doc .custom-block.grammarbox,
+:root[data-theme="dark"] .grammar-box,
+:root[data-theme="dark"] .grammarbox,
+:root[data-theme="dark"] .custom-block.grammar-box,
+:root[data-theme="dark"] .custom-block.grammarbox,
+:root[data-theme="solarized-dark"] .grammar-box,
+:root[data-theme="solarized-dark"] .grammarbox,
+:root[data-theme="dracula"] .grammar-box,
+:root[data-theme="dracula"] .grammarbox,
+:root[data-theme="tokyonight"] .grammar-box,
+:root[data-theme="tokyonight"] .grammarbox {
+  background-color: #241500 !important; /* Dark Golden Amber */
+  border-left-color: #eab308 !important; /* Golden Yellow Border */
+  color: #fef08a !important; /* Soft Yellow Text */
 }
 
 /* Custom Block: Grammar-Box 2 (Orange background, bold styling) */
-.vp-doc .custom-block.grammar-box2 {
-  background-color: #ffedd5 !important; /* Light orange / warm peach parity with original #FFCC66 */
+.custom-block.grammar-box2,
+.vp-doc .custom-block.grammar-box2,
+.grammar-box2,
+div.grammar-box2,
+.custom-block.grammarbox2,
+.vp-doc .custom-block.grammarbox2,
+.grammarbox2,
+div.grammarbox2 {
+  background-color: #fed7aa !important; /* Rich distinct orange tint (#fed7aa) */
   border: none !important;
-  border-left: 5px solid #ea580c !important; /* Deep Orange */
+  border-left: 5px solid #ea580c !important; /* Deep Orange Accent Bar */
   margin: 1.5rem 0;
   padding: 1.25rem;
   border-radius: 0 8px 8px 0;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
   font-size: 1.1rem !important;
-  color: var(--vp-c-text-1) !important;
-  font-weight: 600 !important; /* Bold styling - wie im original */
+  color: #431407 !important;
+  font-weight: 600 !important; /* Bold styling */
 }
 
-.dark .vp-doc .custom-block.grammar-box2 {
-  background-color: #361e04 !important;
-  border-left-color: #ea580c !important;
+/* Dark Mode Grammar Box 2 (Orange) */
+.dark .grammar-box2,
+.dark .grammarbox2,
+.dark .custom-block.grammar-box2,
+.dark .custom-block.grammarbox2,
+.dark .vp-doc .custom-block.grammar-box2,
+.dark .vp-doc .custom-block.grammarbox2,
+:root[data-theme="dark"] .grammar-box2,
+:root[data-theme="dark"] .grammarbox2,
+:root[data-theme="dark"] .custom-block.grammar-box2,
+:root[data-theme="dark"] .custom-block.grammarbox2,
+:root[data-theme="solarized-dark"] .grammar-box2,
+:root[data-theme="solarized-dark"] .grammarbox2,
+:root[data-theme="dracula"] .grammar-box2,
+:root[data-theme="dracula"] .grammarbox2,
+:root[data-theme="tokyonight"] .grammar-box2,
+:root[data-theme="tokyonight"] .grammarbox2 {
+  background-color: #431407 !important; /* Deep Rich Dark Orange */
+  border-left-color: #f97316 !important; /* Vibrant Orange Border */
+  color: #ffedd5 !important; /* Soft Warm Orange Text */
 }
 
-.vp-doc .custom-block.grammar-box2 .custom-block-title {
-  display: none;
+.custom-block.grammar-box2 .custom-block-title,
+.vp-doc .custom-block.grammar-box2 .custom-block-title,
+.grammar-box2 .custom-block-title,
+.custom-block.grammarbox2 .custom-block-title,
+.vp-doc .custom-block.grammarbox2 .custom-block-title,
+.grammarbox2 .custom-block-title {
+  display: none !important;
 }
 
-.vp-doc .grammar-box2 blockquote {
+.grammar-box2 blockquote,
+.vp-doc .grammar-box2 blockquote,
+.grammarbox2 blockquote,
+.vp-doc .grammarbox2 blockquote {
   border-left: none !important;
   background-color: transparent !important;
   padding-left: 2rem !important;
@@ -345,7 +399,10 @@ html[dir="rtl"] .vp-doc em {
   color: inherit !important;
 }
 
-.vp-doc .grammar-box2 blockquote p {
+.grammar-box2 blockquote p,
+.vp-doc .grammar-box2 blockquote p,
+.grammarbox2 blockquote p,
+.vp-doc .grammarbox2 blockquote p {
   font-weight: inherit !important;
   font-size: 1em !important;
   line-height: inherit !important;

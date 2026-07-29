@@ -215,7 +215,10 @@ watch(
     if (newVal && props.node.isDirectory) {
       const normalizedNode = props.node.path.replace(/\\/g, "/");
       const normalizedActive = newVal.replace(/\\/g, "/");
-      if (normalizedActive.startsWith(normalizedNode + "/")) {
+      if (
+        normalizedActive.startsWith(normalizedNode + "/") ||
+        normalizedActive === normalizedNode
+      ) {
         ensureOpen();
       }
     }

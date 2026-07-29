@@ -67,7 +67,7 @@ function handleMatchClick(lineNum: number) {
 </script>
 
 <template>
-  <div class="w-64 flex-none border-r border-app-border bg-app-bg-secondary overflow-hidden p-4 text-sm shadow-inner flex flex-col h-full">
+  <div class="w-full h-full flex-none bg-app-bg-secondary overflow-hidden p-4 text-sm shadow-inner flex flex-col">
     <h2 class="font-bold mb-4 text-app-text flex-none">Search in File</h2>
     
     <!-- Inputs -->

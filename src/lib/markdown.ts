@@ -8,7 +8,6 @@ import katex from "katex";
 import * as extensiblePluginModule from "markdown-it-extensible";
 const extensiblePlugin =
   (extensiblePluginModule as any).default || extensiblePluginModule;
-import "markdown-it-extensible/css";
 import { recordRendererPerf } from "./perf";
 
 const URI_SCHEME_RE = /^[a-zA-Z][a-zA-Z\d+.-]*:/;
@@ -165,7 +164,30 @@ const md = new MarkdownIt({ html: true })
     autolabel: true,
   })
   .use(markdownItAttrs)
-  .use(extensiblePlugin);
+  .use(extensiblePlugin, {
+    injectStyles: false,
+    blockContainers: [
+      { name: "grammar-box2", className: "grammar-box2" },
+      { name: "grammarbox2", className: "grammar-box2" },
+      { name: "grammar-box", className: "grammar-box" },
+      { name: "grammarbox", className: "grammar-box" },
+      { name: "deleteme-box", className: "deleteme-box" },
+      { name: "deletemebox", className: "deleteme-box" },
+      { name: "metrik-schema", className: "metrik-schema" },
+      { name: "metrikschema", className: "metrik-schema" },
+      { name: "note-box", className: "note-box" },
+      { name: "notebox", className: "note-box" },
+      { name: "laut-table", className: "laut-table" },
+      { name: "lauttable", className: "laut-table" },
+      { name: "media", className: "media" },
+      { name: "center", className: "center" },
+      { name: "important", className: "important" },
+      { name: "indent", className: "indent" },
+      { name: "compact", className: "compact" },
+      { name: "no-header", className: "no-header" },
+      { name: "noheader", className: "no-header" },
+    ],
+  });
 
 // Custom KaTeX Math Plugin
 function katexMathPlugin(mdInstance: any) {

@@ -14,7 +14,7 @@
     "fs:default",
     "dialog:default",
     "updater:default",
-    "process:allow-relaunch",
+    "process:allow-restart",
     "fs:read-all",
     "fs:write-all",
     {

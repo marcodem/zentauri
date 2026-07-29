@@ -228,29 +228,98 @@ fn reveal_in_explorer(path: &str) -> Result<(), String> {
     Ok(())
 }
 
+use std::sync::{Arc, Mutex};
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
+use tauri::tray::{TrayIconBuilder, TrayIconEvent};
 use tauri::Emitter;
 use tauri::Manager;
-use tauri::tray::{TrayIconBuilder, TrayIconEvent};
+use tauri::State;
+use tauri_plugin_fs::FsExt;
+
+#[derive(Default)]
+pub struct PendingOpenFiles(pub Arc<Mutex<Vec<String>>>);
+
+#[tauri::command]
+fn get_pending_open_files(state: State<'_, PendingOpenFiles>) -> Vec<String> {
+    let mut files = state.0.lock().unwrap();
+    let result = files.clone();
+    files.clear();
+    result
+}
+
+fn resolve_file_arg(arg: &str, cwd: Option<&std::path::Path>) -> Option<std::path::PathBuf> {
+    if arg.starts_with('-')
+        || arg.starts_with("http://")
+        || arg.starts_with("https://")
+        || arg.starts_with("tauri://")
+    {
+        return None;
+    }
+
+    let path = std::path::Path::new(arg);
+    let abs_path = if path.is_absolute() {
+        path.to_path_buf()
+    } else if let Some(base) = cwd {
+        base.join(path)
+    } else if let Ok(current) = std::env::current_dir() {
+        current.join(path)
+    } else {
+        path.to_path_buf()
+    };
+
+    Some(abs_path)
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let app = tauri::Builder::default()
+        .manage(PendingOpenFiles::default())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_persisted_scope::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_single_instance::init(|app, argv, cwd| {
+            let cwd_path = std::path::Path::new(&cwd);
+            for arg in argv.iter().skip(1) {
+                if let Some(abs_path) = resolve_file_arg(arg, Some(cwd_path)) {
+                    let path_str = abs_path.to_string_lossy().to_string();
+                    let _ = app.fs_scope().allow_file(&abs_path);
+                    let _ = app.emit("open-file-path", &path_str);
+                    if let Some(state) = app.try_state::<PendingOpenFiles>() {
+                        state.0.lock().unwrap().push(path_str);
+                    }
+                }
+            }
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.show();
+                let _ = window.unminimize();
+                let _ = window.set_focus();
+            }
+        }))
         .invoke_handler(tauri::generate_handler![
             greet,
             parse_outline,
             read_workspace_tree,
             move_file_item,
             duplicate_file_item,
-            reveal_in_explorer
+            reveal_in_explorer,
+            get_pending_open_files
         ])
         .setup(|app| {
+            // Process initial CLI args on launch
+            let pending_state = app.state::<PendingOpenFiles>();
+            if let Ok(cwd) = std::env::current_dir() {
+                for arg in std::env::args().skip(1) {
+                    if let Some(abs_path) = resolve_file_arg(&arg, Some(&cwd)) {
+                        let path_str = abs_path.to_string_lossy().to_string();
+                        let _ = app.fs_scope().allow_file(&abs_path);
+                        pending_state.0.lock().unwrap().push(path_str);
+                    }
+                }
+            }
+
             // -- Build File Menu --
             let file_menu = Submenu::with_items(
                 app,
@@ -262,6 +331,7 @@ pub fn run() {
                     &PredefinedMenuItem::separator(app)?,
                     &MenuItem::with_id(app, "open_file", "Open File...", true, Some("CmdOrCtrl+O"))?,
                     &MenuItem::with_id(app, "open_folder", "Open Folder...", true, Some("CmdOrCtrl+Shift+O"))?,
+                    &MenuItem::with_id(app, "close_folder", "Close Folder", true, Some("CmdOrCtrl+Shift+W"))?,
                     &PredefinedMenuItem::separator(app)?,
                     &MenuItem::with_id(app, "save", "Save", true, Some("CmdOrCtrl+S"))?,
                     &MenuItem::with_id(app, "save_as", "Save As...", true, Some("CmdOrCtrl+Shift+S"))?,
@@ -408,13 +478,26 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("error while building tauri application");
 
-    app.run(|_app_handle, _event| {
+    app.run(|app_handle, event| match event {
+        tauri::RunEvent::Opened { urls } => {
+            for url in urls {
+                if let Ok(path) = url.to_file_path() {
+                    let path_str = path.to_string_lossy().to_string();
+                    let _ = app_handle.fs_scope().allow_file(&path);
+                    let _ = app_handle.emit("open-file-path", &path_str);
+                    if let Some(state) = app_handle.try_state::<PendingOpenFiles>() {
+                        state.0.lock().unwrap().push(path_str);
+                    }
+                }
+            }
+        }
         #[cfg(target_os = "macos")]
-        if let tauri::RunEvent::Reopen { .. } = _event {
-            if let Some(window) = _app_handle.get_webview_window("main") {
+        tauri::RunEvent::Reopen { .. } => {
+            if let Some(window) = app_handle.get_webview_window("main") {
                 let _ = window.show();
                 let _ = window.set_focus();
             }
         }
+        _ => {}
     });
 }

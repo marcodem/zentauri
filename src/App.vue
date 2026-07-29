@@ -23,6 +23,7 @@ import { readTextFile, writeTextFile, mkdir } from "@tauri-apps/plugin-fs";
 import { openUrl as tauriOpenUrl } from "@tauri-apps/plugin-opener";
 import debounce from "lodash.debounce";
 import { listen } from "@tauri-apps/api/event";
+import { invoke } from "@tauri-apps/api/core";
 
 interface Tab {
   id: string;
@@ -79,6 +80,146 @@ const editorRef = ref<InstanceType<typeof Editor> | null>(null);
 const fileTreeRef = ref<InstanceType<typeof FileTree> | null>(null);
 
 const workspaceRoot = ref<string | null>(null);
+const workspaceRoots = ref<string[]>([]);
+const sidebarWidth = ref(256);
+const isResizingSidebar = ref(false);
+
+function saveWorkspaceRoots() {
+  localStorage.setItem("zentauri-workspace-folders", JSON.stringify(workspaceRoots.value));
+  if (workspaceRoots.value.length > 0) {
+    workspaceRoot.value = workspaceRoots.value[0];
+    localStorage.setItem("zentauri-workspace", workspaceRoots.value[0]);
+  } else {
+    workspaceRoot.value = null;
+    localStorage.removeItem("zentauri-workspace");
+  }
+}
+
+function addWorkspaceFolder(folderPath: string) {
+  if (!folderPath) return;
+  const normalizedNew = folderPath.replace(/\\/g, "/");
+
+  // Check if new folder is already covered by an existing parent folder
+  const existingParent = workspaceRoots.value.find((f) => {
+    const norm = f.replace(/\\/g, "/");
+    return normalizedNew === norm || normalizedNew.startsWith(norm + "/");
+  });
+
+  if (existingParent) {
+    showExplorerView();
+    return;
+  }
+
+  // Remove any subfolders of the new folder that were previously open separately
+  workspaceRoots.value = workspaceRoots.value.filter((f) => {
+    const norm = f.replace(/\\/g, "/");
+    return !norm.startsWith(normalizedNew + "/");
+  });
+
+  workspaceRoots.value.push(folderPath);
+  saveWorkspaceRoots();
+  showExplorerView();
+}
+
+function cleanupOrphanTabsAndWorkspace() {
+  if (workspaceRoots.value.length === 0) {
+    tabs.value = [];
+    openTab("Untitled Document", `untitled://${Date.now()}`, "");
+    saveTabsState();
+    return;
+  }
+
+  const validTabs = tabs.value.filter((tab) => {
+    if (!tab.path || tab.path.startsWith("untitled://") || tab.isWeb) {
+      return false;
+    }
+    const cleanTabPath = tab.path
+      .replace("browser://", "")
+      .replace(/\\/g, "/")
+      .toLowerCase();
+
+    return workspaceRoots.value.some((folder) => {
+      const normFolder = folder.replace(/\\/g, "/").toLowerCase();
+      return (
+        cleanTabPath === normFolder ||
+        cleanTabPath.startsWith(normFolder + "/")
+      );
+    });
+  });
+
+  if (validTabs.length === 0) {
+    tabs.value = [];
+    openTab("Untitled Document", `untitled://${Date.now()}`, "");
+  } else {
+    tabs.value = validTabs;
+    activeTabIndex.value = Math.min(activeTabIndex.value, tabs.value.length - 1);
+    markdownSource.value = tabs.value[activeTabIndex.value]?.content || "";
+  }
+  saveTabsState();
+}
+
+async function removeWorkspaceFolder(folderPath: string) {
+  if (!folderPath) return;
+  const normalizedFolder = folderPath.replace(/\\/g, "/").toLowerCase();
+
+  // Save all tabs before closing folder to prevent data loss
+  await handleSaveAll();
+
+  // Remove folder from workspaceRoots
+  workspaceRoots.value = workspaceRoots.value.filter(
+    (f) => f.replace(/\\/g, "/").toLowerCase() !== normalizedFolder,
+  );
+  saveWorkspaceRoots();
+
+  // Purge any open tabs that no longer belong to an active workspace folder
+  cleanupOrphanTabsAndWorkspace();
+}
+
+function handleCloseActiveFolder() {
+  if (workspaceRoots.value.length > 0) {
+    const currentTab = tabs.value[activeTabIndex.value];
+    if (currentTab && currentTab.path) {
+      const normTab = currentTab.path.replace(/\\/g, "/");
+      const matchedFolder = workspaceRoots.value.find((f) => {
+        const normF = f.replace(/\\/g, "/");
+        return normTab === normF || normTab.startsWith(normF + "/");
+      });
+      if (matchedFolder) {
+        removeWorkspaceFolder(matchedFolder);
+        return;
+      }
+    }
+    removeWorkspaceFolder(workspaceRoots.value[0]);
+  }
+}
+
+function startSidebarResize(e: MouseEvent) {
+  e.preventDefault();
+  isResizingSidebar.value = true;
+  const startX = e.clientX;
+  const startWidth = sidebarWidth.value;
+
+  document.body.style.userSelect = "none";
+  document.body.style.cursor = "col-resize";
+
+  function onMouseMove(moveEvent: MouseEvent) {
+    const delta = moveEvent.clientX - startX;
+    const newWidth = Math.min(Math.max(160, startWidth + delta), 800);
+    sidebarWidth.value = newWidth;
+  }
+
+  function onMouseUp() {
+    isResizingSidebar.value = false;
+    document.body.style.userSelect = "";
+    document.body.style.cursor = "";
+    window.removeEventListener("mousemove", onMouseMove);
+    window.removeEventListener("mouseup", onMouseUp);
+    localStorage.setItem("zentauri-sidebar-width", sidebarWidth.value.toString());
+  }
+
+  window.addEventListener("mousemove", onMouseMove);
+  window.addEventListener("mouseup", onMouseUp);
+}
 const showPreview = ref(true);
 const showCheatsheet = ref(false);
 const showSearch = ref(false);
@@ -213,8 +354,23 @@ const isTauri =
 // Memory
 onMounted(() => {
   window.addEventListener("keydown", handleGlobalKeydown);
-  const savedWorkspace = localStorage.getItem("zentauri-workspace");
-  if (savedWorkspace) workspaceRoot.value = savedWorkspace;
+  const savedFoldersStr = localStorage.getItem("zentauri-workspace-folders");
+  if (savedFoldersStr) {
+    try {
+      const parsed = JSON.parse(savedFoldersStr);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        workspaceRoots.value = parsed;
+        workspaceRoot.value = parsed[0];
+      }
+    } catch (e) {}
+  }
+  if (workspaceRoots.value.length === 0) {
+    const savedWorkspace = localStorage.getItem("zentauri-workspace");
+    if (savedWorkspace) {
+      workspaceRoots.value = [savedWorkspace];
+      workspaceRoot.value = savedWorkspace;
+    }
+  }
 
   const savedTabsStr = localStorage.getItem("zentauri-tabs");
   if (savedTabsStr) {
@@ -231,6 +387,17 @@ onMounted(() => {
     openTab("Untitled Document", "untitled://1", defaultContent);
   }
 
+  // Purge any orphan tabs that do not belong to active workspace folders
+  cleanupOrphanTabsAndWorkspace();
+
+  const savedSidebarWidth = localStorage.getItem("zentauri-sidebar-width");
+  if (savedSidebarWidth) {
+    const w = parseInt(savedSidebarWidth, 10);
+    if (!isNaN(w) && w >= 160 && w <= 800) {
+      sidebarWidth.value = w;
+    }
+  }
+
   const settingsStr = localStorage.getItem("zentauri-settings");
   if (settingsStr) {
     try {
@@ -240,6 +407,26 @@ onMounted(() => {
   }
 
   if (isTauri) {
+    listen<string>("open-file-path", (event) => {
+      if (event.payload) {
+        loadFile(event.payload);
+      }
+    }).catch((err) => {
+      console.error("Failed to setup open-file-path listener:", err);
+    });
+
+    invoke<string[]>("get_pending_open_files")
+      .then((paths) => {
+        if (paths && paths.length > 0) {
+          for (const path of paths) {
+            loadFile(path);
+          }
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to get pending open files:", err);
+      });
+
     listen<string>("menu-event", (event) => {
       switch (event.payload) {
         case "new_file":
@@ -253,6 +440,9 @@ onMounted(() => {
           break;
         case "open_folder":
           handleOpenFolder();
+          break;
+        case "close_folder":
+          handleCloseActiveFolder();
           break;
         case "save":
           forceSave();
@@ -463,11 +653,46 @@ function closeTab(index: number, event?: Event) {
   saveTabsState();
 }
 
+function ensureWorkspaceForFile(filePath: string) {
+  if (!filePath || filePath.startsWith("untitled://")) {
+    return;
+  }
+
+  let cleanPath = filePath;
+  if (cleanPath.startsWith("browser://")) {
+    cleanPath = cleanPath.replace("browser://", "");
+  }
+
+  const lastSlashIndex = Math.max(
+    cleanPath.lastIndexOf("/"),
+    cleanPath.lastIndexOf("\\"),
+  );
+
+  if (lastSlashIndex <= 0) {
+    return;
+  }
+
+  const parentDir = cleanPath.substring(0, lastSlashIndex);
+  const normalizedParent = parentDir.replace(/\\/g, "/");
+
+  const isCovered = workspaceRoots.value.some((folder) => {
+    const norm = folder.replace(/\\/g, "/");
+    return (
+      normalizedParent === norm || normalizedParent.startsWith(norm + "/")
+    );
+  });
+
+  if (!isCovered) {
+    addWorkspaceFolder(parentDir);
+  }
+}
+
 function selectTab(index: number) {
   activeTabIndex.value = index;
   const tab = tabs.value[index];
   if (tab && !tab.isWeb) {
     markdownSource.value = tab.content;
+    ensureWorkspaceForFile(tab.path);
     focusEditor();
   }
   saveTabsState();
@@ -521,9 +746,8 @@ async function handleOpenFolder() {
     if ("showDirectoryPicker" in window) {
       try {
         const dirHandle = await (window as any).showDirectoryPicker();
-        workspaceRoot.value = dirHandle.name;
+        addWorkspaceFolder(dirHandle.name);
         showExplorerView();
-        localStorage.setItem("zentauri-workspace", dirHandle.name);
         return;
       } catch (err) {
         // User cancelled or not supported
@@ -532,12 +756,11 @@ async function handleOpenFolder() {
 
     const promptPath = window.prompt(
       "Geben Sie einen Workspace-Pfad oder Namen ein:",
-      workspaceRoot.value || "Zentauri-Workspace",
+      workspaceRoots.value[0] || "Zentauri-Workspace",
     );
     if (promptPath) {
-      workspaceRoot.value = promptPath;
+      addWorkspaceFolder(promptPath);
       showExplorerView();
-      localStorage.setItem("zentauri-workspace", promptPath);
     }
     return;
   }
@@ -549,9 +772,8 @@ async function handleOpenFolder() {
     });
 
     if (selected && typeof selected === "string") {
-      workspaceRoot.value = selected;
+      addWorkspaceFolder(selected);
       showExplorerView();
-      localStorage.setItem("zentauri-workspace", selected);
     }
   } catch (err) {
     console.error("Failed to open folder via Tauri dialog:", err);
@@ -559,6 +781,8 @@ async function handleOpenFolder() {
 }
 
 async function loadFile(path: string) {
+  ensureWorkspaceForFile(path);
+
   const existingIndex = tabs.value.findIndex(
     (t) => t.path === path || t.id === path,
   );
@@ -679,33 +903,56 @@ function handlePrint() {
       />
 
       <!-- File Tree Sidebar -->
-      <div v-show="showExplorer" class="w-64 flex-none border-r border-app-border print:hidden">
+      <div 
+        v-show="showExplorer" 
+        class="flex-none border-r border-app-border print:hidden h-full"
+        :style="{ width: sidebarWidth + 'px' }"
+      >
         <FileTree 
           ref="fileTreeRef"
           :rootPath="workspaceRoot" 
+          :rootPaths="workspaceRoots"
           :activePath="tabs[activeTabIndex]?.path" 
           :openTabs="tabs"
           @select="loadFile" 
           @open-folder="handleOpenFolder"
           @open-file="handleOpenFile"
+          @remove-folder="removeWorkspaceFolder"
           @close-tab="closeTab"
           @save-all="handleSaveAll"
         />
       </div>
 
       <!-- Cheatsheet Sidebar -->
-      <div v-show="showCheatsheet" class="flex-none print:hidden h-full">
+      <div 
+        v-show="showCheatsheet" 
+        class="flex-none border-r border-app-border print:hidden h-full"
+        :style="{ width: sidebarWidth + 'px' }"
+      >
         <Cheatsheet @insertSnippet="handleInsertSnippet" @insert="handleInsertFromCheatsheet" class="h-full" />
       </div>
 
       <!-- Search Sidebar -->
-      <div v-show="showSearch" class="flex-none print:hidden h-full">
+      <div 
+        v-show="showSearch" 
+        class="flex-none border-r border-app-border print:hidden h-full"
+        :style="{ width: sidebarWidth + 'px' }"
+      >
         <SearchPanel 
           :fileContent="tabs[activeTabIndex]?.content || ''" 
           @jump-to-line="handleJumpToLine" 
           class="h-full" 
         />
       </div>
+
+      <!-- Resizable Boundary Handle -->
+      <div
+        v-if="showExplorer || showCheatsheet || showSearch"
+        @mousedown="startSidebarResize"
+        @dblclick="sidebarWidth = 256"
+        class="w-1.5 -ml-1.5 flex-none bg-transparent hover:bg-blue-500/50 active:bg-blue-600 cursor-col-resize select-none transition-colors h-full z-30"
+        title="Drag to resize sidebar (Double-click to reset)"
+      ></div>
 
       <!-- Main Workspace Area -->
       <div class="flex-1 flex flex-col min-w-0 bg-app-bg relative print:block print:overflow-visible print:h-auto">

@@ -11,8 +11,11 @@ import { invoke } from "@tauri-apps/api/core";
 import FileTreeNode, { type FileEntry } from "./FileTreeNode.vue";
 import ContextMenu from "./ContextMenu.vue";
 
+import WorkspaceFolderSection from "./WorkspaceFolderSection.vue";
+
 const props = defineProps<{
-  rootPath: string | null;
+  rootPath?: string | null;
+  rootPaths?: string[];
   activePath?: string;
   openTabs?: { id: string; path: string; title: string; content: string }[];
 }>();
@@ -21,6 +24,7 @@ const emit = defineEmits<{
   (e: "select", path: string): void;
   (e: "open-folder"): void;
   (e: "open-file"): void;
+  (e: "remove-folder", folderPath: string): void;
   (e: "print"): void;
   (e: "open-settings"): void;
   (e: "toggle-help"): void;
@@ -30,6 +34,23 @@ const emit = defineEmits<{
   (e: "new-folder"): void;
   (e: "save-all"): void;
 }>();
+
+const computedRootPaths = computed(() => {
+  if (props.rootPaths && props.rootPaths.length > 0) {
+    return props.rootPaths;
+  }
+  if (props.rootPath) {
+    return [props.rootPath];
+  }
+  return [];
+});
+
+const displayOpenTabs = computed(() => {
+  if (!props.openTabs) return [];
+  return props.openTabs.filter(
+    (tab) => tab.path && !tab.path.startsWith("untitled://"),
+  );
+});
 
 const rootEntries = ref<FileEntry[]>([]);
 const isLoading = ref(false);
@@ -162,19 +183,29 @@ async function revealActiveFile() {
   }
 }
 
-const getRelativeDirectory = (path: string) => {
-  if (!props.rootPath) return "";
-  // Normalize slashes just in case
-  const normalizedRoot = props.rootPath.replace(/\\/g, "/");
-  const normalizedPath = path.replace(/\\/g, "/");
-
-  if (normalizedPath.startsWith(normalizedRoot)) {
-    const rel = normalizedPath.slice(normalizedRoot.length + 1);
-    const parts = rel.split("/");
-    parts.pop(); // remove filename
-    return parts.join("/");
+const getDisplayDirectory = (path: string) => {
+  if (!path || path.startsWith("untitled://")) return "";
+  let cleanPath = path.replace(/\\/g, "/");
+  if (cleanPath.startsWith("browser://")) {
+    cleanPath = cleanPath.replace("browser://", "");
   }
-  return "";
+
+  const lastSlash = cleanPath.lastIndexOf("/");
+  if (lastSlash <= 0) return "";
+
+  const parentPath = cleanPath.substring(0, lastSlash);
+
+  if (props.rootPath) {
+    const normalizedRoot = props.rootPath.replace(/\\/g, "/");
+    if (cleanPath.startsWith(normalizedRoot + "/")) {
+      const rel = cleanPath.slice(normalizedRoot.length + 1);
+      const parts = rel.split("/");
+      parts.pop(); // remove filename
+      return parts.join("/") || normalizedRoot.split("/").filter(Boolean).pop() || "";
+    }
+  }
+
+  return parentPath.split("/").filter(Boolean).pop() || "";
 };
 
 defineExpose({ loadRoot, triggerNewRootFile, triggerNewRootFolder });
@@ -349,7 +380,7 @@ async function onContextAction(action: string) {
     case "copy-md-link":
       {
         const title = node.name.replace(/\.md$/i, "");
-        const relDir = getRelativeDirectory(node.path);
+        const relDir = getDisplayDirectory(node.path);
         const relPath = relDir ? `${relDir}/${node.name}` : node.name;
         navigator.clipboard.writeText(`[${title}](${relPath})`);
       }
@@ -422,12 +453,16 @@ onMounted(loadRoot);
           </div>
         </div>
 
-        <!-- Offene Dateien Section (Shown whenever there is either a workspace open or active files open) -->
-        <div v-if="openTabs && openTabs.length > 0" class="mb-1">
-          <div class="px-2 py-1 text-xs font-bold text-app-text flex justify-between items-center group/section cursor-pointer select-none bg-app-bg-secondary hover:bg-app-bg transition-colors border-y border-transparent hover:border-app-border" @click="isOpenEditorsExpanded = !isOpenEditorsExpanded">
-            <div class="flex items-center gap-1">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="transition-transform opacity-80" :class="{'rotate-[-90deg]': !isOpenEditorsExpanded}"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        <!-- Open Editors Section (Querbalken 1) -->
+        <div v-if="displayOpenTabs && displayOpenTabs.length > 0" class="mb-2">
+          <div 
+            class="px-2 py-1.5 text-xs font-bold uppercase tracking-wider text-app-text-muted flex justify-between items-center group/section cursor-pointer select-none bg-app-bg-secondary hover:bg-app-bg transition-colors border-y border-app-border" 
+            @click="isOpenEditorsExpanded = !isOpenEditorsExpanded"
+          >
+            <div class="flex items-center gap-1.5">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="transition-transform opacity-80" :class="{'rotate-[-90deg]': !isOpenEditorsExpanded}"><polyline points="6 9 12 15 18 9"></polyline></svg>
               <span>Open Editors</span>
+              <span class="text-[10px] font-medium opacity-60">({{ displayOpenTabs.length }})</span>
             </div>
             <!-- Action Icons -->
             <div class="flex items-center gap-0.5 opacity-0 group-hover/section:opacity-100 transition-opacity" @click.stop>
@@ -439,7 +474,7 @@ onMounted(loadRoot);
           
           <div v-show="isOpenEditorsExpanded" class="flex flex-col py-1">
             <div 
-              v-for="(tab, index) in openTabs" 
+              v-for="tab in displayOpenTabs" 
               :key="tab.id"
               @click="$emit('select', tab.path)"
               class="flex items-center justify-between px-2 py-1 text-[13px] cursor-pointer hover:bg-app-bg transition-colors group/tab"
@@ -447,136 +482,37 @@ onMounted(loadRoot);
             >
               <div class="flex items-center gap-1.5 truncate">
                 <button 
-                  @click.stop="$emit('close-tab', index)"
+                  @click.stop="$emit('close-tab', openTabs?.findIndex(t => t.id === tab.id) ?? -1)"
                   class="opacity-0 group-hover/tab:opacity-100 text-app-text-muted hover:text-app-text transition-all p-[2px] rounded-sm hover:bg-app-border"
                   title="Close"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                 </button>
                 <div v-if="!activePath || activePath !== tab.path" class="w-[14px] group-hover/tab:hidden"></div>
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-400 opacity-90"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
-                <span class="truncate text-app-text" :class="{'text-blue-400': activePath === tab.path}">{{ tab.title }}</span>
-                <span class="text-[11px] text-app-text-muted truncate ml-1 opacity-70">{{ getRelativeDirectory(tab.path) }}</span>
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-400 opacity-90 shrink-0"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+                <span class="truncate text-app-text" :class="{'text-blue-400 font-medium': activePath === tab.path}">{{ tab.title }}</span>
+                <span v-if="getDisplayDirectory(tab.path)" class="text-[10px] text-app-text-muted truncate ml-1.5 opacity-60 italic font-mono">{{ getDisplayDirectory(tab.path) }}</span>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- Ordner Section (Only shown if rootPath is set) -->
-        <div v-if="rootPath">
-
-
-          <div class="px-2 py-1 text-xs font-bold text-app-text flex justify-between items-center group/section cursor-pointer select-none bg-app-bg-secondary hover:bg-app-bg transition-colors border-y border-transparent hover:border-app-border" @click="isFolderExpanded = !isFolderExpanded">
-            <div class="flex items-center gap-1 truncate pr-2">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="transition-transform opacity-80" :class="{'rotate-[-90deg]': !isFolderExpanded}"><polyline points="6 9 12 15 18 9"></polyline></svg>
-              <span class="truncate" :title="rootPath || ''">
-                {{ rootPath ? rootPath.split(/[/\\]/).pop() : 'zentauri' }}
-              </span>
-            </div>
-            <div class="flex items-center gap-0.5 opacity-0 group-hover/section:opacity-100 transition-opacity" @click.stop>
-              <!-- Sort Mode Select -->
-              <select 
-                v-model="sortMode" 
-                @change="loadRoot"
-                class="bg-app-bg text-[10px] text-app-text border border-app-border rounded px-1 py-0.5 focus:outline-none cursor-pointer mr-0.5"
-                title="Sort Order"
-              >
-                <option value="name-asc">A-Z</option>
-                <option value="name-desc">Z-A</option>
-                <option value="date-desc">Modified (Newest)</option>
-                <option value="date-asc">Modified (Oldest)</option>
-              </select>
-
-              <button 
-                @click.stop="triggerNewRootFile"
-                class="p-1 hover:bg-app-border rounded-md text-app-text-muted hover:text-app-text transition-colors"
-                title="New File"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
-              </button>
-              <button 
-                @click.stop="triggerNewRootFolder"
-                class="p-1 hover:bg-app-border rounded-md text-app-text-muted hover:text-app-text transition-colors"
-                title="New Folder"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path><line x1="12" y1="11" x2="12" y2="17"></line><line x1="9" y1="14" x2="15" y2="14"></line></svg>
-              </button>
-              <button 
-                @click.stop="revealActiveFile"
-                class="p-1 hover:bg-app-border rounded-md text-app-text-muted hover:text-app-text transition-colors"
-                title="Reveal Active File in System Finder"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>
-              </button>
-              <button 
-                @click.stop="loadRoot"
-                class="p-1 hover:bg-app-border rounded-md text-app-text-muted hover:text-app-text transition-colors"
-                title="Refresh Explorer"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6"/><path d="M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
-              </button>
-              <button 
-                @click.stop="collapseAll"
-                class="p-1 hover:bg-app-border rounded-md text-app-text-muted hover:text-app-text transition-colors"
-                title="Collapse All"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="12" x2="20" y2="12"></line><line x1="4" y1="6" x2="20" y2="6"></line><line x1="4" y1="18" x2="20" y2="18"></line></svg>
-              </button>
-            </div>
-          </div>
-
-          <div v-show="isFolderExpanded" class="py-1">
-            <div v-if="isLoading" class="px-6 py-2 text-xs text-app-text-muted opacity-80">
-              Loading workspace...
-            </div>
-            <div v-else-if="loadError" class="px-4 py-3 text-xs text-red-400 text-center flex flex-col gap-2 bg-red-950/20 border border-red-900/30 rounded mx-2 my-1">
-              <span>Failed to load:</span>
-              <span class="opacity-80 italic break-all font-mono text-[11px]">{{ loadError }}</span>
-              <button 
-                @click="$emit('open-folder')"
-                class="mt-1 py-1 px-2 bg-red-500 hover:bg-red-600 text-white text-xs font-medium rounded transition-colors shadow-sm cursor-pointer"
-              >
-                Reopen Folder
-              </button>
-            </div>
-            <div v-else-if="computedFilteredEntries.length === 0" class="px-6 py-2 text-xs text-app-text-muted text-center">
-              {{ quickFilter ? 'No matching files' : 'Empty folder' }}
-            </div>
-            <div v-else class="flex flex-col">
-              <FileTreeNode 
-                v-for="entry in computedFilteredEntries" 
-                :key="entry.path"
-                :node="entry"
-                :depth="0"
-                :active-path="activePath"
-                :collapse-trigger="collapseTrigger"
-                :active-create-request="activeCreateRequest"
-                :active-rename-path="activeRenamePath"
-                @select="$emit('select', $event)"
-                @contextmenu="showContextMenu($event.node, $event.x, $event.y)"
-                @create-confirm="handleRootCreateConfirm"
-                @create-cancel="handleRootCreateCancel"
-                @rename-confirm="handleRootRenameConfirm"
-                @delete-confirm="handleRootDeleteConfirm"
-                @move-confirm="handleMoveConfirm"
-              />
-            </div>
-
-
-            <!-- Context Menu -->
-            <ContextMenu 
-              v-if="contextTarget"
-              :target="contextTarget"
-              :items="contextMenuItems"
-              @action="onContextAction"
-              @close="closeContextMenu"
-            />
-          </div>
+        <!-- Workspace / Parent Folder Sections (Multi-Folder Support) -->
+        <div v-if="computedRootPaths.length > 0" class="flex flex-col">
+          <WorkspaceFolderSection
+            v-for="folderPath in computedRootPaths"
+            :key="folderPath"
+            :folderPath="folderPath"
+            :activePath="activePath"
+            :quickFilter="quickFilter"
+            @select="$emit('select', $event)"
+            @remove-folder="$emit('remove-folder', $event)"
+          />
         </div>
 
-        <!-- No Folder Opened (Only shown if rootPath is not set, but we have files open) -->
-        <div v-if="!rootPath" class="mt-4 px-3 py-2.5 border border-app-border rounded mx-2 bg-app-bg-secondary">
-          <p class="text-[11px] text-app-text-muted mb-2 leading-relaxed">You have not opened a folder yet.</p>
+        <!-- No Folder Opened (Only shown if no folder is opened at all) -->
+        <div v-else class="mt-4 px-3 py-3 border border-app-border/40 rounded mx-2 bg-app-bg-secondary/40 text-center">
+          <p class="text-[11px] text-app-text-muted mb-2 leading-relaxed">No folder opened in workspace.</p>
           <button 
             @click="$emit('open-folder')"
             class="w-full py-1.5 px-3 bg-blue-500 hover:bg-blue-600 text-white text-xs font-medium rounded transition-colors shadow-sm cursor-pointer"

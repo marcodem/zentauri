@@ -17,8 +17,8 @@ async function handleClick(item: SyntaxItem) {
 </script>
 
 <template>
-  <div class="w-64 flex-none border-r border-app-border bg-app-bg-secondary overflow-y-auto p-4 text-sm shadow-inner select-none">
-    <h2 class="font-bold mb-4 text-app-text">Syntax Reference</h2>
+  <div class="cheatsheet-container w-full h-full flex-none bg-app-bg-secondary overflow-y-auto p-4 text-sm shadow-inner select-none">
+    <h2 class="font-bold mb-4 text-app-text text-base">Syntax Reference</h2>
     
     <div v-for="cat in CHEAT_SHEET" :key="cat.id" class="mb-6">
       <h3 class="font-semibold text-app-text-muted mb-2 uppercase text-xs tracking-wider">{{ cat.title }}</h3>
@@ -27,7 +27,7 @@ async function handleClick(item: SyntaxItem) {
           <div class="flex items-center justify-between">
             <code 
               @click="handleClick(item)"
-              class="px-1.5 py-0.5 bg-app-bg hover:bg-app-bg-hover cursor-pointer rounded font-mono text-xs text-app-text transition-colors border border-app-border"
+              class="px-2 py-0.5 bg-app-bg hover:bg-app-bg-hover cursor-pointer rounded font-medium text-xs text-app-text transition-colors border border-app-border"
               title="Click to insert template into active document"
             >
               {{ item.label }}
@@ -39,3 +39,10 @@ async function handleClick(item: SyntaxItem) {
     </div>
   </div>
 </template>
+
+<style scoped>
+.cheatsheet-container,
+.cheatsheet-container * {
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+}
+</style>
