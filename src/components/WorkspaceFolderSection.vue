@@ -320,36 +320,24 @@ defineExpose({ triggerNewRootFile, triggerNewRootFolder, loadRoot });
   <div class="mb-1">
     <!-- Folder Querbalken (Section Header) -->
     <div 
-      class="px-2 py-1.5 text-xs font-bold uppercase tracking-wider text-app-text-muted flex justify-between items-center group/section cursor-pointer select-none bg-app-bg-secondary hover:bg-app-bg transition-colors border-y border-app-border" 
+      class="px-2 py-1.5 text-xs font-bold text-app-text-muted flex justify-between items-center group/section cursor-pointer select-none bg-app-bg-secondary hover:bg-app-bg transition-colors border-y border-app-border min-w-0" 
       @click="isFolderExpanded = !isFolderExpanded"
       :title="`Workspace: ${folderPath}`"
     >
-      <div class="flex items-center gap-1.5 truncate pr-2">
-        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="transition-transform opacity-80" :class="{'rotate-[-90deg]': !isFolderExpanded}">
+      <div class="flex items-center gap-1.5 min-w-0 flex-1 mr-1">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="transition-transform opacity-80 shrink-0" :class="{'rotate-[-90deg]': !isFolderExpanded}">
           <polyline points="6 9 12 15 18 9"></polyline>
         </svg>
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-amber-400 fill-amber-400/20 shrink-0">
           <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
         </svg>
-        <span class="truncate font-bold tracking-wider text-xs text-app-text">
+        <span class="font-bold text-xs text-app-text whitespace-nowrap overflow-hidden text-ellipsis min-w-0 flex-1">
           {{ folderName }}
         </span>
       </div>
 
       <!-- Action Icons on Hover -->
-      <div class="flex items-center gap-0.5 opacity-0 group-hover/section:opacity-100 transition-opacity" @click.stop>
-        <select 
-          v-model="sortMode" 
-          @change="loadRoot"
-          class="bg-app-bg text-[10px] text-app-text border border-app-border rounded px-1 py-0.5 focus:outline-none cursor-pointer mr-0.5"
-          title="Sort Order"
-        >
-          <option value="name-asc">A-Z</option>
-          <option value="name-desc">Z-A</option>
-          <option value="date-desc">Modified (Newest)</option>
-          <option value="date-asc">Modified (Oldest)</option>
-        </select>
-
+      <div class="flex items-center gap-0.5 shrink-0 opacity-0 group-hover/section:opacity-100 transition-opacity" @click.stop>
         <button 
           @click.stop="triggerNewRootFile"
           class="p-1 hover:bg-app-border rounded-md text-app-text-muted hover:text-app-text transition-colors"
