@@ -479,6 +479,7 @@ pub fn run() {
         .expect("error while building tauri application");
 
     app.run(|app_handle, event| match event {
+        #[cfg(target_os = "macos")]
         tauri::RunEvent::Opened { urls } => {
             for url in urls {
                 if let Ok(path) = url.to_file_path() {
