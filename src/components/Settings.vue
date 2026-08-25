@@ -204,7 +204,7 @@ async function installUpdate() {
           </button>
 
           <p class="text-[11px] text-app-text-muted leading-relaxed">
-            Fast, extensible Markdown editor powered by Tauri, Vue 3, and <span class="font-mono text-app-text">markdown-it-extensible</span>.
+            Fast, extensible Markdown editor powered by Tauri and Vue 3.
           </p>
         </div>
       </div>

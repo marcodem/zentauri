@@ -115,44 +115,13 @@ graph TD
 \`\`\`
 `;
 
-const developerGuideContent = `# Developer Guide: Shared Syntax Architecture
+const developerGuideContent = `# Developer Guide: Customizing Syntax
 
-Zentauri uses \`markdown-it\` and the shared \`markdown-it-extensible\` plugin as its core Markdown rendering engine. 
-This guarantees 100% rendering compatibility across Zentauri, the VS Code Extension, and the Payer web application.
-
----
-
-## Programmatic Documentation & Syntax API
-
-\`markdown-it-extensible\` exports programmatic helper methods and constants that allow host applications (like Zentauri) to query active syntax definitions dynamically:
-
-- **\`getSyntaxHelp()\`**: Returns structured JSON containing all active block containers, inline directives, and Sanskrit formatting rules.
-- **\`DEFAULT_BLOCK_CONTAINERS\`**: Exported array of default container definitions (\`name\`, \`className\`).
-- **\`DEFAULT_INLINE_DIRECTIVES\`**: Exported array of default inline directive definitions (\`name\`, \`className\`, \`tag\`).
+Zentauri uses an advanced, highly extensible \`markdown-it\` pipeline to render its Markdown. 
 
 ---
 
-## Full TypeScript Declarations (\`index.d.ts\`)
-
-The plugin includes complete TypeScript typings (\`index.d.ts\`). Developers using \`markdown-it-extensible\` receive instant hover documentation, JSDoc explanations, and type-safe autocompletion in VS Code / WebStorm when configuring:
-
-\`\`\`typescript
-import mdIt from 'markdown-it';
-import extensiblePlugin from 'markdown-it-extensible';
-
-const md = mdIt().use(extensiblePlugin, {
-  blockContainers: [
-    { name: 'warning-box', className: 'alert-red' }
-  ],
-  inlineDirectives: [
-    { name: 'badge', className: 'badge-blue', tag: 'span' }
-  ]
-});
-\`\`\`
-
----
-
-## Zero-Code Custom Inline Styling in Zentauri
+## 1. Zero-Code Custom Inline Styling
 
 Zentauri supports zero-code custom inline elements via CSS without modifying any parser code:
 
@@ -161,7 +130,7 @@ Zentauri supports zero-code custom inline elements via CSS without modifying any
    This is a :my-custom-style[highlighted badge] in Zentauri.
    \`\`\`
    *(Unregistered directives automatically fall back to \`<span class="my-custom-style">Text</span>\`)*
-2. **Style it in your theme CSS (\`src/payer-theme.css\`):**  
+2. **Style it in your \`custom.css\` (or \`src/payer-theme.css\`):**  
    \`\`\`css
    .my-custom-style {
      background-color: #e0e7ff;
@@ -173,10 +142,33 @@ Zentauri supports zero-code custom inline elements via CSS without modifying any
 
 ---
 
-> [!TIP]
-> **Complete Plugin Documentation on GitHub:**  
-> For complete instructions on publishing, customizing, or extending syntax elements, see the official repository:  
-> **[markdown-it-extensible GitHub Documentation](https://github.com/marcodem/markdown-it-extensible#readme)**
+## 2. New Block Containers
+
+Because the Markdown parser needs to know block names in advance, we have pre-registered five dummy containers for you: \`custom1\`, \`custom2\`, \`custom3\`, \`custom4\`, and \`custom5\`. 
+
+You can use them immediately in Markdown without recompiling:
+\`\`\`markdown
+::: custom1 [My Custom Title]
+This is my own custom box!
+:::
+\`\`\`
+
+To style it, just target the class in your \`custom.css\`:
+\`\`\`css
+.custom-block.custom1 {
+  background-color: #e0f2fe;
+  border-left: 4px solid #0284c7;
+  padding: 1rem;
+}
+\`\`\`
+
+If you need *more* than five custom containers (or if you want to rename existing containers), you will need to register them in the Zentauri source code first:
+1. Open \`src/lib/markdown.ts\`
+2. Scroll to the plugin configuration and add your box to the \`blockContainers\` array:
+   \`\`\`typescript
+   { name: "my-box", className: "my-box" },
+   \`\`\`
+3. Recompile Zentauri.
 `;
 
 const vimContent = `# Vim Mode

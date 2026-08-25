@@ -1,6 +1,6 @@
 # Zentauri
 
-> **ZenTauri is a minimalistic Markdown editor with an extensible syntax plugin (markdown-it-extensible) and KaTeX for math formulae and mermaid for diagrams. It is preloaded with syntax extensions for scholarly display of Sanskrit Grammar.**
+> **ZenTauri is a minimalistic Markdown editor with an extensible syntax plugin and KaTeX for math formulae and mermaid for diagrams. It is preloaded with syntax extensions for scholarly display of Sanskrit Grammar.**
 
 Zentauri is a lightweight (ca. 30MB on Mac), high-performance Markdown note-taking editor. Built with Tauri and Vue.js, it was first conceived as an extension to ZenNotes, but later built on a modern native desktop tech stack (Tauri -> ZenTauri). It combines native desktop performance with advanced scholarly Markdown rendering features specifically aligned with the Payer project (Sanskritkurs) standards.
 
@@ -14,7 +14,7 @@ If you wish to introduce your own Markdown syntax extensions, check out the help
 - **Vue 3** — Highly reactive and responsive component-driven interface.
 - **CodeMirror 6** — Modern, modular, and extensible editor experience.
 - **Tailwind CSS v4** — Premium styling system with dark mode and custom palettes.
-- **markdown-it** — Custom extensible Markdown parsing and rendering pipeline using the shared `markdown-it-extensible` plugin.
+- **markdown-it** — Custom extensible Markdown parsing and rendering pipeline.
 
 ---
 
