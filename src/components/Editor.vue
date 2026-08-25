@@ -7,8 +7,13 @@ import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { languages } from "@codemirror/language-data";
 import { vim } from "@replit/codemirror-vim";
 import { directiveGuidelines } from "../lib/editor-extensions/directive-guidelines";
+import { livePreviewExtension } from "../lib/editor-extensions/live-preview";
 
-const props = defineProps<{ modelValue: string; vimMode?: boolean }>();
+const props = defineProps<{
+  modelValue: string;
+  vimMode?: boolean;
+  livePreview?: boolean;
+}>();
 const emit = defineEmits<{ (e: "update:modelValue", value: string): void }>();
 
 function insertText(text: string) {
@@ -63,6 +68,7 @@ defineExpose({ insertText, focus, jumpToLine, wrapSelection });
 const container = ref<HTMLElement>();
 let view: EditorView | null = null;
 const vimCompartment = new Compartment();
+const livePreviewCompartment = new Compartment();
 
 onMounted(() => {
   if (!container.value) return;
@@ -107,6 +113,7 @@ onMounted(() => {
       }),
 
       vimCompartment.of(props.vimMode ? vim() : []),
+      livePreviewCompartment.of(props.livePreview ? livePreviewExtension : []),
       EditorView.updateListener.of((update) => {
         if (update.docChanged) {
           emit("update:modelValue", update.state.doc.toString());
@@ -139,6 +146,19 @@ watch(
     if (view) {
       view.dispatch({
         effects: vimCompartment.reconfigure(newVal ? vim() : []),
+      });
+    }
+  },
+);
+
+watch(
+  () => props.livePreview,
+  (newVal) => {
+    if (view) {
+      view.dispatch({
+        effects: livePreviewCompartment.reconfigure(
+          newVal ? livePreviewExtension : [],
+        ),
       });
     }
   },

@@ -85,7 +85,10 @@ const sidebarWidth = ref(256);
 const isResizingSidebar = ref(false);
 
 function saveWorkspaceRoots() {
-  localStorage.setItem("zentauri-workspace-folders", JSON.stringify(workspaceRoots.value));
+  localStorage.setItem(
+    "zentauri-workspace-folders",
+    JSON.stringify(workspaceRoots.value),
+  );
   if (workspaceRoots.value.length > 0) {
     workspaceRoot.value = workspaceRoots.value[0];
     localStorage.setItem("zentauri-workspace", workspaceRoots.value[0]);
@@ -141,8 +144,7 @@ function cleanupOrphanTabsAndWorkspace() {
     return workspaceRoots.value.some((folder) => {
       const normFolder = folder.replace(/\\/g, "/").toLowerCase();
       return (
-        cleanTabPath === normFolder ||
-        cleanTabPath.startsWith(normFolder + "/")
+        cleanTabPath === normFolder || cleanTabPath.startsWith(normFolder + "/")
       );
     });
   });
@@ -152,7 +154,10 @@ function cleanupOrphanTabsAndWorkspace() {
     openTab("Untitled Document", `untitled://${Date.now()}`, "");
   } else {
     tabs.value = validTabs;
-    activeTabIndex.value = Math.min(activeTabIndex.value, tabs.value.length - 1);
+    activeTabIndex.value = Math.min(
+      activeTabIndex.value,
+      tabs.value.length - 1,
+    );
     markdownSource.value = tabs.value[activeTabIndex.value]?.content || "";
   }
   saveTabsState();
@@ -214,13 +219,29 @@ function startSidebarResize(e: MouseEvent) {
     document.body.style.cursor = "";
     window.removeEventListener("mousemove", onMouseMove);
     window.removeEventListener("mouseup", onMouseUp);
-    localStorage.setItem("zentauri-sidebar-width", sidebarWidth.value.toString());
+    localStorage.setItem(
+      "zentauri-sidebar-width",
+      sidebarWidth.value.toString(),
+    );
   }
 
   window.addEventListener("mousemove", onMouseMove);
   window.addEventListener("mouseup", onMouseUp);
 }
-const showPreview = ref(true);
+
+type ViewMode = "source" | "split" | "live";
+const viewMode = ref<ViewMode>(
+  (localStorage.getItem("zentauri-view-mode") as ViewMode) || "split",
+);
+
+function setViewMode(mode: ViewMode) {
+  viewMode.value = mode;
+  localStorage.setItem("zentauri-view-mode", mode);
+}
+
+const showPreview = computed(() => viewMode.value === "split");
+const isLivePreview = computed(() => viewMode.value === "live");
+
 const showCheatsheet = ref(false);
 const showSearch = ref(false);
 const showExplorer = ref(true);
@@ -427,6 +448,20 @@ onMounted(() => {
         console.error("Failed to get pending open files:", err);
       });
 
+    invoke<{ content: string; path: string }>("load_custom_stylesheet")
+      .then((res) => {
+        if (res && res.content) {
+          const style = document.createElement("style");
+          style.id = "zentauri-custom-style";
+          style.innerHTML = res.content;
+          document.head.appendChild(style);
+          console.log("Loaded custom stylesheet from:", res.path);
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to load custom stylesheet:", err);
+      });
+
     listen<string>("menu-event", (event) => {
       switch (event.payload) {
         case "new_file":
@@ -599,7 +634,9 @@ function focusEditor() {
 }
 
 function openTab(title: string, path: string, content: string) {
-  const existingIndex = tabs.value.findIndex((t) => t.path === path && !t.isWeb);
+  const existingIndex = tabs.value.findIndex(
+    (t) => t.path === path && !t.isWeb,
+  );
   if (existingIndex >= 0) {
     activeTabIndex.value = existingIndex;
     markdownSource.value = tabs.value[existingIndex].content;
@@ -677,9 +714,7 @@ function ensureWorkspaceForFile(filePath: string) {
 
   const isCovered = workspaceRoots.value.some((folder) => {
     const norm = folder.replace(/\\/g, "/");
-    return (
-      normalizedParent === norm || normalizedParent.startsWith(norm + "/")
-    );
+    return normalizedParent === norm || normalizedParent.startsWith(norm + "/");
   });
 
   if (!isCovered) {
@@ -878,18 +913,32 @@ function handlePrint() {
       </div>
       
       <div class="flex gap-1 z-10 relative ml-auto">
-
-        <button 
-          @click="showPreview = !showPreview"
-          class="px-2 py-1.5 text-sm font-medium rounded-md hover:bg-app-bg transition-colors border border-transparent shadow-sm flex items-center justify-center text-app-text-muted hover:text-app-text"
-          :class="{'ring-2 ring-blue-500 text-blue-500': showPreview}"
-          title="Toggle Preview"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-            <line x1="12" y1="3" x2="12" y2="21"></line>
-          </svg>
-        </button>
+        <div class="flex items-center bg-app-bg p-0.5 rounded-md border border-app-border">
+          <button 
+            @click="setViewMode('source')" 
+            class="px-2 py-1 text-xs font-medium rounded transition-colors"
+            :class="viewMode === 'source' ? 'bg-app-bg-secondary text-app-text font-semibold shadow-xs' : 'text-app-text-muted hover:text-app-text'"
+            title="Source Mode (Code Only)"
+          >
+            Source
+          </button>
+          <button 
+            @click="setViewMode('split')" 
+            class="px-2 py-1 text-xs font-medium rounded transition-colors"
+            :class="viewMode === 'split' ? 'bg-app-bg-secondary text-app-text font-semibold shadow-xs' : 'text-app-text-muted hover:text-app-text'"
+            title="Split Mode (Editor + Preview)"
+          >
+            Split
+          </button>
+          <button 
+            @click="setViewMode('live')" 
+            class="px-2 py-1 text-xs font-medium rounded transition-colors"
+            :class="viewMode === 'live' ? 'bg-app-bg-secondary text-app-text font-semibold shadow-xs' : 'text-app-text-muted hover:text-app-text'"
+            title="Live Preview Mode (Inline Hybrid Editor)"
+          >
+            Live
+          </button>
+        </div>
       </div>
     </header>
 
@@ -1022,14 +1071,12 @@ function handlePrint() {
               </div>
             </div>
 
-
-
-
             <!-- CodeMirror Editor -->
             <div class="flex-1 h-full min-w-0 overflow-hidden">
-              <Editor ref="editorRef" v-model="markdownSource" :vimMode="vimMode" />
+              <Editor ref="editorRef" v-model="markdownSource" :vimMode="vimMode" :livePreview="isLivePreview" />
             </div>
           </div>
+
 
           <!-- Preview Pane (Right) -->
           <div v-show="showPreview" class="flex-1 h-full bg-app-bg min-w-0 print:!block print:w-full print:h-auto print:overflow-visible print:bg-white">

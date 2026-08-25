@@ -98,7 +98,8 @@ const CHEAT_SHEET: SyntaxCategory[] = [
       },
       {
         label: "| Table Spans |",
-        before: "\n| A | B |\n|---|---|\n| 1 | 2 |\n| 1 ||\n| 1 | 2 |\n| ^^ | 2 |\n",
+        before:
+          "\n| A | B |\n|---|---|\n| 1 | 2 |\n| 1 ||\n| 1 | 2 |\n| ^^ | 2 |\n",
         after: "",
         desc: "Table (Colspan & Rowspan)",
       },

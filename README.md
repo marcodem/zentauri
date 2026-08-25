@@ -42,8 +42,16 @@ If you wish to introduce your own Markdown syntax extensions, check out the help
   - `:::grammar-box2` (orange border)
   - `:::important` (purple border)
   - `:::note-box` (blue-grey border)
+  - `:::literatur-box` (bibliographic data)
+- **VitePress Standard Containers:** Provides rendering for VitePress standard containers:
+  - `:::info`, `:::tip`, `:::warning`, `:::danger`, `:::details`
 - **Scientific Extensions:** Full support for KaTeX math equations (inline & block), Mermaid structural diagrams, and GitHub Flavored Markdown (GFM) tables.
 - **Local Asset Integration:** Renders local images, videos, and PDFs directly in the live preview.
+
+### 🎨 Custom Stylesheet (User Empowerment)
+
+- **External Configuration:** Users can define their own CSS overrides (like `font-family` or UI colors) in a `custom.css` file located in the application's local config directory.
+- **Auto-Template:** If the `custom.css` file does not exist, Zentauri automatically generates a helpful template on startup to guide the user.
 
 ---
 

@@ -5,7 +5,8 @@ html {
 }
 
 :root {
-  --vp-font-family-base: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --vp-font-family-base: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI",
+    Roboto, sans-serif;
   --vp-font-family-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
     "Liberation Mono", monospace;
 
@@ -1221,4 +1222,39 @@ select.control-btn,
 .vp-doc .md-box__title {
   font-weight: 600;
   margin-bottom: 8px;
+}
+
+/* VitePress Standard Blocks (info, tip, warning, danger, details) */
+.vp-doc .custom-block.info {
+  background-color: var(--vp-c-bg-soft);
+  border-left: 4px solid var(--vp-c-brand-1);
+}
+.vp-doc .custom-block.info .md-box__title { color: var(--vp-c-brand-1); }
+
+.vp-doc .custom-block.tip {
+  background-color: rgba(16, 185, 129, 0.05);
+  border-left: 4px solid #10b981;
+}
+.vp-doc .custom-block.tip .md-box__title { color: #10b981; }
+
+.vp-doc .custom-block.warning {
+  background-color: rgba(234, 179, 8, 0.05);
+  border-left: 4px solid #eab308;
+}
+.vp-doc .custom-block.warning .md-box__title { color: #eab308; }
+
+.vp-doc .custom-block.danger {
+  background-color: rgba(239, 68, 68, 0.05);
+  border-left: 4px solid #ef4444;
+}
+.vp-doc .custom-block.danger .md-box__title { color: #ef4444; }
+
+.vp-doc .custom-block.details {
+  background-color: var(--vp-c-bg-alt);
+}
+.vp-doc .custom-block.details summary {
+  font-weight: 600;
+  cursor: pointer;
+  margin: -16px -16px -8px;
+  padding: 16px;
 }

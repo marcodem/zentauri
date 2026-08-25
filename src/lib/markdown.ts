@@ -186,6 +186,16 @@ const md = new MarkdownIt({ html: true })
       { name: "compact", className: "compact" },
       { name: "no-header", className: "no-header" },
       { name: "noheader", className: "no-header" },
+      { name: "info", className: "info custom-block" },
+      { name: "tip", className: "tip custom-block" },
+      { name: "warning", className: "warning custom-block" },
+      { name: "danger", className: "danger custom-block" },
+      { name: "details", className: "details custom-block" },
+      { name: "custom1", className: "custom1" },
+      { name: "custom2", className: "custom2" },
+      { name: "custom3", className: "custom3" },
+      { name: "custom4", className: "custom4" },
+      { name: "custom5", className: "custom5" },
     ],
   });
 

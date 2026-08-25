@@ -4,7 +4,7 @@ import { HELP_CHAPTERS } from "../lib/helpContent";
 import Preview from "./Preview.vue";
 
 defineProps<{ isOpen: boolean }>();
-const emit = defineEmits<{ 
+const emit = defineEmits<{
   (e: "close"): void;
   (e: "open-url", url: string): void;
 }>();

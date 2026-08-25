@@ -19,8 +19,12 @@ const fontSize = ref(16);
 const autoSave = ref(true);
 const vimMode = ref(false);
 
-const appVersion = ref(typeof __APP_VERSION__ !== "undefined" ? __APP_VERSION__ : "1.1.10");
-const buildNumber = ref(typeof __BUILD_NUMBER__ !== "undefined" ? __BUILD_NUMBER__ : "dev");
+const appVersion = ref(
+  typeof __APP_VERSION__ !== "undefined" ? __APP_VERSION__ : "1.1.10",
+);
+const buildNumber = ref(
+  typeof __BUILD_NUMBER__ !== "undefined" ? __BUILD_NUMBER__ : "dev",
+);
 
 onMounted(async () => {
   const settingsStr = localStorage.getItem("zentauri-settings");

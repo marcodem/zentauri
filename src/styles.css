@@ -8,7 +8,8 @@ input,
 button,
 select,
 textarea {
-  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    sans-serif;
 }
 
 .prose {
@@ -324,4 +325,144 @@ textarea {
   color: var(--app-bg) !important;
   outline: 1px solid var(--app-text) !important;
   opacity: 0.85 !important;
+}
+
+/* CodeMirror 6 Live Preview Styling Rules */
+.cm-hidden-syntax {
+  display: none !important;
+}
+
+.cm-live-bold {
+  font-weight: 700;
+}
+
+.cm-live-italic {
+  font-style: italic;
+}
+
+.cm-live-inline-code {
+  font-family: monospace;
+  background-color: var(--app-bg-secondary);
+  color: var(--app-text);
+  padding: 0.15em 0.4em;
+  border-radius: 4px;
+  font-size: 0.9em;
+}
+
+.cm-live-link {
+  color: #3b82f6;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.cm-live-h1 {
+  font-size: 1.85em;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.cm-live-h2 {
+  font-size: 1.5em;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.cm-live-h3 {
+  font-size: 1.25em;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.cm-live-h4 {
+  font-size: 1.1em;
+  font-weight: 600;
+}
+
+.cm-live-h5 {
+  font-size: 1.0em;
+  font-weight: 600;
+}
+
+.cm-live-h6 {
+  font-size: 0.9em;
+  font-weight: 600;
+  color: var(--app-text-muted);
+}
+
+.cm-live-blockquote {
+  border-left: 3px solid var(--app-border);
+  padding-left: 0.75rem;
+  color: var(--app-text-muted);
+  font-style: italic;
+}
+
+.cm-live-list-item {
+  padding-left: 0.5rem;
+}
+
+.cm-live-list-bullet {
+  color: var(--app-text-muted);
+  font-weight: 600;
+}
+
+/* Phase 2: Sanskrit Brackets & Container Cards */
+.cm-sanskrit-verse {
+  color: #8b5cf6;
+  font-weight: 600;
+  background-color: rgba(139, 92, 246, 0.08);
+  padding: 0.1em 0.3em;
+  border-radius: 4px;
+}
+
+.cm-sanskrit-rule {
+  color: #3b82f6;
+  font-weight: 600;
+  background-color: rgba(59, 130, 246, 0.08);
+  padding: 0.1em 0.3em;
+  border-radius: 4px;
+}
+
+.cm-container-header {
+  font-weight: 600;
+  color: var(--directive-l1);
+  background-color: var(--app-bg-secondary);
+  border-top-left-radius: 6px;
+  border-top-right-radius: 6px;
+  border-left: 3px solid var(--directive-l1);
+  padding-top: 0.2rem;
+  padding-bottom: 0.2rem;
+}
+
+.cm-container-footer {
+  border-bottom: 1px solid var(--app-border);
+  opacity: 0.5;
+}
+
+.cm-code-card-header {
+  background-color: var(--app-bg-secondary);
+  border-top-left-radius: 6px;
+  border-top-right-radius: 6px;
+  border-top: 1px solid var(--app-border);
+  border-left: 1px solid var(--app-border);
+  border-right: 1px solid var(--app-border);
+  font-family: monospace;
+  font-size: 0.85em;
+  color: var(--app-text-muted);
+  padding-left: 0.5rem;
+}
+
+.cm-code-card-body {
+  background-color: var(--app-bg-secondary);
+  border-left: 1px solid var(--app-border);
+  border-right: 1px solid var(--app-border);
+  font-family: monospace;
+}
+
+.cm-code-card-footer {
+  background-color: var(--app-bg-secondary);
+  border-bottom-left-radius: 6px;
+  border-bottom-right-radius: 6px;
+  border-bottom: 1px solid var(--app-border);
+  border-left: 1px solid var(--app-border);
+  border-right: 1px solid var(--app-border);
 }

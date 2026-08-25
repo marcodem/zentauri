@@ -9,7 +9,8 @@ try {
   gitHash = execSync("git rev-parse --short HEAD").toString().trim();
 } catch (e) {}
 
-const buildNumber = process.env.GITHUB_RUN_NUMBER || process.env.BUILD_NUMBER || gitHash;
+const buildNumber =
+  process.env.GITHUB_RUN_NUMBER || process.env.BUILD_NUMBER || gitHash;
 
 // @ts-expect-error process is a nodejs global
 const host = process.env.TAURI_DEV_HOST;

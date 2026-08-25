@@ -201,7 +201,9 @@ const getDisplayDirectory = (path: string) => {
       const rel = cleanPath.slice(normalizedRoot.length + 1);
       const parts = rel.split("/");
       parts.pop(); // remove filename
-      return parts.join("/") || normalizedRoot.split("/").filter(Boolean).pop() || "";
+      return (
+        parts.join("/") || normalizedRoot.split("/").filter(Boolean).pop() || ""
+      );
     }
   }
 

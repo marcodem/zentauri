@@ -247,6 +247,35 @@ fn get_pending_open_files(state: State<'_, PendingOpenFiles>) -> Vec<String> {
     result
 }
 
+#[derive(serde::Serialize)]
+pub struct CustomStylesheetResult {
+    pub content: String,
+    pub path: String,
+}
+
+#[tauri::command]
+fn load_custom_stylesheet(app: tauri::AppHandle) -> Result<CustomStylesheetResult, String> {
+    use std::fs;
+    
+    let app_config_dir = app.path().app_config_dir().map_err(|e| e.to_string())?;
+    if !app_config_dir.exists() {
+        fs::create_dir_all(&app_config_dir).map_err(|e| e.to_string())?;
+    }
+    
+    let custom_css_path = app_config_dir.join("custom.css");
+    
+    if !custom_css_path.exists() {
+        let template = "/* Zentauri Custom Stylesheet Template */\n/* Hier kannst du Fonts, Farben und Layout-Details anpassen. */\n\n/* Beispiel: Schriftart für den gesamten Editor ändern */\n/*\nbody, input, button, select, textarea {\n  font-family: 'Arial', sans-serif !important;\n}\n*/\n\n/* Beispiel: Eigene Syntax-Elemente wie die Grammar-Box umfärben */\n/*\n.vp-doc .custom-block.grammar-box,\n.grammar-box {\n  background-color: #f0f8ff !important; /* Hellblau */\n  border-left-color: #0369a1 !important; /* Dunkelblauer Rand */\n}\n*/\n\n/* Beispiel: Farben überschreiben */\n/*\n:root {\n  --app-bg: #fafafa !important;\n}\n*/\n";
+        fs::write(&custom_css_path, template).map_err(|e| e.to_string())?;
+    }
+    
+    let content = fs::read_to_string(&custom_css_path).map_err(|e| e.to_string())?;
+    Ok(CustomStylesheetResult {
+        content,
+        path: custom_css_path.to_string_lossy().to_string(),
+    })
+}
+
 fn resolve_file_arg(arg: &str, cwd: Option<&std::path::Path>) -> Option<std::path::PathBuf> {
     if arg.starts_with('-')
         || arg.starts_with("http://")
@@ -305,7 +334,8 @@ pub fn run() {
             move_file_item,
             duplicate_file_item,
             reveal_in_explorer,
-            get_pending_open_files
+            get_pending_open_files,
+            load_custom_stylesheet
         ])
         .setup(|app| {
             // Process initial CLI args on launch
