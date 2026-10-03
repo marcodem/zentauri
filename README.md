@@ -2,9 +2,11 @@
 
 > **ZenTauri is a minimalistic Markdown editor with an extensible syntax plugin and KaTeX for math formulae and mermaid for diagrams. It is preloaded with syntax extensions for scholarly display of Sanskrit Grammar.**
 
+📚 **Online Documentation & Technical Wiki:** [https://marcodem.github.io/zentauri/](https://marcodem.github.io/zentauri/)
+
 Zentauri is a lightweight (ca. 30MB on Mac), high-performance Markdown note-taking editor. Built with Tauri and Vue.js, it was first conceived as an extension to ZenNotes, but later built on a modern native desktop tech stack (Tauri -> ZenTauri). It combines native desktop performance with advanced scholarly Markdown rendering features specifically aligned with the Payer project (Sanskritkurs) standards.
 
-If you wish to introduce your own Markdown syntax extensions, check out the help file under notes to developers.
+If you wish to explore the full architecture, developer notes, and syntax extensions, visit the [Documentation Wiki](https://marcodem.github.io/zentauri/).
 
 ---
 
@@ -52,6 +54,16 @@ If you wish to introduce your own Markdown syntax extensions, check out the help
 
 - **External Configuration:** Users can define their own CSS overrides (like `font-family` or UI colors) in a `custom.css` file located in the application's local config directory.
 - **Auto-Template:** If the `custom.css` file does not exist, Zentauri automatically generates a helpful template on startup to guide the user.
+
+---
+
+## Documentation
+
+Comprehensive architecture guides, scholarly feature specifications, and technology stack overviews are published at:
+👉 **[https://marcodem.github.io/zentauri/](https://marcodem.github.io/zentauri/)**
+
+- 📐 **[System Architecture](https://marcodem.github.io/zentauri/system-architecture)**: Rust-First backend, SQLite workspace indexing, Typst native PDF export pipeline.
+- 📝 **[Scholarly Extensions](https://marcodem.github.io/zentauri/scholarly-features)**: Specialized containers, Devanagari highlighting, and interactive knowledge graph.
 
 ---
 
