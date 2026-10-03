@@ -28,9 +28,8 @@ dist-ssr
 graphify-out
 venv
 
-# Zentauri workspace cache & wiki repository
+# Zentauri workspace cache
 .zentauri
-.wiki
 
 # VitePress
 docs/.vitepress/dist

@@ -20,18 +20,30 @@ export default defineConfig({
     siteTitle: 'Zentauri',
     nav: [
       { text: 'Home', link: '/' },
-      { text: 'System Architecture', link: '/system-architecture' },
-      { text: 'Scholarly Features', link: '/scholarly-features' },
+      { text: 'Installation', link: '/installation' },
+      { text: 'User Guide', link: '/user-guide' },
+      { text: 'Architecture', link: '/system-architecture' },
+      { text: 'Features', link: '/scholarly-features' },
+      { text: 'Release Notes', link: '/release-notes' },
       { text: 'GitHub', link: 'https://github.com/marcodem/zentauri' }
     ],
     sidebar: [
       {
-        text: 'Dokumentation',
+        text: 'Erste Schritte',
         collapsed: false,
         items: [
           { text: 'Übersicht (Home)', link: '/' },
+          { text: 'Installation & Setup', link: '/installation' },
+          { text: 'Benutzerhandbuch', link: '/user-guide' }
+        ]
+      },
+      {
+        text: 'Architektur & Spezifikation',
+        collapsed: false,
+        items: [
           { text: 'System-Architektur', link: '/system-architecture' },
-          { text: 'Scholarly Features', link: '/scholarly-features' }
+          { text: 'Scholarly Features', link: '/scholarly-features' },
+          { text: 'Release Notes', link: '/release-notes' }
         ]
       },
       {

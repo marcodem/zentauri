@@ -1,39 +1,42 @@
 ---
 layout: doc
-title: Zentauri — Technical Wiki
+title: Zentauri — Technical Documentation
 ---
 
-# 🌌 Zentauri — Technical Documentation & Wiki
+# 🌌 Zentauri — Technische Dokumentation
 
-Welcome to the official technical documentation for **Zentauri**, the modern, ultra-fast scholarly Markdown editor.
+Willkommen zur offiziellen Dokumentation für **Zentauri**, dem modernen, ultra-schnellen Markdown-Editor für akademische Arbeiten und wissenschaftliche Textkorpora.
 
 ::: note-box
-Zentauri is a native desktop editor built on the **Tauri v2** framework. It combines a lightweight, blazingly fast **Rust backend** with a responsive **Vue 3 frontend**, providing a specialized authoring environment for academic writing, knowledge graphing, and high-quality PDF publishing.
+Zentauri ist ein nativer Desktop-Editor auf Basis des **Tauri v2** Frameworks. Er kombiniert ein extrem schlankes, performantes **Rust-Backend** mit einem reaktiven **Vue 3 Frontend**, optimiert für wissenschaftliches Arbeiten, Wissensvernetzung und hochwertige PDF-Publikation.
 :::
 
 ---
 
-## 🏛️ Core Pillars
+## 🏛️ Kernsäulen
 
-| Pillar | Technology | Goal |
+| Kernsäule | Technologie | Zielsetzung |
 | :--- | :--- | :--- |
-| 🦀 **Rust-First Architecture** | Tauri v2, Rust, SQLite | Maximum performance, low memory footprint, and native OS integration |
-| 📝 **Scholarly Editing** | Vue 3, CodeMirror 6, markdown-it-extensible | Split-pane editing, auto-repair, and specialized academic metadata |
-| 🖨️ **Native PDF Export** | Typst (`typst-as-lib`) | Instant, high-quality PDF typesetting without headless browsers |
-| 🕸️ **Knowledge Graph** | SQLite Indexing, `v-network-graph` | Visual, interactive mapping of interconnected markdown files |
+| 🦀 **Rust-First Architektur** | Tauri v2, Rust, SQLite | Maximale Performance, minimaler Speicherverbrauch und native OS-Integration |
+| 📝 **Scholarly Editing** | Vue 3, CodeMirror 6, markdown-it-extensible | Split-Pane Editing, Silent Auto-Repair und akademische Metadaten |
+| 🖨️ **Nativer PDF-Export** | Typst (`typst-as-lib`) | Blitzschneller, hochpräziser PDF-Satz ohne Chromium- oder Node.js-Ballast |
+| 🕸️ **Knowledge Graph** | SQLite Indexing, `v-network-graph` | Interaktive Visualisierung von Dokumentenverknüpfungen und Wiki-Links |
 
 ---
 
-## 📌 Dokumentations-Index
+## 📌 Dokumentationsübersicht
 
-### 1. 📐 [System-Architektur](./system-architecture)
-Ein tiefer Einblick in Zentauris Rust-First Dateihandling, IPC-Kommunikation, SQLite Workspace-Indexierung und den Verzicht auf schwere Node.js/Chromium-Abhängigkeiten.
+### Erste Schritte
+- 💻 **[Installation & Setup](./installation)**: Anleitung für macOS (Gatekeeper-Freigabe), Windows und Linux sowie automatische Updates.
+- 📖 **[Benutzerhandbuch & Custom CSS](./user-guide)**: Bedienung des Editors, Erstellen eigener Syntax-Elemente und Anpassung via `custom.css`.
 
-### 2. 📝 [Editor Features & Scholarly Extensions](./scholarly-features)
-Details zu den integrierten akademischen Werkzeugen: IAST- und Devanāgarī-Metadatenextraktion, benutzerdefinierte Container-Blöcke (`::: grammar-box`), mathematische Formeln und der interaktive Knowledge Graph.
+### Architektur & Technik
+- 📐 **[System-Architektur](./system-architecture)**: Rust-First File-Explorer, IPC-Kommunikation, SQLite-Indexierung und Typst-PDF-Pipeline.
+- 📝 **[Scholarly Features](./scholarly-features)**: Container-Blöcke (`::: grammar-box`), Devanāgarī-Formatierung und Knowledge-Graph.
+- 🚀 **[Release Notes](./release-notes)**: Versionshistorie und Feature-Übersicht von v1.0 bis v1.1.17.
 
 ---
 
 ::: tip-box
-Über die linke Navigation kann jederzeit direkt zwischen den Kapiteln gewechselt werden.
+Nutzen Sie die linke Navigationsleiste, um direkt zwischen den Kapiteln zu wechseln.
 :::
