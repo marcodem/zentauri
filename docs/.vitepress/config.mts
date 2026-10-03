@@ -16,6 +16,7 @@ export default defineConfig({
     }
   },
   themeConfig: {
+    outline: false,
     logo: '/birchville_logo.png',
     siteTitle: 'Zentauri',
     nav: [

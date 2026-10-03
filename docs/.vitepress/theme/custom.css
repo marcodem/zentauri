@@ -106,8 +106,45 @@ html {
   padding-top: 1rem;
 }
 
-/* Centralized Left Sidebar (Omit separate right aside) */
-.VPDocAside {
+/* Sidebar Heading & Item Resets (prevent leakage of :where(.vp-doc, body) h2 styles) */
+.VPSidebar h2,
+.VPSidebarItem h2,
+.VPSidebarItem .text,
+.VPSidebar .text {
+  font-family: "Inter", sans-serif !important;
+  font-style: normal !important;
+  font-weight: 500 !important;
+  margin: 0 !important;
+  border-top: none !important;
+  padding: 4px 0 !important;
+  line-height: 24px !important;
+  font-size: 14px !important;
+}
+
+.VPSidebarItem.level-0 > .item > .text,
+.VPSidebarItem.level-0 h2.text {
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  color: var(--vp-c-text-1) !important;
+  margin: 0 !important;
+  border-top: none !important;
+  padding: 4px 0 !important;
+}
+
+.VPSidebarItem .item {
+  display: flex !important;
+  align-items: center !important;
+}
+
+.VPSidebarItem .caret {
+  margin-left: auto !important;
+}
+
+/* Centralized Left Sidebar (Omit separate right aside and outline dropdown) */
+.VPDocAside,
+.VPDocAsideOutline,
+.VPLocalNavOutlineDropdown,
+.VPLocalNav .outline-link {
   display: none !important;
 }
 
