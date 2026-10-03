@@ -6,6 +6,7 @@ import {
   writeTextFile,
   rename,
   remove,
+  exists,
 } from "@tauri-apps/plugin-fs";
 import { invoke } from "@tauri-apps/api/core";
 import FileTreeNode, { type FileEntry } from "./FileTreeNode.vue";
@@ -201,9 +202,24 @@ async function handleRootCreateConfirm(payload: {
   name: string;
   type: "file" | "directory";
 }) {
+  if (
+    payload.name.includes("/") ||
+    payload.name.includes("\\") ||
+    payload.name === ".." ||
+    payload.name === "."
+  ) {
+    alert("Invalid name: cannot contain path separators or '.'/'..'");
+    handleRootCreateCancel();
+    return;
+  }
   const parent = payload.parentPath || props.folderPath || "";
   const fullPath = `${parent}/${payload.name}`;
   try {
+    if (await exists(fullPath)) {
+      alert(`An item named "${payload.name}" already exists. Creation cancelled.`);
+      handleRootCreateCancel();
+      return;
+    }
     if (payload.type === "file") {
       await writeTextFile(
         fullPath,
@@ -339,7 +355,12 @@ watch(() => props.folderPath, loadRoot);
 watch(() => props.quickFilter, loadRoot);
 onMounted(loadRoot);
 
-defineExpose({ triggerNewRootFile, triggerNewRootFolder, loadRoot });
+defineExpose({
+  triggerNewRootFile,
+  triggerNewRootFolder,
+  loadRoot,
+  folderPath: computed(() => props.folderPath),
+});
 </script>
 
 <template>

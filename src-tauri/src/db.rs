@@ -1,9 +1,16 @@
 use rusqlite::{params, Connection, Result};
+use std::collections::HashSet;
 use std::fs;
 use std::path::Path;
+use std::sync::LazyLock;
 use regex::Regex;
 
 use crate::FileItemNode;
+
+static WIKI_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"\[\[([^\]\|]+)(?:\|[^\]]+)?\]\]").unwrap());
+static MD_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"\[[^\]]+\]\(([^)]+)\)").unwrap());
 
 pub fn init_db(workspace_path: &str) -> Result<Connection> {
     let workspace = Path::new(workspace_path);
@@ -118,16 +125,14 @@ fn extract_links(content: &str) -> Vec<String> {
     let mut links = Vec::new();
     
     // Match [[Link]] or [[Link|Alias]]
-    let wiki_re = Regex::new(r"\[\[([^\]\|]+)(?:\|[^\]]+)?\]\]").unwrap();
-    for cap in wiki_re.captures_iter(content) {
+    for cap in WIKI_RE.captures_iter(content) {
         if let Some(m) = cap.get(1) {
             links.push(m.as_str().trim().to_string());
         }
     }
     
     // Match [Text](link.md)
-    let md_re = Regex::new(r"\[[^\]]+\]\(([^)]+)\)").unwrap();
-    for cap in md_re.captures_iter(content) {
+    for cap in MD_RE.captures_iter(content) {
         if let Some(m) = cap.get(1) {
             let link = m.as_str().trim().to_string();
             if !link.starts_with("http") && !link.starts_with("www") {
@@ -143,6 +148,7 @@ fn index_dir_recursive(
     tx: &rusqlite::Transaction,
     current_dir: &Path,
     parent_path_str: &str,
+    seen_paths: &mut HashSet<String>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let entries = match fs::read_dir(current_dir) {
         Ok(e) => e,
@@ -174,6 +180,8 @@ fn index_dir_recursive(
             continue;
         }
 
+        seen_paths.insert(file_path.clone());
+
         let modified_at = metadata
             .modified()
             .ok()
@@ -183,14 +191,38 @@ fn index_dir_recursive(
 
         let size_bytes = metadata.len() as i64;
 
+        // Check if existing file has same modified_at and size_bytes
+        let existing_entry: Option<(i64, i64)> = tx
+            .query_row(
+                "SELECT modified_at, size_bytes FROM files WHERE path = ?1",
+                params![&file_path],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .ok();
+
+        let needs_metadata_reparse = match existing_entry {
+            Some((prev_mod, prev_size)) => prev_mod != modified_at || prev_size != size_bytes,
+            None => true,
+        };
+
         tx.execute(
-            "INSERT INTO files (path, parent_path, name, is_directory, modified_at, size_bytes) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            "INSERT INTO files (path, parent_path, name, is_directory, modified_at, size_bytes)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+             ON CONFLICT(path) DO UPDATE SET
+               parent_path = excluded.parent_path,
+               name = excluded.name,
+               is_directory = excluded.is_directory,
+               modified_at = excluded.modified_at,
+               size_bytes = excluded.size_bytes",
             params![&file_path, parent_path_str, file_name, is_dir, modified_at, size_bytes],
         )?;
 
         if is_dir {
-            index_dir_recursive(tx, &entry_path, &file_path)?;
-        } else {
+            index_dir_recursive(tx, &entry_path, &file_path, seen_paths)?;
+        } else if needs_metadata_reparse {
+            tx.execute("DELETE FROM markdown_metadata WHERE file_path = ?1", params![&file_path])?;
+            tx.execute("DELETE FROM markdown_links WHERE source_path = ?1", params![&file_path])?;
+
             let content = fs::read_to_string(&entry_path).unwrap_or_default();
             let fm = extract_metadata(&content);
             let tags_json = fm.tags.map(|t| serde_json::to_string(&t).unwrap_or_default());
@@ -220,11 +252,150 @@ pub fn index_workspace(conn: &mut Connection, workspace_path: &str) -> Result<()
 
     let tx = conn.transaction()?;
 
-    tx.execute("DELETE FROM files", [])?;
-    tx.execute("DELETE FROM markdown_metadata", [])?;
-    tx.execute("DELETE FROM markdown_links", [])?;
+    let mut seen_paths = HashSet::new();
+    index_dir_recursive(&tx, workspace, workspace_path, &mut seen_paths)?;
 
-    index_dir_recursive(&tx, workspace, workspace_path)?;
+    // Remove deleted files from DB
+    let db_paths: Vec<String> = {
+        let mut stmt = tx.prepare("SELECT path FROM files")?;
+        let rows = stmt.query_map([], |row| row.get::<_, String>(0))?;
+        let mut paths = Vec::new();
+        for r in rows.flatten() {
+            paths.push(r);
+        }
+        paths
+    };
+
+    for path in db_paths {
+        if !seen_paths.contains(&path) {
+            tx.execute("DELETE FROM files WHERE path = ?1", params![&path])?;
+            tx.execute("DELETE FROM markdown_metadata WHERE file_path = ?1", params![&path])?;
+            tx.execute("DELETE FROM markdown_links WHERE source_path = ?1", params![&path])?;
+        }
+    }
+
+    tx.commit()?;
+    Ok(())
+}
+
+pub fn sync_directory(
+    conn: &mut Connection,
+    dir_path: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let p = Path::new(dir_path);
+    if !p.is_dir() {
+        return Ok(());
+    }
+
+    let entries = match fs::read_dir(p) {
+        Ok(e) => e,
+        Err(_) => return Ok(()),
+    };
+
+    let tx = conn.transaction()?;
+    let mut seen_paths = HashSet::new();
+
+    for entry in entries.flatten() {
+        let file_name = entry.file_name().to_string_lossy().to_string();
+
+        if file_name.starts_with('.')
+            || file_name == "node_modules"
+            || file_name == "target"
+            || file_name == "dist"
+        {
+            continue;
+        }
+
+        let entry_path = entry.path();
+        let file_path = entry_path.to_string_lossy().to_string();
+        let metadata = match entry.metadata() {
+            Ok(m) => m,
+            Err(_) => continue,
+        };
+        let is_dir = metadata.is_dir();
+
+        if !is_dir
+            && !file_name.to_lowercase().ends_with(".md")
+            && !file_name.to_lowercase().ends_with(".markdown")
+        {
+            continue;
+        }
+
+        seen_paths.insert(file_path.clone());
+
+        let modified_at = metadata
+            .modified()
+            .ok()
+            .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+            .map(|d| d.as_secs() as i64)
+            .unwrap_or(0);
+
+        let size_bytes = metadata.len() as i64;
+
+        let existing_entry: Option<(i64, i64)> = tx
+            .query_row(
+                "SELECT modified_at, size_bytes FROM files WHERE path = ?1",
+                params![&file_path],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .ok();
+
+        let needs_metadata_reparse = match existing_entry {
+            Some((prev_mod, prev_size)) => prev_mod != modified_at || prev_size != size_bytes,
+            None => true,
+        };
+
+        tx.execute(
+            "INSERT INTO files (path, parent_path, name, is_directory, modified_at, size_bytes)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+             ON CONFLICT(path) DO UPDATE SET
+               parent_path = excluded.parent_path,
+               name = excluded.name,
+               is_directory = excluded.is_directory,
+               modified_at = excluded.modified_at,
+               size_bytes = excluded.size_bytes",
+            params![&file_path, dir_path, file_name, is_dir, modified_at, size_bytes],
+        )?;
+
+        if !is_dir && needs_metadata_reparse {
+            tx.execute("DELETE FROM markdown_metadata WHERE file_path = ?1", params![&file_path])?;
+            tx.execute("DELETE FROM markdown_links WHERE source_path = ?1", params![&file_path])?;
+
+            let content = fs::read_to_string(&entry_path).unwrap_or_default();
+            let fm = extract_metadata(&content);
+            let tags_json = fm.tags.map(|t| serde_json::to_string(&t).unwrap_or_default());
+            tx.execute(
+                "INSERT INTO markdown_metadata (file_path, title, tags, iast, devanagari) VALUES (?1, ?2, ?3, ?4, ?5)",
+                params![&file_path, fm.title, tags_json, fm.iast, fm.devanagari],
+            )?;
+
+            let links = extract_links(&content);
+            for link in links {
+                tx.execute(
+                    "INSERT INTO markdown_links (source_path, target_name) VALUES (?1, ?2)",
+                    params![&file_path, link],
+                )?;
+            }
+        }
+    }
+
+    let db_paths: Vec<String> = {
+        let mut stmt = tx.prepare("SELECT path FROM files WHERE parent_path = ?1")?;
+        let rows = stmt.query_map(params![dir_path], |row| row.get::<_, String>(0))?;
+        let mut paths = Vec::new();
+        for r in rows.flatten() {
+            paths.push(r);
+        }
+        paths
+    };
+
+    for path in db_paths {
+        if !seen_paths.contains(&path) {
+            tx.execute("DELETE FROM files WHERE path = ?1", params![&path])?;
+            tx.execute("DELETE FROM markdown_metadata WHERE file_path = ?1", params![&path])?;
+            tx.execute("DELETE FROM markdown_links WHERE source_path = ?1", params![&path])?;
+        }
+    }
 
     tx.commit()?;
     Ok(())
@@ -273,19 +444,22 @@ pub fn read_workspace_tree_db(conn: &Connection, parent_path: &str, sort_mode: &
     Ok(nodes)
 }
 
-pub fn search_files_db(conn: &Connection, query: &str) -> Result<Vec<FileItemNode>> {
-    let like_query = format!("%{}%", query);
+pub fn search_files_db(conn: &Connection, query: &str, scope_path: &str) -> Result<Vec<FileItemNode>> {
+    let escaped = query.replace('\\', "\\\\").replace('%', "\\%").replace('_', "\\_");
+    let like_query = format!("%{}%", escaped);
+    let scope_prefix = format!("{}/%", scope_path.trim_end_matches('/'));
     
     let mut stmt = conn.prepare(
         "SELECT f.name, f.path, f.is_directory, f.modified_at, f.size_bytes, 
                 m.title, m.tags, m.iast, m.devanagari
          FROM files f
          LEFT JOIN markdown_metadata m ON f.path = m.file_path
-         WHERE f.name LIKE ?1 OR m.title LIKE ?1 OR m.tags LIKE ?1
+         WHERE (f.path LIKE ?2 ESCAPE '\\' OR f.parent_path = ?3)
+           AND (f.name LIKE ?1 ESCAPE '\\' OR m.title LIKE ?1 ESCAPE '\\' OR m.tags LIKE ?1 ESCAPE '\\')
          ORDER BY f.is_directory DESC, LOWER(f.name) ASC"
     )?;
     
-    let node_iter = stmt.query_map(params![like_query], |row| {
+    let node_iter = stmt.query_map(params![like_query, scope_prefix, scope_path], |row| {
         let tags_str: Option<String> = row.get(6)?;
         let tags = tags_str.and_then(|s| serde_json::from_str(&s).ok());
 

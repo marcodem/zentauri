@@ -6,6 +6,7 @@ import {
   writeTextFile,
   rename,
   remove,
+  exists,
 } from "@tauri-apps/plugin-fs";
 import { invoke } from "@tauri-apps/api/core";
 
@@ -62,6 +63,7 @@ const isDragOver = ref(false);
 const isEditing = ref(false);
 const editName = ref("");
 const inputRef = ref<HTMLInputElement>();
+const isSettled = ref(false);
 
 const isMarkdown = computed(() => {
   return (
@@ -211,6 +213,7 @@ watch(
   () => props.activeRenamePath,
   (newVal) => {
     if (newVal === props.node.path) {
+      isSettled.value = false;
       isEditing.value = true;
       editName.value = props.node.name;
       nextTick(() => {
@@ -275,6 +278,7 @@ watch(
 
 onMounted(() => {
   if (props.node.isNew) {
+    isSettled.value = false;
     editName.value =
       props.node.newType === "file" ? "new_file.md" : "new_folder";
     nextTick(() => {
@@ -291,11 +295,13 @@ onMounted(() => {
 });
 
 async function submitEdit() {
+  if (isSettled.value) return;
   const trimmed = editName.value.trim();
   if (!trimmed) {
     cancelEdit();
     return;
   }
+  isSettled.value = true;
 
   if (props.node.isNew) {
     emit("create-confirm", {
@@ -316,6 +322,8 @@ async function submitEdit() {
 }
 
 function cancelEdit() {
+  if (isSettled.value) return;
+  isSettled.value = true;
   if (props.node.isNew) {
     emit("create-cancel");
   } else {
@@ -363,8 +371,23 @@ async function handleChildCreateConfirm(payload: {
   name: string;
   type: "file" | "directory";
 }) {
+  if (
+    payload.name.includes("/") ||
+    payload.name.includes("\\") ||
+    payload.name === ".." ||
+    payload.name === "."
+  ) {
+    alert("Invalid name: cannot contain path separators or '.'/'..'");
+    handleChildCreateCancel();
+    return;
+  }
   const fullPath = `${payload.parentPath}/${payload.name}`;
   try {
+    if (await exists(fullPath)) {
+      alert(`An item named "${payload.name}" already exists. Creation cancelled.`);
+      handleChildCreateCancel();
+      return;
+    }
     if (payload.type === "file") {
       await writeTextFile(
         fullPath,

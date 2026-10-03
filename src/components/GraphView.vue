@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from "vue";
+import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { VNetworkGraph } from "v-network-graph";
 import "v-network-graph/lib/style.css";
@@ -27,6 +27,8 @@ const isDark = ref(
     document.documentElement.classList.contains("dark"),
 );
 
+let observer: MutationObserver | null = null;
+
 onMounted(() => {
   const updateTheme = () => {
     const theme = document.documentElement.getAttribute("data-theme");
@@ -40,11 +42,16 @@ onMounted(() => {
 
   updateTheme();
 
-  const observer = new MutationObserver(updateTheme);
+  observer = new MutationObserver(updateTheme);
   observer.observe(document.documentElement, {
     attributes: true,
     attributeFilter: ["data-theme", "class"],
   });
+});
+
+onUnmounted(() => {
+  observer?.disconnect();
+  observer = null;
 });
 
 const configs = computed(() =>

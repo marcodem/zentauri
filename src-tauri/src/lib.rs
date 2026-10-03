@@ -77,10 +77,36 @@ pub struct FileItemNode {
     pub devanagari: Option<String>,
 }
 
-fn find_workspace_root(start_path: &str) -> std::path::PathBuf {
-    let mut current = std::path::Path::new(start_path).to_path_buf();
+use std::collections::HashSet;
+use std::path::{Path, PathBuf};
+use std::sync::{LazyLock, Mutex};
+
+static KNOWN_WORKSPACES: LazyLock<Mutex<HashSet<PathBuf>>> =
+    LazyLock::new(|| Mutex::new(HashSet::new()));
+
+fn register_workspace_root(path: &Path) {
+    if let Ok(mut set) = KNOWN_WORKSPACES.lock() {
+        set.insert(path.to_path_buf());
+    }
+}
+
+fn find_workspace_root(start_path: &str) -> PathBuf {
+    let p = Path::new(start_path);
+    
+    // First, check if start_path is under any already-registered workspace root
+    if let Ok(set) = KNOWN_WORKSPACES.lock() {
+        for root in set.iter() {
+            if p.starts_with(root) {
+                return root.clone();
+            }
+        }
+    }
+
+    // Next, check ancestors for .zentauri or .git
+    let mut current = p.to_path_buf();
     loop {
         if current.join(".zentauri").exists() || current.join(".git").exists() {
+            register_workspace_root(&current);
             return current;
         }
         if let Some(parent) = current.parent() {
@@ -92,45 +118,66 @@ fn find_workspace_root(start_path: &str) -> std::path::PathBuf {
             break;
         }
     }
-    std::path::Path::new(start_path).to_path_buf()
+
+    // Default to start_path and register it as workspace root
+    register_workspace_root(p);
+    p.to_path_buf()
 }
 
 #[tauri::command]
-fn read_workspace_tree(path: &str, sort_mode: &str) -> Result<Vec<FileItemNode>, String> {
-    let root = find_workspace_root(path);
-    let root_str = root.to_string_lossy().to_string();
-    let mut conn = db::init_db(&root_str).map_err(|e| e.to_string())?;
-    
-    // If querying root, freshly index the workspace
-    if root_str == path {
+async fn read_workspace_tree(path: String, sort_mode: String) -> Result<Vec<FileItemNode>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let root = find_workspace_root(&path);
+        let root_str = root.to_string_lossy().to_string();
+        let mut conn = db::init_db(&root_str).map_err(|e| e.to_string())?;
+        
+        // If root or database is empty, index workspace incrementally
+        let count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM files", [], |row| row.get(0))
+            .unwrap_or(0);
+
+        if count == 0 || root_str == path {
+            db::index_workspace(&mut conn, &root_str).map_err(|e| e.to_string())?;
+        } else {
+            let _ = db::sync_directory(&mut conn, &path);
+        }
+        
+        let mut nodes = db::read_workspace_tree_db(&conn, &path, &sort_mode).map_err(|e| e.to_string())?;
+
+        // Fallback: If empty and querying a subfolder, index root and re-query
+        if nodes.is_empty() && root_str != path {
+            db::index_workspace(&mut conn, &root_str).map_err(|e| e.to_string())?;
+            nodes = db::read_workspace_tree_db(&conn, &path, &sort_mode).map_err(|e| e.to_string())?;
+        }
+        
+        Ok(nodes)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+async fn search_workspace(path: String, query: String) -> Result<Vec<FileItemNode>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let root = find_workspace_root(&path);
+        let conn = db::init_db(&root.to_string_lossy()).map_err(|e| e.to_string())?;
+        db::search_files_db(&conn, &query, &path).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+async fn get_knowledge_graph(path: String) -> Result<db::GraphData, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let root = find_workspace_root(&path);
+        let root_str = root.to_string_lossy().to_string();
+        let mut conn = db::init_db(&root_str).map_err(|e| e.to_string())?;
         db::index_workspace(&mut conn, &root_str).map_err(|e| e.to_string())?;
-    }
-    
-    let mut nodes = db::read_workspace_tree_db(&conn, path, sort_mode).map_err(|e| e.to_string())?;
-
-    // Fallback: If empty and querying a subfolder, index root and re-query
-    if nodes.is_empty() && root_str != path {
-        db::index_workspace(&mut conn, &root_str).map_err(|e| e.to_string())?;
-        nodes = db::read_workspace_tree_db(&conn, path, sort_mode).map_err(|e| e.to_string())?;
-    }
-    
-    Ok(nodes)
-}
-
-#[tauri::command]
-fn search_workspace(path: &str, query: &str) -> Result<Vec<FileItemNode>, String> {
-    let root = find_workspace_root(path);
-    let conn = db::init_db(&root.to_string_lossy()).map_err(|e| e.to_string())?;
-    db::search_files_db(&conn, query).map_err(|e| e.to_string())
-}
-
-#[tauri::command]
-fn get_knowledge_graph(path: &str) -> Result<db::GraphData, String> {
-    let root = find_workspace_root(path);
-    let root_str = root.to_string_lossy().to_string();
-    let mut conn = db::init_db(&root_str).map_err(|e| e.to_string())?;
-    db::index_workspace(&mut conn, &root_str).map_err(|e| e.to_string())?;
-    db::get_graph_data_db(&conn).map_err(|e| e.to_string())
+        db::get_graph_data_db(&conn).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
@@ -147,6 +194,13 @@ fn move_file_item(source_path: &str, target_dir_path: &str) -> Result<String, St
 
     if source == destination {
         return Ok(destination.to_string_lossy().to_string());
+    }
+
+    if destination.exists() {
+        return Err(format!(
+            "A file or folder named '{}' already exists in the target destination",
+            file_name.to_string_lossy()
+        ));
     }
 
     fs::rename(&source, &destination).map_err(|e| format!("Failed to move file: {}", e))?;
@@ -168,13 +222,25 @@ fn duplicate_file_item(source_path: &str) -> Result<String, String> {
     let stem = source.file_stem().unwrap_or_default().to_string_lossy();
     let ext = source.extension().map(|e| e.to_string_lossy().to_string()).unwrap_or_default();
 
-    let new_name = if ext.is_empty() {
-        format!("{}_copy", stem)
-    } else {
-        format!("{}_copy.{}", stem, ext)
+    let mut counter = 1;
+    let destination = loop {
+        let suffix = if counter == 1 {
+            "_copy".to_string()
+        } else {
+            format!("_copy_{}", counter)
+        };
+        let new_name = if ext.is_empty() {
+            format!("{}{}", stem, suffix)
+        } else {
+            format!("{}{}.{}", stem, suffix, ext)
+        };
+        let dest = parent.join(new_name);
+        if !dest.exists() {
+            break dest;
+        }
+        counter += 1;
     };
 
-    let destination = parent.join(new_name);
     fs::copy(&source, &destination).map_err(|e| format!("Failed to copy file: {}", e))?;
 
     Ok(destination.to_string_lossy().to_string())
@@ -214,7 +280,7 @@ fn reveal_in_explorer(path: &str) -> Result<(), String> {
     Ok(())
 }
 
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
 use tauri::tray::{TrayIconBuilder, TrayIconEvent};
 use tauri::Emitter;
@@ -263,29 +329,46 @@ fn load_custom_stylesheet(app: tauri::AppHandle) -> Result<CustomStylesheetResul
 }
 
 #[tauri::command]
-fn export_pdf(typst_markup: String, destination_path: String) -> Result<(), String> {
-    use std::fs;
-    use typst_as_lib::TypstEngine;
+async fn export_pdf(typst_markup: String, destination_path: String) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        use std::fs;
+        use typst_as_lib::TypstEngine;
 
-    // Build the engine with system and embedded fonts and the provided markup
-    let engine = TypstEngine::builder()
-        .search_fonts_with(typst_as_lib::typst_kit_options::TypstKitFontOptions::default())
-        .main_file(typst_markup)
-        .build();
+        if destination_path.contains('\0') {
+            return Err("Invalid destination path: contains null byte".to_string());
+        }
+        if !destination_path.to_lowercase().ends_with(".pdf") {
+            return Err("Destination path must have a .pdf extension".to_string());
+        }
+        let dest_path = std::path::Path::new(&destination_path);
+        if let Some(parent) = dest_path.parent() {
+            if !parent.as_os_str().is_empty() && !parent.exists() {
+                return Err("Destination directory does not exist".to_string());
+            }
+        }
 
-    // Compile it
-    let doc = engine
-        .compile()
-        .output
-        .map_err(|e| format!("Typst compilation failed: {:?}", e))?;
+        // Build the engine with system and embedded fonts and the provided markup
+        let engine = TypstEngine::builder()
+            .search_fonts_with(typst_as_lib::typst_kit_options::TypstKitFontOptions::default())
+            .main_file(typst_markup)
+            .build();
 
-    let options = typst_pdf::PdfOptions::default();
-    let pdf = typst_pdf::pdf(&doc, &options)
-        .map_err(|e| format!("PDF generation failed: {:?}", e))?;
+        // Compile it
+        let doc = engine
+            .compile()
+            .output
+            .map_err(|e| format!("Typst compilation failed: {:?}", e))?;
+
+        let options = typst_pdf::PdfOptions::default();
+        let pdf = typst_pdf::pdf(&doc, &options)
+            .map_err(|e| format!("PDF generation failed: {:?}", e))?;
+            
+        fs::write(&destination_path, pdf).map_err(|e| format!("Failed to write PDF: {}", e))?;
         
-    fs::write(&destination_path, pdf).map_err(|e| format!("Failed to write PDF: {}", e))?;
-    
-    Ok(())
+        Ok(())
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 fn resolve_file_arg(arg: &str, cwd: Option<&std::path::Path>) -> Option<std::path::PathBuf> {

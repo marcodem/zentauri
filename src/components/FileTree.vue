@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, onMounted, computed } from "vue";
+import { ref, watch, onMounted, onBeforeUpdate, computed } from "vue";
 import {
   readDir,
   mkdir,
@@ -249,14 +249,27 @@ function collapseAll() {
 
 const folderSectionRefs = ref<any[]>([]);
 
+onBeforeUpdate(() => {
+  folderSectionRefs.value = [];
+});
+
 function triggerNewRootFile() {
   if (!folderSectionRefs.value.length) return;
   let targetSection = folderSectionRefs.value[0];
   if (props.activePath) {
-    const found = folderSectionRefs.value.find(
-      (sec) => sec?.folderPath && props.activePath?.startsWith(sec.folderPath),
-    );
-    if (found) targetSection = found;
+    let longestMatchLen = -1;
+    for (const sec of folderSectionRefs.value) {
+      const fp: string = sec?.folderPath?.value ?? sec?.folderPath ?? "";
+      if (
+        fp &&
+        (props.activePath === fp || props.activePath.startsWith(fp + "/"))
+      ) {
+        if (fp.length > longestMatchLen) {
+          longestMatchLen = fp.length;
+          targetSection = sec;
+        }
+      }
+    }
   }
   targetSection?.triggerNewRootFile?.();
 }
@@ -265,10 +278,19 @@ function triggerNewRootFolder() {
   if (!folderSectionRefs.value.length) return;
   let targetSection = folderSectionRefs.value[0];
   if (props.activePath) {
-    const found = folderSectionRefs.value.find(
-      (sec) => sec?.folderPath && props.activePath?.startsWith(sec.folderPath),
-    );
-    if (found) targetSection = found;
+    let longestMatchLen = -1;
+    for (const sec of folderSectionRefs.value) {
+      const fp: string = sec?.folderPath?.value ?? sec?.folderPath ?? "";
+      if (
+        fp &&
+        (props.activePath === fp || props.activePath.startsWith(fp + "/"))
+      ) {
+        if (fp.length > longestMatchLen) {
+          longestMatchLen = fp.length;
+          targetSection = sec;
+        }
+      }
+    }
   }
   targetSection?.triggerNewRootFolder?.();
 }

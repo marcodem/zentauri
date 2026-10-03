@@ -58,6 +58,8 @@ function escapeTypst(text: string): string {
   // Escape Typst special characters: \ [ ] ( ) $ # * _ ~ `
   return text
     .replace(/\\/g, "\\\\")
+    .replace(/\[/g, "\\[")
+    .replace(/\]/g, "\\]")
     .replace(/#/g, "\\#")
     .replace(/\$/g, "\\$")
     .replace(/\*/g, "\\*")
@@ -67,6 +69,10 @@ function escapeTypst(text: string): string {
     .replace(/</g, "\\<")
     .replace(/>/g, "\\>")
     .replace(/@/g, "\\@");
+}
+
+function escapeTypstString(str: string): string {
+  return str.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
 }
 
 function processInlineScholarly(text: string): string {
@@ -91,10 +97,10 @@ function processInlineScholarly(text: string): string {
   res = res.replace(/:mark\[(.*?)\]/g, "#highlight(fill: yellow)[$1]");
 
   // Convert :br
-  res = res.replace(/:br/g, "\\\n");
+  res = res.replace(/:br\b/g, "\\\n");
 
   // Convert :indent
-  res = res.replace(/:indent/g, "#h(1em)");
+  res = res.replace(/:indent\b/g, "#h(1em)");
 
   return res;
 }
@@ -124,6 +130,7 @@ export function convertMarkdownToTypst(markdown: string): string {
 `;
 
   let listNesting = 0;
+  const listTypes: ("bullet" | "ordered")[] = [];
   let inTable = false;
   let tableColsCount = 0;
 
@@ -187,18 +194,26 @@ export function convertMarkdownToTypst(markdown: string): string {
         typstCode += "]\n\n";
         break;
       case "bullet_list_open":
+        listNesting++;
+        listTypes.push("bullet");
+        break;
       case "ordered_list_open":
         listNesting++;
+        listTypes.push("ordered");
         break;
       case "bullet_list_close":
       case "ordered_list_close":
         listNesting--;
+        listTypes.pop();
         if (listNesting === 0) typstCode += "\n";
         break;
-      case "list_item_open":
-        // typst handles lists with `-` or `+`
-        typstCode += token.markup + " ";
+      case "list_item_open": {
+        const indent = "  ".repeat(Math.max(0, listNesting - 1));
+        const marker =
+          listTypes[listTypes.length - 1] === "ordered" ? "+ " : "- ";
+        typstCode += indent + marker;
         break;
+      }
       case "list_item_close":
         typstCode += "\n";
         break;
@@ -206,9 +221,12 @@ export function convertMarkdownToTypst(markdown: string): string {
         typstCode += "#line(length: 100%, stroke: 0.5pt + luma(150))\n\n";
         break;
       case "code_block":
-      case "fence":
-        typstCode += `\`\`\`${token.info || ""}\n${token.content}\n\`\`\`\n\n`;
+      case "fence": {
+        const lang = (token.info || "").trim().split(/\s+/)[0];
+        const fence = token.content.includes("```") ? "````" : "```";
+        typstCode += `${fence}${lang}\n${token.content}\n${fence}\n\n`;
         break;
+      }
       case "table_open":
         inTable = true;
         // In Typst, we must define the columns explicitly.
@@ -273,24 +291,27 @@ export function convertMarkdownToTypst(markdown: string): string {
               case "em_close":
                 typstCode += "_";
                 break;
-              case "code_inline":
-                typstCode += `\`${child.content}\``;
+              case "code_inline": {
+                const safeCode = child.content.replace(/`/g, "\\`");
+                typstCode += `\`${safeCode}\``;
                 break;
+              }
               case "math_inline":
                 typstCode += `$${child.content}$`;
                 break;
-              case "link_open":
-                const href = child.attrGet("href");
+              case "link_open": {
+                const href = escapeTypstString(child.attrGet("href") || "");
                 typstCode += `#link("${href}")[`;
                 break;
+              }
               case "link_close":
                 typstCode += `]`;
                 break;
-              case "image":
-                const src = child.attrGet("src");
-                // Fallback for local assets: in MVP we just output a box or image if path is absolute
+              case "image": {
+                const src = escapeTypstString(child.attrGet("src") || "");
                 typstCode += `#image("${src}")`;
                 break;
+              }
               case "softbreak":
                 typstCode += " ";
                 break;

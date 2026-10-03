@@ -75,8 +75,32 @@ Hier werden die 33 Konsonanten beschrieben.
     assert_eq!(graph.nodes.len(), 4, "Expected 4 nodes in graph (including nested)");
     assert_eq!(graph.edges.len(), 3, "Expected 3 link connections in graph");
 
+    // 5. Test Scoped Search with LIKE escaping
+    let search_all = db::search_files_db(&conn, "Panini", temp_dir.to_str().unwrap()).expect("Search failed");
+    assert_eq!(search_all.len(), 1, "Expected 1 search match for Panini in root scope");
+    assert_eq!(search_all[0].name, "panini.md");
+
+    let search_scoped = db::search_files_db(&conn, "Panini", sub_dir.to_str().unwrap()).expect("Search failed");
+    assert_eq!(search_scoped.len(), 0, "Panini should not match in sub_dir scope");
+
+    let search_nested = db::search_files_db(&conn, "Nested", sub_dir.to_str().unwrap()).expect("Search failed");
+    assert_eq!(search_nested.len(), 1, "Nested should match in sub_dir scope");
+
+    // 6. Test Single Directory Incremental Sync
+    let added_file = sub_dir.join("added.md");
+    fs::write(&added_file, "# Newly added\nSome content").unwrap();
+    db::sync_directory(&mut conn, sub_dir.to_str().unwrap()).expect("Sync directory failed");
+    let sub_tree_after_add = db::read_workspace_tree_db(&conn, sub_dir.to_str().unwrap(), "name-asc").unwrap();
+    assert_eq!(sub_tree_after_add.len(), 2, "Expected 2 entries after sync_directory");
+
+    fs::remove_file(&added_file).unwrap();
+    db::sync_directory(&mut conn, sub_dir.to_str().unwrap()).expect("Sync directory failed");
+    let sub_tree_after_remove = db::read_workspace_tree_db(&conn, sub_dir.to_str().unwrap(), "name-asc").unwrap();
+    assert_eq!(sub_tree_after_remove.len(), 1, "Expected 1 entry after removing and sync_directory");
+
     println!("✓ SQLite Recursive Indexing & Metadata: PASS (Root: 4 items, Subfolder: 1 item, Badges ready)");
     println!("✓ Knowledge Graph Data: PASS (Nodes: {}, Edges: {})", graph.nodes.len(), graph.edges.len());
+    println!("✓ Scoped Search & sync_directory: PASS");
 
     // Clean up
     let _ = fs::remove_dir_all(&temp_dir);
