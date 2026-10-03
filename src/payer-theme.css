@@ -463,31 +463,39 @@ div.grammarbox2 {
   color: inherit !important;
 }
 
-/* Remove top margin from the first child inside any custom-block / grammar-box
+/* Remove top margin from the first child inside any custom-block / box container
    to avoid child margin + container padding stacking (which causes an empty first line when no title is present). */
 .vp-doc .custom-block > *:first-child,
-.vp-doc .grammar-box > *:first-child,
-.custom-block.grammar-box > *:first-child,
-.vp-doc .grammar-box2 > *:first-child,
-.custom-block.grammar-box2 > *:first-child {
+.vp-doc [class*="-box"] > *:first-child,
+.vp-doc [class*="custom-"] > *:first-child,
+.vp-doc .metrik-schema > *:first-child,
+.vp-doc .laut-table > *:first-child,
+.vp-doc .center > *:first-child,
+.vp-doc .indent > *:first-child,
+.vp-doc .compact > *:first-child,
+.custom-block > *:first-child {
   margin-top: 0 !important;
 }
 
-/* Remove bottom margin from the last child inside any custom-block to avoid
+/* Remove bottom margin from the last child inside any custom-block / box container to avoid
    extra whitespace (child margin + container padding stacking). */
 .vp-doc .custom-block > *:last-child,
-.vp-doc .grammar-box > *:last-child,
-.custom-block.grammar-box > *:last-child,
-.vp-doc .grammar-box2 > *:last-child,
-.custom-block.grammar-box2 > *:last-child {
+.vp-doc [class*="-box"] > *:last-child,
+.vp-doc [class*="custom-"] > *:last-child,
+.vp-doc .metrik-schema > *:last-child,
+.vp-doc .laut-table > *:last-child,
+.vp-doc .center > *:last-child,
+.vp-doc .indent > *:last-child,
+.vp-doc .compact > *:last-child,
+.custom-block > *:last-child {
   margin-bottom: 0 !important;
 }
 
-/* Hide empty or whitespace-only title divs */
+/* Hide empty or whitespace-only title divs in all containers */
 .vp-doc .md-box__title:empty,
 .vp-doc .custom-block-title:empty,
-.vp-doc .grammar-box .md-box__title:empty,
-.vp-doc .grammar-box .custom-block-title:empty {
+.md-box__title:empty,
+.custom-block-title:empty {
   display: none !important;
   margin: 0 !important;
   padding: 0 !important;
@@ -495,27 +503,34 @@ div.grammarbox2 {
 }
 
 /* Table-wrapper containers (center, no-header) nested directly inside a
-   grammar-box must not add their own margin/padding — the grammar-box
-   padding (1.25rem) already provides all the breathing room. */
-.vp-doc .grammar-box > .custom-block.center,
-.vp-doc .grammar-box > .custom-block.no-header {
+   container must not add their own margin/padding. */
+.vp-doc .custom-block > .custom-block.center,
+.vp-doc .custom-block > .custom-block.no-header,
+.vp-doc [class*="-box"] > .custom-block.center,
+.vp-doc [class*="-box"] > .custom-block.no-header {
   margin: 0 !important;
   padding: 0 !important;
 }
 
-/* indent blocks nested directly inside a grammar-box: suppress the
-   negative margin-top (-0.7rem) that is designed for post-paragraph
-   context — here the grammar-box padding already handles spacing. */
-.vp-doc .grammar-box > .custom-block.indent {
+/* indent blocks nested directly inside a container: suppress the
+   negative margin-top (-0.7rem) that is designed for post-paragraph context. */
+.vp-doc .custom-block > .custom-block.indent,
+.vp-doc [class*="-box"] > .custom-block.indent {
   margin-top: 0 !important;
   margin-bottom: 0 !important;
 }
 
 /* Empty paragraphs created by blank lines around block-level children
-   inside a grammar-box contribute height without content — hide them. */
-.vp-doc .grammar-box > p:empty {
-  display: none;
+   inside containers contribute height without content — hide them. */
+.vp-doc .custom-block > p:empty,
+.vp-doc [class*="-box"] > p:empty,
+.vp-doc .metrik-schema > p:empty,
+.vp-doc .laut-table > p:empty,
+.custom-block > p:empty {
+  display: none !important;
   margin: 0 !important;
+  padding: 0 !important;
+  height: 0 !important;
 }
 
 /* Media & Image Alignment */

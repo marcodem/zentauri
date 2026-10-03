@@ -55,4 +55,60 @@ describe("renderMarkdown", () => {
     const typstWithTitle = convertMarkdownToTypst("::: grammar-box [Mein Titel]\nInhalt\n:::");
     expect(typstWithTitle).toContain("*Mein Titel*");
   });
+
+  it("renders other boxes (note-box, metrik-schema, tip, deleteme-box) without empty title lines", () => {
+    const boxes = ["note-box", "metrik-schema", "tip", "deleteme-box", "important"];
+    for (const box of boxes) {
+      const htmlNoTitle = renderMarkdown(`::: ${box}\nInhalt\n:::`);
+      expect(htmlNoTitle).not.toContain("md-box__title");
+      expect(htmlNoTitle).not.toContain("<p></p>");
+      expect(htmlNoTitle).toContain(box);
+
+      const htmlEmptyBrackets = renderMarkdown(`::: ${box} []\nInhalt\n:::`);
+      expect(htmlEmptyBrackets).not.toContain("md-box__title");
+      expect(htmlEmptyBrackets).not.toContain("<p></p>");
+      expect(htmlEmptyBrackets).toContain(box);
+    }
+  });
+
+  it("renders nested containers with auto-elevated colons correctly in HTML", () => {
+    const nestedMd = `::: note-box [Aussere Notiz]
+Aussere Einleitung
+
+::: grammar-box [Innere Grammatik]
+Innere Regeln
+:::
+
+Ausseres Fazit
+:::`;
+
+    const html = renderMarkdown(nestedMd);
+    expect(html).toContain("note-box");
+    expect(html).toContain("grammar-box");
+    expect(html).toContain("Aussere Notiz");
+    expect(html).toContain("Innere Grammatik");
+    expect(html).toContain("Innere Regeln");
+    expect(html).toContain("Ausseres Fazit");
+    // Verify both containers are present and properly closed
+    const openDivCount = (html.match(/<div class="[^"]*custom-block[^"]*">/g) || []).length;
+    expect(openDivCount).toBe(2);
+  });
+
+  it("renders nested containers correctly in typst converter", () => {
+    const nestedMd = `::: note-box [Aussere Notiz]
+Aussere Einleitung
+
+::: grammar-box [Innere Grammatik]
+Innere Regeln
+:::
+
+Ausseres Fazit
+:::`;
+
+    const typst = convertMarkdownToTypst(nestedMd);
+    expect(typst).toContain("Aussere Notiz");
+    expect(typst).toContain("Innere Grammatik");
+    expect(typst).toContain("Innere Regeln");
+    expect(typst).toContain("Ausseres Fazit");
+  });
 });

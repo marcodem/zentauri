@@ -9,6 +9,7 @@ import * as extensiblePluginModule from "markdown-it-extensible";
 const extensiblePlugin =
   (extensiblePluginModule as any).default || extensiblePluginModule;
 import { recordRendererPerf } from "./perf";
+import { adjustContainerNesting } from "./auto-repair";
 
 const URI_SCHEME_RE = /^[a-zA-Z][a-zA-Z\d+.-]*:/;
 const ALLOWED_RENDERED_URI_SCHEME_RE =
@@ -344,6 +345,14 @@ export function renderMarkdown(
     )
     .replace(/^([ \t]*)(:{3,})[ \t]+([a-zA-Z0-9_-]+)/gm, "$1$2$3");
 
+  // Automatically adjust container nesting depth (outer containers get progressive colons)
+  const nestingResult = adjustContainerNesting(normalizedSrc, {
+    closeUnclosed: true,
+  });
+  if (nestingResult.didRepair) {
+    normalizedSrc = nestingResult.repaired;
+  }
+
   // Normalize leading-pipe colspan syntaxes like "|| text |" or "||text|" into MultiMarkdown trailing-pipe syntax "| text ||"
   normalizedSrc = normalizedSrc
     .split("\n")
@@ -390,12 +399,17 @@ export function renderMarkdown(
 
     // Remove empty title containers (e.g. <div class="md-box__title"></div> or whitespace only)
     rawHtml = rawHtml.replace(/<div class="md-box__title">\s*<\/div>\n?/g, "");
-
-    // Remove empty paragraphs immediately following container opening
     rawHtml = rawHtml.replace(
-      /(<div class="[^"]*custom-block[^"]*">\n?)\s*<p>\s*<\/p>\n?/g,
+      /<div class="custom-block-title">\s*<\/div>\n?/g,
+      "",
+    );
+
+    // Remove empty paragraphs immediately following container opening or preceding container closing
+    rawHtml = rawHtml.replace(
+      /(<div class="[^"]*(?:custom-block|box)[^"]*">\n?)(?:\s*<p>\s*<\/p>\n?)+/g,
       "$1",
     );
+    rawHtml = rawHtml.replace(/(?:\s*<p>\s*<\/p>\n?)+(<\/div>\n?)/g, "$1");
 
     const html = sanitizeRenderedHtml(rawHtml);
     markdownRenderCache.set(cacheKey, html);

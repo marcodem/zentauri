@@ -2,6 +2,7 @@ import MarkdownIt from "markdown-it";
 import container from "markdown-it-container";
 // @ts-ignore
 import multimdTable from "markdown-it-multimd-table";
+import { adjustContainerNesting } from "./auto-repair";
 
 // Initialize a clean markdown-it instance specifically for Typst AST generation
 const mdTypst = new MarkdownIt({ html: false }).use(multimdTable, {
@@ -108,12 +109,22 @@ function processInlineScholarly(text: string): string {
 export function convertMarkdownToTypst(markdown: string): string {
   // Apply table normalization as in markdown.ts
   let normalizedSrc = markdown
+    // Strip empty title brackets on containers: ::: grammar-box [] or ::: grammar-box [   ] -> ::: grammar-box
+    .replace(/^([ \t]*:{3,}[ \t]*[a-zA-Z0-9_-]+)[ \t]*\[\s*\]/gm, "$1")
     .replace(/^([ \t]*)(:{3,})([a-zA-Z0-9_-]+)[ \t]+(\[)/gm, "$1$2$3$4")
     .replace(
       /^([ \t]*)(:{3,})[ \t]*([a-zA-Z0-9_-]+)[ \t]+([^\[\s\n\r][^\n\r]*)$/gm,
       "$1$2$3[$4]",
     )
     .replace(/^([ \t]*)(:{3,})[ \t]+([a-zA-Z0-9_-]+)/gm, "$1$2$3");
+
+  // Adjust container nesting so outer boxes have more colons and parse cleanly in AST
+  const nestingResult = adjustContainerNesting(normalizedSrc, {
+    closeUnclosed: true,
+  });
+  if (nestingResult.didRepair) {
+    normalizedSrc = nestingResult.repaired;
+  }
 
   const tokens = mdTypst.parse(normalizedSrc, {});
   let typstCode = `

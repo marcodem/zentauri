@@ -8,6 +8,7 @@ import { languages } from "@codemirror/language-data";
 import { vim } from "@replit/codemirror-vim";
 import { directiveGuidelines } from "../lib/editor-extensions/directive-guidelines";
 import { livePreviewExtension } from "../lib/editor-extensions/live-preview";
+import { adjustContainerNesting } from "../lib/auto-repair";
 
 const props = defineProps<{
   modelValue: string;
@@ -19,6 +20,36 @@ const emit = defineEmits<{ (e: "update:modelValue", value: string): void }>();
 function insertText(text: string) {
   if (!view) return;
   const selection = view.state.selection.main;
+
+  if (text.includes(":::")) {
+    const docText = view.state.doc.toString();
+    const docWithInsert =
+      docText.slice(0, selection.from) + text + docText.slice(selection.to);
+    const nestingResult = adjustContainerNesting(docWithInsert);
+    if (nestingResult.didRepair) {
+      const oldDoc = view.state.doc;
+      view.dispatch({
+        changes: { from: 0, to: oldDoc.length, insert: nestingResult.repaired },
+        scrollIntoView: true,
+      });
+      try {
+        const line = oldDoc.lineAt(selection.from);
+        const col = selection.from - line.from;
+        const newDoc = view.state.doc;
+        const targetLineNum = Math.min(line.number, newDoc.lines);
+        const newLine = newDoc.line(targetLineNum);
+        const newBase = Math.min(newLine.to, newLine.from + col);
+        view.dispatch({
+          selection: { anchor: Math.min(newDoc.length, newBase + text.length) },
+        });
+      } catch {
+        // fallback
+      }
+      view.focus();
+      return;
+    }
+  }
+
   view.dispatch({
     changes: { from: selection.from, to: selection.to, insert: text },
     selection: { anchor: selection.from + text.length },
@@ -32,6 +63,48 @@ function wrapSelection(before: string, after: string) {
   const selection = view.state.selection.main;
   const selectedText = view.state.sliceDoc(selection.from, selection.to);
   const replacement = `${before}${selectedText}${after}`;
+
+  if (before.includes(":::")) {
+    const docText = view.state.doc.toString();
+    const docWithReplacement =
+      docText.slice(0, selection.from) +
+      replacement +
+      docText.slice(selection.to);
+
+    const nestingResult = adjustContainerNesting(docWithReplacement);
+    if (nestingResult.didRepair) {
+      const oldDoc = view.state.doc;
+      view.dispatch({
+        changes: {
+          from: 0,
+          to: oldDoc.length,
+          insert: nestingResult.repaired,
+        },
+        scrollIntoView: true,
+      });
+      try {
+        const line = oldDoc.lineAt(selection.from);
+        const col = selection.from - line.from;
+        const newDoc = view.state.doc;
+        const targetLineNum = Math.min(line.number, newDoc.lines);
+        const newLine = newDoc.line(targetLineNum);
+        const newBase = Math.min(newLine.to, newLine.from + col);
+        const newAnchor = Math.min(newDoc.length, newBase + before.length);
+        const newHead = Math.min(
+          newDoc.length,
+          newAnchor + selectedText.length,
+        );
+        view.dispatch({
+          selection: { anchor: newAnchor, head: newHead },
+        });
+      } catch {
+        // fallback
+      }
+      view.focus();
+      return;
+    }
+  }
+
   view.dispatch({
     changes: { from: selection.from, to: selection.to, insert: replacement },
     selection: {
