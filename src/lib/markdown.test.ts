@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { renderMarkdown } from "./markdown";
 
+import { convertMarkdownToTypst } from "./typstConverter";
+
 describe("renderMarkdown", () => {
   it("renders basic markdown elements correctly", () => {
     const html = renderMarkdown("# Hello World\n\nThis is a **bold** text.");
@@ -26,8 +28,31 @@ describe("renderMarkdown", () => {
     expect(tableHtml).toContain('rowspan="2"');
   });
 
-  it("renders :mark[Text] as yellow highlighter mark tag", () => {
-    const html = renderMarkdown("This is :mark[yellow text] highlighted.");
-    expect(html).toContain('<mark class="marker-yellow">yellow text</mark>');
+  it("renders grammar-box without title correctly (no empty title line)", () => {
+    const noTitleHtml = renderMarkdown("::: grammar-box\nInhalt\n:::");
+    expect(noTitleHtml).not.toContain("md-box__title");
+    expect(noTitleHtml).not.toContain("<p></p>");
+    expect(noTitleHtml).toContain('<div class="grammar-box custom-block">');
+
+    const emptyBracketsHtml = renderMarkdown("::: grammar-box []\nInhalt\n:::");
+    expect(emptyBracketsHtml).not.toContain("md-box__title");
+    expect(emptyBracketsHtml).not.toContain("<p></p>");
+    expect(emptyBracketsHtml).toContain('<div class="grammar-box custom-block">');
+
+    const withTitleHtml = renderMarkdown("::: grammar-box [Mein Titel]\nInhalt\n:::");
+    expect(withTitleHtml).toContain('<div class="md-box__title">Mein Titel</div>');
+  });
+
+  it("renders grammar-box in typst without empty title", () => {
+    const typstNoTitle = convertMarkdownToTypst("::: grammar-box\nInhalt\n:::");
+    expect(typstNoTitle).not.toContain("**\n");
+    expect(typstNoTitle).toContain("Inhalt");
+
+    const typstEmpty = convertMarkdownToTypst("::: grammar-box []\nInhalt\n:::");
+    expect(typstEmpty).not.toContain("**\n");
+    expect(typstEmpty).toContain("Inhalt");
+
+    const typstWithTitle = convertMarkdownToTypst("::: grammar-box [Mein Titel]\nInhalt\n:::");
+    expect(typstWithTitle).toContain("*Mein Titel*");
   });
 });

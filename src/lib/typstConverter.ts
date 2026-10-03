@@ -148,8 +148,8 @@ export function convertMarkdownToTypst(markdown: string): string {
         const m = token.info
           .trim()
           .match(new RegExp(`^${name}\\s*\\[(.*?)\\]`, "i"));
-        if (m && m[1]) {
-          title = `*${escapeTypst(m[1])}*\n\n`;
+        if (m && m[1] && m[1].trim()) {
+          title = `*${escapeTypst(m[1].trim())}*\n\n`;
         }
 
         let color = 'rgb("f8f9fa")'; // default gray

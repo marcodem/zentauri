@@ -463,10 +463,35 @@ div.grammarbox2 {
   color: inherit !important;
 }
 
+/* Remove top margin from the first child inside any custom-block / grammar-box
+   to avoid child margin + container padding stacking (which causes an empty first line when no title is present). */
+.vp-doc .custom-block > *:first-child,
+.vp-doc .grammar-box > *:first-child,
+.custom-block.grammar-box > *:first-child,
+.vp-doc .grammar-box2 > *:first-child,
+.custom-block.grammar-box2 > *:first-child {
+  margin-top: 0 !important;
+}
+
 /* Remove bottom margin from the last child inside any custom-block to avoid
    extra whitespace (child margin + container padding stacking). */
-.vp-doc .custom-block > *:last-child {
+.vp-doc .custom-block > *:last-child,
+.vp-doc .grammar-box > *:last-child,
+.custom-block.grammar-box > *:last-child,
+.vp-doc .grammar-box2 > *:last-child,
+.custom-block.grammar-box2 > *:last-child {
   margin-bottom: 0 !important;
+}
+
+/* Hide empty or whitespace-only title divs */
+.vp-doc .md-box__title:empty,
+.vp-doc .custom-block-title:empty,
+.vp-doc .grammar-box .md-box__title:empty,
+.vp-doc .grammar-box .custom-block-title:empty {
+  display: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  height: 0 !important;
 }
 
 /* Table-wrapper containers (center, no-header) nested directly inside a

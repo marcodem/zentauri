@@ -335,6 +335,8 @@ export function renderMarkdown(
 
   // Table cell merge & Payer compatibility normalize
   let normalizedSrc = src
+    // Strip empty title brackets on containers: ::: grammar-box [] or ::: grammar-box [   ] -> ::: grammar-box
+    .replace(/^([ \t]*:{3,}[ \t]*[a-zA-Z0-9_-]+)[ \t]*\[\s*\]/gm, "$1")
     .replace(/^([ \t]*)(:{3,})([a-zA-Z0-9_-]+)[ \t]+(\[)/gm, "$1$2$3$4")
     .replace(
       /^([ \t]*)(:{3,})[ \t]*([a-zA-Z0-9_-]+)[ \t]+([^\[\s\n\r][^\n\r]*)$/gm,
@@ -385,6 +387,15 @@ export function renderMarkdown(
   const startedAt = performance.now();
   try {
     let rawHtml = md.render(normalizedSrc);
+
+    // Remove empty title containers (e.g. <div class="md-box__title"></div> or whitespace only)
+    rawHtml = rawHtml.replace(/<div class="md-box__title">\s*<\/div>\n?/g, "");
+
+    // Remove empty paragraphs immediately following container opening
+    rawHtml = rawHtml.replace(
+      /(<div class="[^"]*custom-block[^"]*">\n?)\s*<p>\s*<\/p>\n?/g,
+      "$1",
+    );
 
     const html = sanitizeRenderedHtml(rawHtml);
     markdownRenderCache.set(cacheKey, html);
