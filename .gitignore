@@ -31,3 +31,7 @@ venv
 # Zentauri workspace cache & wiki repository
 .zentauri
 .wiki
+
+# VitePress
+docs/.vitepress/dist
+docs/.vitepress/cache

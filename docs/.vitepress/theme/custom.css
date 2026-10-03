@@ -1,0 +1,147 @@
+@import url('https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600&display=swap');
+
+html {
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+:root {
+  --vp-font-family-base: "Source Serif 4", "EB Garamond", serif;
+  --vp-font-family-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+
+  /* Scholarly Synthesis Light: Warm Ivory & Deep Ink */
+  --vp-c-bg: #fcf9f2;
+  --vp-c-bg-alt: #f1eee7;
+  --vp-c-bg-elv: #f1eee7;
+  --vp-c-bg-soft: #f1eee7;
+
+  --vp-c-text-1: #03192e;
+  --vp-c-text-2: #1e2d37;
+  --vp-c-text-3: #6b6257;
+
+  --vp-c-brand-1: #b45309;
+  --vp-c-brand-2: #92400e;
+  --vp-c-brand-3: #78350f;
+  --vp-c-brand-soft: rgba(180, 83, 9, 0.1);
+
+  --vp-c-divider: #d8d2c6;
+  --vp-c-border: #d8d2c6;
+  --vp-c-gutter: transparent;
+
+  --vp-nav-bg-color: rgba(252, 249, 242, 0.88);
+  --vp-sidebar-bg-color: #fcf9f2;
+}
+
+.dark {
+  /* Scholarly Synthesis Dark: Die illuminierte Handschrift bei Kerzenlicht */
+  --vp-c-bg: #0a1628;
+  --vp-c-bg-alt: #0f1e35;
+  --vp-c-bg-elv: #0f1e35;
+  --vp-c-bg-soft: #0f1e35;
+
+  --vp-c-text-1: #e8e0d3;
+  --vp-c-text-2: #c4bba5;
+  --vp-c-text-3: #a09080;
+
+  --vp-c-brand-1: #eab308;
+  --vp-c-brand-2: #ca8a04;
+  --vp-c-brand-3: #d97706;
+  --vp-c-brand-soft: rgba(234, 179, 8, 0.12);
+
+  --vp-c-default-1: #334155;
+  --vp-c-default-2: #475569;
+  --vp-c-default-3: #64748b;
+  --vp-c-default-soft: rgba(51, 65, 85, 0.35);
+
+  --vp-c-divider: #334155;
+  --vp-c-border: #334155;
+  --vp-c-gutter: #0a1628;
+
+  --vp-nav-bg-color: rgba(10, 22, 40, 0.88);
+  --vp-sidebar-bg-color: #0a1628;
+}
+
+/* Header Frosted Glass */
+.VPNav {
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--vp-c-divider) !important;
+}
+
+/* Birchville Wappen Logo Styling */
+.VPNavBarTitle .logo {
+  height: 2.1rem !important;
+  width: auto !important;
+  border-radius: 4px;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.18));
+  margin-right: 10px;
+}
+
+/* Typography */
+.vp-doc h1, .vp-doc h2, .vp-doc h3, .vp-doc h4, .vp-doc h5, .vp-doc h6, .VPHero .name, .VPHero .text, blockquote {
+  font-family: "Source Serif 4", "EB Garamond", serif !important;
+  font-style: normal !important;
+}
+
+.vp-doc h1 {
+  border-top: 1px solid var(--vp-c-divider) !important;
+  padding-top: 1.5rem;
+  margin-top: 2rem !important;
+}
+
+.vp-doc h2 {
+  font-weight: 500;
+  font-style: normal !important;
+  margin-top: 3rem !important;
+  border-top: 1px solid var(--vp-c-divider) !important;
+  padding-top: 1.5rem;
+}
+
+.vp-doc h3 {
+  font-weight: 500;
+  font-style: normal !important;
+  margin-top: 2rem !important;
+  border-top: 1px solid var(--vp-c-divider) !important;
+  padding-top: 1rem;
+}
+
+/* Centralized Left Sidebar (Omit separate right aside) */
+.VPDocAside {
+  display: none !important;
+}
+
+.VPDoc .content-container {
+  max-width: 900px !important;
+}
+
+/* Cards & Code */
+.vp-doc pre {
+  background-color: var(--vp-c-bg-alt) !important;
+  border: 1px solid var(--vp-c-divider) !important;
+  border-radius: 6px;
+}
+
+.vp-doc table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.5rem 0;
+  background-color: var(--vp-c-bg-alt);
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid var(--vp-c-divider);
+}
+
+.vp-doc th {
+  background-color: var(--vp-c-bg-elv);
+  color: var(--vp-c-text-1);
+  font-weight: 600;
+  border-bottom: 2px solid var(--vp-c-divider);
+  padding: 10px 14px;
+}
+
+.vp-doc td {
+  border-bottom: 1px solid var(--vp-c-divider);
+  padding: 10px 14px;
+  color: var(--vp-c-text-2);
+}
