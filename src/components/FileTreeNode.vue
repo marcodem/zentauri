@@ -7,6 +7,11 @@ import {
   rename,
   remove,
 } from "@tauri-apps/plugin-fs";
+import { invoke } from "@tauri-apps/api/core";
+
+const isTauri =
+  typeof window !== "undefined" &&
+  (window as any).__TAURI_INTERNALS__ !== undefined;
 
 export interface FileEntry {
   name: string;
@@ -14,6 +19,10 @@ export interface FileEntry {
   isDirectory: boolean;
   isNew?: boolean;
   newType?: "file" | "directory";
+  title?: string;
+  tags?: string[];
+  iast?: string;
+  devanagari?: string;
 }
 
 const props = defineProps<{
@@ -87,15 +96,35 @@ const fileIconType = computed(() => {
   return "default";
 });
 
-const ensureOpen = async () => {
+const fetchChildren = async () => {
   if (!props.node.isDirectory) return;
-  if (isOpen.value) return;
-
-  isOpen.value = true;
-
-  if (children.value.length === 0) {
-    isLoading.value = true;
-    try {
+  isLoading.value = true;
+  try {
+    if (isTauri) {
+      const rawNodes = await invoke<
+        {
+          name: string;
+          path: string;
+          is_directory: boolean;
+          title?: string;
+          tags?: string[];
+          iast?: string;
+          devanagari?: string;
+        }[]
+      >("read_workspace_tree", {
+        path: props.node.path,
+        sortMode: "name-asc",
+      });
+      children.value = rawNodes.map((n) => ({
+        name: n.name,
+        path: n.path,
+        isDirectory: n.is_directory,
+        title: n.title,
+        tags: n.tags,
+        iast: n.iast,
+        devanagari: n.devanagari,
+      }));
+    } else {
       const entries = await readDir(props.node.path);
       children.value = entries
         .map((e) => ({
@@ -114,11 +143,22 @@ const ensureOpen = async () => {
           if (!a.isDirectory && b.isDirectory) return 1;
           return a.name.localeCompare(b.name);
         });
-    } catch (e) {
-      console.error("Failed to read dir", e);
-    } finally {
-      isLoading.value = false;
     }
+  } catch (e) {
+    console.error("Failed to read dir", e);
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+const ensureOpen = async () => {
+  if (!props.node.isDirectory) return;
+  if (isOpen.value) return;
+
+  isOpen.value = true;
+
+  if (children.value.length === 0) {
+    await fetchChildren();
   }
 };
 
@@ -369,28 +409,7 @@ async function handleChildDeleteConfirm(payload: { path: string }) {
 
 async function refresh() {
   if (!props.node.isDirectory) return;
-  try {
-    const entries = await readDir(props.node.path);
-    children.value = entries
-      .map((e) => ({
-        name: e.name || "unknown",
-        path: `${props.node.path}/${e.name}`,
-        isDirectory: e.isDirectory,
-      }))
-      .filter(
-        (e) =>
-          e.isDirectory ||
-          e.name.toLowerCase().endsWith(".md") ||
-          e.name.toLowerCase().endsWith(".markdown"),
-      )
-      .sort((a, b) => {
-        if (a.isDirectory && !b.isDirectory) return -1;
-        if (!a.isDirectory && b.isDirectory) return 1;
-        return a.name.localeCompare(b.name);
-      });
-  } catch (e) {
-    console.error("Failed to read dir", e);
-  }
+  await fetchChildren();
 }
 </script>
 
@@ -481,9 +500,19 @@ async function refresh() {
         @click.stop
         class="text-sm px-1 py-0.5 bg-app-bg border border-blue-500 rounded text-app-text focus:outline-none w-full"
       />
-      <span v-else class="text-sm truncate select-none text-app-text" :class="{ 'text-app-text-muted': !isMarkdown && !node.isDirectory }">
-        {{ node.name }}
-      </span>
+      <div v-else class="flex flex-col min-w-0 flex-1">
+        <span class="text-sm truncate select-none text-app-text" :class="{ 'text-app-text-muted': !isMarkdown && !node.isDirectory }">
+          {{ node.title || node.name }}
+        </span>
+        <div v-if="node.iast || node.devanagari" class="flex gap-1.5 mt-0.5">
+          <span v-if="node.devanagari" class="text-[9px] px-1 py-0.5 rounded bg-app-border/40 text-app-text-muted font-serif">
+            {{ node.devanagari }}
+          </span>
+          <span v-if="node.iast" class="text-[9px] px-1 py-0.5 rounded bg-app-border/40 text-app-text-muted">
+            {{ node.iast }}
+          </span>
+        </div>
+      </div>
     </div>
     
     <!-- Children -->

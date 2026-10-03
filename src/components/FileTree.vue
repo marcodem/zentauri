@@ -86,7 +86,15 @@ const loadRoot = async () => {
   if (isTauri) {
     try {
       const rawNodes = await invoke<
-        { name: string; path: string; is_directory: boolean }[]
+        {
+          name: string;
+          path: string;
+          is_directory: boolean;
+          title?: string;
+          tags?: string[];
+          iast?: string;
+          devanagari?: string;
+        }[]
       >("read_workspace_tree", {
         path: props.rootPath,
         sortMode: sortMode.value,
@@ -95,6 +103,10 @@ const loadRoot = async () => {
         name: n.name,
         path: n.path,
         isDirectory: n.is_directory,
+        title: n.title,
+        tags: n.tags,
+        iast: n.iast,
+        devanagari: n.devanagari,
       }));
       isLoading.value = false;
       return;
@@ -235,30 +247,30 @@ function collapseAll() {
   collapseTrigger.value++;
 }
 
+const folderSectionRefs = ref<any[]>([]);
+
 function triggerNewRootFile() {
-  if (!props.rootPath) return;
-  if (rootEntries.value.some((e) => e.isNew)) return;
-  rootEntries.value.unshift({
-    name: "",
-    path: "",
-    isDirectory: false,
-    isNew: true,
-    newType: "file",
-  });
-  isFolderExpanded.value = true;
+  if (!folderSectionRefs.value.length) return;
+  let targetSection = folderSectionRefs.value[0];
+  if (props.activePath) {
+    const found = folderSectionRefs.value.find(
+      (sec) => sec?.folderPath && props.activePath?.startsWith(sec.folderPath),
+    );
+    if (found) targetSection = found;
+  }
+  targetSection?.triggerNewRootFile?.();
 }
 
 function triggerNewRootFolder() {
-  if (!props.rootPath) return;
-  if (rootEntries.value.some((e) => e.isNew)) return;
-  rootEntries.value.unshift({
-    name: "",
-    path: "",
-    isDirectory: true,
-    isNew: true,
-    newType: "directory",
-  });
-  isFolderExpanded.value = true;
+  if (!folderSectionRefs.value.length) return;
+  let targetSection = folderSectionRefs.value[0];
+  if (props.activePath) {
+    const found = folderSectionRefs.value.find(
+      (sec) => sec?.folderPath && props.activePath?.startsWith(sec.folderPath),
+    );
+    if (found) targetSection = found;
+  }
+  targetSection?.triggerNewRootFolder?.();
 }
 
 async function handleRootCreateConfirm(payload: {
@@ -502,8 +514,9 @@ onMounted(loadRoot);
         <!-- Workspace / Parent Folder Sections (Multi-Folder Support) -->
         <div v-if="computedRootPaths.length > 0" class="flex flex-col">
           <WorkspaceFolderSection
-            v-for="folderPath in computedRootPaths"
+            v-for="(folderPath, idx) in computedRootPaths"
             :key="folderPath"
+            :ref="el => { if (el) folderSectionRefs[idx] = el }"
             :folderPath="folderPath"
             :activePath="activePath"
             :quickFilter="quickFilter"

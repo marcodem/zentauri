@@ -1,3 +1,5 @@
+pub mod db;
+
 #[tauri::command]
 fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
@@ -69,82 +71,66 @@ pub struct FileItemNode {
     pub is_directory: bool,
     pub modified_at: u64,
     pub size_bytes: u64,
+    pub title: Option<String>,
+    pub tags: Option<Vec<String>>,
+    pub iast: Option<String>,
+    pub devanagari: Option<String>,
+}
+
+fn find_workspace_root(start_path: &str) -> std::path::PathBuf {
+    let mut current = std::path::Path::new(start_path).to_path_buf();
+    loop {
+        if current.join(".zentauri").exists() || current.join(".git").exists() {
+            return current;
+        }
+        if let Some(parent) = current.parent() {
+            if parent == current {
+                break;
+            }
+            current = parent.to_path_buf();
+        } else {
+            break;
+        }
+    }
+    std::path::Path::new(start_path).to_path_buf()
 }
 
 #[tauri::command]
 fn read_workspace_tree(path: &str, sort_mode: &str) -> Result<Vec<FileItemNode>, String> {
-    use std::fs;
-
-    let entries = fs::read_dir(path).map_err(|e| e.to_string())?;
-    let mut nodes = Vec::new();
-
-    for entry in entries.flatten() {
-        let file_name = entry.file_name().to_string_lossy().to_string();
-        
-        if file_name.starts_with('.') {
-            continue;
-        }
-
-        let file_path = entry.path().to_string_lossy().to_string();
-        let metadata = entry.metadata().ok();
-        let is_dir = metadata.as_ref().map(|m| m.is_dir()).unwrap_or(false);
-
-        if !is_dir && !file_name.to_lowercase().ends_with(".md") && !file_name.to_lowercase().ends_with(".markdown") {
-            continue;
-        }
-
-        let modified_at = metadata
-            .as_ref()
-            .and_then(|m| m.modified().ok())
-            .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
-            .map(|d| d.as_secs())
-            .unwrap_or(0);
-
-        let size_bytes = metadata.as_ref().map(|m| m.len()).unwrap_or(0);
-
-        nodes.push(FileItemNode {
-            name: file_name,
-            path: file_path,
-            is_directory: is_dir,
-            modified_at,
-            size_bytes,
-        });
+    let root = find_workspace_root(path);
+    let root_str = root.to_string_lossy().to_string();
+    let mut conn = db::init_db(&root_str).map_err(|e| e.to_string())?;
+    
+    // If querying root, freshly index the workspace
+    if root_str == path {
+        db::index_workspace(&mut conn, &root_str).map_err(|e| e.to_string())?;
     }
+    
+    let mut nodes = db::read_workspace_tree_db(&conn, path, sort_mode).map_err(|e| e.to_string())?;
 
-    match sort_mode {
-        "name-desc" => nodes.sort_by(|a, b| {
-            if a.is_directory != b.is_directory {
-                b.is_directory.cmp(&a.is_directory)
-            } else {
-                b.name.to_lowercase().cmp(&a.name.to_lowercase())
-            }
-        }),
-        "date-desc" => nodes.sort_by(|a, b| {
-            if a.is_directory != b.is_directory {
-                b.is_directory.cmp(&a.is_directory)
-            } else {
-                b.modified_at.cmp(&a.modified_at)
-            }
-        }),
-        "date-asc" => nodes.sort_by(|a, b| {
-            if a.is_directory != b.is_directory {
-                b.is_directory.cmp(&a.is_directory)
-            } else {
-                a.modified_at.cmp(&b.modified_at)
-            }
-        }),
-        _ => {
-            nodes.sort_by(|a, b| {
-                if a.is_directory != b.is_directory {
-                    b.is_directory.cmp(&a.is_directory)
-                } else {
-                    a.name.to_lowercase().cmp(&b.name.to_lowercase())
-                }
-            });
-        }
+    // Fallback: If empty and querying a subfolder, index root and re-query
+    if nodes.is_empty() && root_str != path {
+        db::index_workspace(&mut conn, &root_str).map_err(|e| e.to_string())?;
+        nodes = db::read_workspace_tree_db(&conn, path, sort_mode).map_err(|e| e.to_string())?;
     }
-
+    
     Ok(nodes)
+}
+
+#[tauri::command]
+fn search_workspace(path: &str, query: &str) -> Result<Vec<FileItemNode>, String> {
+    let root = find_workspace_root(path);
+    let conn = db::init_db(&root.to_string_lossy()).map_err(|e| e.to_string())?;
+    db::search_files_db(&conn, query).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn get_knowledge_graph(path: &str) -> Result<db::GraphData, String> {
+    let root = find_workspace_root(path);
+    let root_str = root.to_string_lossy().to_string();
+    let mut conn = db::init_db(&root_str).map_err(|e| e.to_string())?;
+    db::index_workspace(&mut conn, &root_str).map_err(|e| e.to_string())?;
+    db::get_graph_data_db(&conn).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -276,6 +262,32 @@ fn load_custom_stylesheet(app: tauri::AppHandle) -> Result<CustomStylesheetResul
     })
 }
 
+#[tauri::command]
+fn export_pdf(typst_markup: String, destination_path: String) -> Result<(), String> {
+    use std::fs;
+    use typst_as_lib::TypstEngine;
+
+    // Build the engine with system and embedded fonts and the provided markup
+    let engine = TypstEngine::builder()
+        .search_fonts_with(typst_as_lib::typst_kit_options::TypstKitFontOptions::default())
+        .main_file(typst_markup)
+        .build();
+
+    // Compile it
+    let doc = engine
+        .compile()
+        .output
+        .map_err(|e| format!("Typst compilation failed: {:?}", e))?;
+
+    let options = typst_pdf::PdfOptions::default();
+    let pdf = typst_pdf::pdf(&doc, &options)
+        .map_err(|e| format!("PDF generation failed: {:?}", e))?;
+        
+    fs::write(&destination_path, pdf).map_err(|e| format!("Failed to write PDF: {}", e))?;
+    
+    Ok(())
+}
+
 fn resolve_file_arg(arg: &str, cwd: Option<&std::path::Path>) -> Option<std::path::PathBuf> {
     if arg.starts_with('-')
         || arg.starts_with("http://")
@@ -335,7 +347,10 @@ pub fn run() {
             duplicate_file_item,
             reveal_in_explorer,
             get_pending_open_files,
-            load_custom_stylesheet
+            load_custom_stylesheet,
+            export_pdf,
+            search_workspace,
+            get_knowledge_graph
         ])
         .setup(|app| {
             // Process initial CLI args on launch

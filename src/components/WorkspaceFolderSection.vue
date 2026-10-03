@@ -52,6 +52,8 @@ const folderName = computed(() => {
 });
 
 const computedFilteredEntries = computed(() => {
+  if (isTauri) return rootEntries.value; // Rust backend handles filtering
+
   if (!props.quickFilter || !props.quickFilter.trim()) return rootEntries.value;
   const q = props.quickFilter.toLowerCase().trim();
   return rootEntries.value.filter((e) => e.name.toLowerCase().includes(q));
@@ -69,12 +71,23 @@ const loadRoot = async () => {
 
   if (isTauri) {
     try {
-      const rawNodes = await invoke<
-        { name: string; path: string; is_directory: boolean }[]
-      >("read_workspace_tree", {
-        path: props.folderPath,
-        sortMode: sortMode.value,
-      });
+      let rawNodes;
+      if (props.quickFilter && props.quickFilter.trim()) {
+        rawNodes = await invoke<
+          { name: string; path: string; is_directory: boolean }[]
+        >("search_workspace", {
+          path: props.folderPath,
+          query: props.quickFilter.trim(),
+        });
+      } else {
+        rawNodes = await invoke<
+          { name: string; path: string; is_directory: boolean }[]
+        >("read_workspace_tree", {
+          path: props.folderPath,
+          sortMode: sortMode.value,
+        });
+      }
+
       rootEntries.value = rawNodes.map((n) => ({
         name: n.name,
         path: n.path,
@@ -125,7 +138,7 @@ function triggerNewRootFile() {
   if (rootEntries.value.some((e) => e.isNew)) return;
   rootEntries.value.unshift({
     name: "",
-    path: "",
+    path: props.folderPath,
     isDirectory: false,
     isNew: true,
     newType: "file",
@@ -137,7 +150,7 @@ function triggerNewRootFolder() {
   if (rootEntries.value.some((e) => e.isNew)) return;
   rootEntries.value.unshift({
     name: "",
-    path: "",
+    path: props.folderPath,
     isDirectory: true,
     isNew: true,
     newType: "directory",
@@ -266,18 +279,30 @@ async function onContextAction(action: string) {
   const parentPath = node.path.substring(0, node.path.lastIndexOf("/"));
 
   switch (action) {
-    case "new-file":
-      activeCreateRequest.value = {
-        parentPath: node.isDirectory ? node.path : parentPath,
-        type: "file",
-      };
+    case "new-file": {
+      const targetParent = node.isDirectory ? node.path : parentPath;
+      if (targetParent === props.folderPath) {
+        triggerNewRootFile();
+      } else {
+        activeCreateRequest.value = {
+          parentPath: targetParent,
+          type: "file",
+        };
+      }
       break;
-    case "new-folder":
-      activeCreateRequest.value = {
-        parentPath: node.isDirectory ? node.path : parentPath,
-        type: "directory",
-      };
+    }
+    case "new-folder": {
+      const targetParent = node.isDirectory ? node.path : parentPath;
+      if (targetParent === props.folderPath) {
+        triggerNewRootFolder();
+      } else {
+        activeCreateRequest.value = {
+          parentPath: targetParent,
+          type: "directory",
+        };
+      }
       break;
+    }
     case "duplicate":
       try {
         if (isTauri) {
@@ -311,6 +336,7 @@ async function onContextAction(action: string) {
 }
 
 watch(() => props.folderPath, loadRoot);
+watch(() => props.quickFilter, loadRoot);
 onMounted(loadRoot);
 
 defineExpose({ triggerNewRootFile, triggerNewRootFolder, loadRoot });

@@ -1,7 +1,7 @@
 {
   "name": "zentauri",
   "private": true,
-  "version": "1.1.15",
+  "version": "1.1.16",
   "description": "ZenTauri is a minimalistic Markdown editor with an extensible syntax plugin and KaTeX for math formulae and mermaid for diagrams. It is preloaded with syntax extensions for scholarly display of Sanskrit Grammar.",
   "type": "module",
   "scripts": {
@@ -52,6 +52,7 @@
     "markdown-it-multimd-table": "^4.2.3",
     "mermaid": "^11.16.0",
     "puppeteer": "^25.1.0",
+    "v-network-graph": "^0.9.23",
     "vue": "^3.5.13"
   },
   "devDependencies": {
@@ -62,6 +63,7 @@
     "@types/dompurify": "^3.0.5",
     "@types/lodash.debounce": "^4.0.9",
     "@types/markdown-it": "^14.1.2",
+    "@types/markdown-it-container": "^4.0.0",
     "@vitejs/plugin-vue": "^5.2.1",
     "autoprefixer": "^10.5.0",
     "postcss": "^8.5.15",

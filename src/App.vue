@@ -15,7 +15,9 @@ import Settings from "./components/Settings.vue";
 import HelpSystem from "./components/HelpSystem.vue";
 import SearchPanel from "./components/SearchPanel.vue";
 import ActivityBar from "./components/ActivityBar.vue";
+import GraphView from "./components/GraphView.vue";
 import { autoRepairMarkdown } from "./lib/auto-repair";
+import { convertMarkdownToTypst } from "./lib/typstConverter";
 import CHEAT_SHEET, { type SyntaxItem } from "./lib/syntax-cheatsheet";
 
 import { open, save } from "@tauri-apps/plugin-dialog";
@@ -229,7 +231,7 @@ function startSidebarResize(e: MouseEvent) {
   window.addEventListener("mouseup", onMouseUp);
 }
 
-type ViewMode = "source" | "split" | "live";
+type ViewMode = "source" | "split" | "live" | "graph";
 const viewMode = ref<ViewMode>(
   (localStorage.getItem("zentauri-view-mode") as ViewMode) || "split",
 );
@@ -895,6 +897,29 @@ function handleJumpToLine(lineNum: number) {
 function handlePrint() {
   window.print();
 }
+
+async function handleExportPdf() {
+  const tab = tabs.value[activeTabIndex.value];
+  if (!tab || tab.isWeb) return;
+
+  try {
+    const destPath = await save({
+      filters: [{ name: "PDF Document", extensions: ["pdf"] }],
+      defaultPath: tab.title.replace(/\.md$/i, ".pdf"),
+    });
+
+    if (destPath) {
+      isSaving.value = true;
+      const typstMarkup = convertMarkdownToTypst(tab.content);
+      await invoke("export_pdf", { typstMarkup, destinationPath: destPath });
+    }
+  } catch (err) {
+    console.error("Export PDF failed:", err);
+    alert(`Failed to export PDF: ${err}`);
+  } finally {
+    isSaving.value = false;
+  }
+}
 </script>
 
 <template>
@@ -912,32 +937,49 @@ function handlePrint() {
         {{ isAutoRepaired ? 'Auto-Repaired & Saved' : (isSaving ? 'Saving...' : 'Saved') }}
       </div>
       
-      <div class="flex gap-1 z-10 relative ml-auto">
+      <div class="flex gap-2 z-10 relative ml-auto">
+        <button 
+          @click="handleExportPdf"
+          class="px-3 py-1 bg-amber-600 hover:bg-amber-700 text-white dark:bg-amber-500 dark:hover:bg-amber-600 dark:text-slate-950 text-xs font-semibold rounded transition-colors shadow-xs"
+          title="Export as native PDF via Typst"
+        >
+          Export PDF
+        </button>
         <div class="flex items-center bg-app-bg p-0.5 rounded-md border border-app-border">
           <button 
             @click="setViewMode('source')" 
-            class="px-2 py-1 text-xs font-medium rounded transition-colors"
-            :class="viewMode === 'source' ? 'bg-app-bg-secondary text-app-text font-semibold shadow-xs' : 'text-app-text-muted hover:text-app-text'"
+            class="p-1.5 rounded transition-colors"
+            :class="viewMode === 'source' ? 'bg-app-bg-secondary text-app-text shadow-xs' : 'text-app-text-muted hover:text-app-text'"
             title="Source Mode (Code Only)"
           >
-            Source
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
           </button>
           <button 
             @click="setViewMode('split')" 
-            class="px-2 py-1 text-xs font-medium rounded transition-colors"
-            :class="viewMode === 'split' ? 'bg-app-bg-secondary text-app-text font-semibold shadow-xs' : 'text-app-text-muted hover:text-app-text'"
+            class="p-1.5 rounded transition-colors"
+            :class="viewMode === 'split' ? 'bg-app-bg-secondary text-app-text shadow-xs' : 'text-app-text-muted hover:text-app-text'"
             title="Split Mode (Editor + Preview)"
           >
-            Split
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M12 3v18"/></svg>
           </button>
           <button 
+            @click="setViewMode('graph')" 
+            class="p-1.5 rounded transition-colors"
+            :class="viewMode === 'graph' ? 'bg-app-bg-secondary text-app-text shadow-xs' : 'text-app-text-muted hover:text-app-text'"
+            title="Knowledge Graph"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+          </button>
+          <!-- Live Preview Mode (WYSIWYG) disabled for now
+          <button 
             @click="setViewMode('live')" 
-            class="px-2 py-1 text-xs font-medium rounded transition-colors"
-            :class="viewMode === 'live' ? 'bg-app-bg-secondary text-app-text font-semibold shadow-xs' : 'text-app-text-muted hover:text-app-text'"
+            class="p-1.5 rounded transition-colors"
+            :class="viewMode === 'live' ? 'bg-app-bg-secondary text-app-text shadow-xs' : 'text-app-text-muted hover:text-app-text'"
             title="Live Preview Mode (Inline Hybrid Editor)"
           >
-            Live
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
           </button>
+          -->
         </div>
       </div>
     </header>
@@ -1028,8 +1070,16 @@ function handlePrint() {
           </div>
         </div>
         
+        <!-- Graph View -->
+        <div v-if="viewMode === 'graph'" class="flex-1 overflow-hidden h-full flex flex-col min-w-0 bg-app-bg">
+          <GraphView v-if="workspaceRoot" :folderPath="workspaceRoot" @select="loadFile" />
+          <div v-else class="flex-1 flex items-center justify-center text-app-text-muted">
+            No Workspace Folder Open
+          </div>
+        </div>
+
         <!-- Editor/Preview Split (Editor Left, Preview Right) -->
-        <div class="flex-1 flex overflow-hidden print:block print:overflow-visible print:h-auto">
+        <div v-else class="flex-1 flex overflow-hidden print:block print:overflow-visible print:h-auto">
           <!-- Editor Pane (Left) -->
           <div class="flex-1 h-full min-w-0 flex flex-col border-r border-app-border print:hidden">
             <!-- Quick Snippet Toolbar (Dynamic Dropdown populated directly from Syntax Reference CHEAT_SHEET) -->
