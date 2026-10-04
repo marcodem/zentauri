@@ -129,7 +129,17 @@ function triggerNewRootFolder() {
   targetSection?.triggerNewRootFolder?.();
 }
 
-defineExpose({ triggerNewRootFile, triggerNewRootFolder });
+function triggerWorkspaceRefresh() {
+  for (const sec of folderSectionRefs.value) {
+    sec?.loadRoot?.();
+  }
+}
+
+defineExpose({
+  triggerNewRootFile,
+  triggerNewRootFolder,
+  triggerWorkspaceRefresh,
+});
 </script>
 
 <template>

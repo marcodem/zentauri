@@ -392,6 +392,7 @@ fn reveal_in_explorer(path: &str) -> Result<(), String> {
 
 use std::sync::Arc;
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
+use notify::{Config, Event, RecommendedWatcher, RecursiveMode, Watcher};
 use tauri::tray::TrayIconBuilder;
 use tauri::Emitter;
 use tauri::Manager;
@@ -400,6 +401,73 @@ use tauri_plugin_fs::FsExt;
 
 #[derive(Default)]
 pub struct PendingOpenFiles(pub Arc<Mutex<Vec<String>>>);
+
+#[derive(Default)]
+pub struct WorkspaceWatcher(pub Arc<Mutex<Option<RecommendedWatcher>>>);
+
+#[tauri::command]
+fn watch_workspaces(
+    app: tauri::AppHandle,
+    state: State<'_, WorkspaceWatcher>,
+    paths: Vec<String>,
+) -> Result<(), String> {
+    let mut watcher_guard = state.0.lock().map_err(|e| e.to_string())?;
+
+    // Drop previous watcher if any
+    *watcher_guard = None;
+
+    if paths.is_empty() {
+        return Ok(());
+    }
+
+    let app_handle = app.clone();
+    let mut watcher = RecommendedWatcher::new(
+        move |res: Result<Event, notify::Error>| {
+            if let Ok(event) = res {
+                let filtered_paths: Vec<String> = event
+                    .paths
+                    .into_iter()
+                    .filter_map(|p| {
+                        let s = p.to_string_lossy().to_string();
+                        if s.contains("/.git/")
+                            || s.ends_with("/.git")
+                            || s.contains("/.DS_Store")
+                            || s.contains("/node_modules/")
+                            || s.contains("/.zentauri/")
+                            || s.contains("/target/")
+                        {
+                            None
+                        } else {
+                            Some(s)
+                        }
+                    })
+                    .collect();
+
+                if !filtered_paths.is_empty() {
+                    let _ = app_handle.emit(
+                        "workspace-fs-changed",
+                        serde_json::json!({
+                            "kind": format!("{:?}", event.kind),
+                            "paths": filtered_paths
+                        }),
+                    );
+                }
+            }
+        },
+        Config::default(),
+    )
+    .map_err(|e| e.to_string())?;
+
+    for p_str in paths {
+        let path = std::path::Path::new(&p_str);
+        if path.exists() && path.is_dir() {
+            let _ = watcher.watch(path, RecursiveMode::Recursive);
+        }
+    }
+
+    *watcher_guard = Some(watcher);
+    Ok(())
+}
 
 #[tauri::command]
 fn get_pending_open_files(state: State<'_, PendingOpenFiles>) -> Vec<String> {
@@ -636,6 +704,7 @@ fn resolve_file_arg(arg: &str, cwd: Option<&std::path::Path>) -> Option<std::pat
 pub fn run() {
     let app = tauri::Builder::default()
         .manage(PendingOpenFiles::default())
+        .manage(WorkspaceWatcher::default())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_persisted_scope::init())
@@ -674,7 +743,8 @@ pub fn run() {
             search_workspace,
             get_knowledge_graph,
             get_app_cwd,
-            is_directory_path
+            is_directory_path,
+            watch_workspaces
         ])
         .setup(|app| {
             // Process initial CLI args on launch

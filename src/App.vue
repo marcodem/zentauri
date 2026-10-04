@@ -37,6 +37,12 @@ import { mkdir, readTextFile, writeTextFile } from "@tauri-apps/plugin-fs";
 import { openUrl as tauriOpenUrl } from "@tauri-apps/plugin-opener";
 import debounce from "lodash.debounce";
 
+// Check if running inside Tauri
+const isTauri =
+  typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+
+const unlistenFns: (() => void)[] = [];
+
 interface Tab {
   id: string;
   path: string;
@@ -110,6 +116,18 @@ function saveWorkspaceRoots() {
     localStorage.removeItem("zentauri-workspace");
   }
 }
+
+watch(
+  workspaceRoots,
+  (newRoots) => {
+    if (isTauri) {
+      invoke("watch_workspaces", { paths: newRoots }).catch((err) => {
+        console.warn("Failed to watch workspaces:", err);
+      });
+    }
+  },
+  { deep: true, immediate: true },
+);
 
 function isProtectedSystemPath(dirPath: string): boolean {
   if (!dirPath) return true;
@@ -460,12 +478,6 @@ function handleActivityAction(action: string) {
   }
 }
 
-// Check if running inside Tauri
-const isTauri =
-  typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
-
-const unlistenFns: (() => void)[] = [];
-
 // Memory
 onMounted(() => {
   window.addEventListener("keydown", handleGlobalKeydown);
@@ -611,6 +623,20 @@ onMounted(() => {
       })
       .catch((err) => {
         console.error("Failed to setup open-file-path listener:", err);
+      });
+
+    const debouncedFsRefresh = debounce(() => {
+      fileTreeRef.value?.triggerWorkspaceRefresh();
+    }, 300);
+
+    listen<{ kind: string; paths: string[] }>("workspace-fs-changed", () => {
+      debouncedFsRefresh();
+    })
+      .then((unlisten) => {
+        unlistenFns.push(unlisten);
+      })
+      .catch((err) => {
+        console.error("Failed to setup workspace-fs-changed listener:", err);
       });
 
     invoke<string[]>("get_pending_open_files")
