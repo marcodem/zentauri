@@ -47,7 +47,7 @@ jobs:
         if: startsWith(matrix.platform, 'ubuntu')
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev xdg-utils
 
       - name: Install frontend dependencies
         run: npm ci
@@ -74,6 +74,7 @@ jobs:
 
   manifest:
     needs: release
+    if: always()
     permissions:
       contents: write
     runs-on: ubuntu-latest
