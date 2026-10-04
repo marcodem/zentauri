@@ -106,6 +106,9 @@ fn is_system_or_user_root(path: &Path) -> bool {
     }
 
     let parts: Vec<&str> = norm_lower.split('/').filter(|s| !s.is_empty()).collect();
+    if parts.first() == Some(&"volumes") && parts.len() <= 2 {
+        return true;
+    }
     if (parts.first() == Some(&"users") || parts.first() == Some(&"home")) && parts.len() <= 2 {
         return true;
     }
@@ -160,9 +163,13 @@ fn find_workspace_root(start_path: &str) -> PathBuf {
 }
 
 #[tauri::command]
-async fn read_workspace_tree(path: String, sort_mode: String) -> Result<Vec<FileItemNode>, String> {
+async fn read_workspace_tree(app: tauri::AppHandle, path: String, sort_mode: String) -> Result<Vec<FileItemNode>, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let root = find_workspace_root(&path);
+        if is_system_or_user_root(&root) {
+            return Err("Cannot access or index system or volume root as a workspace".to_string());
+        }
+        let _ = app.fs_scope().allow_directory(&root, true);
         let root_str = root.to_string_lossy().to_string();
         let mut conn = db::init_db(&root_str).map_err(|e| e.to_string())?;
         
@@ -195,6 +202,9 @@ async fn read_workspace_tree(path: String, sort_mode: String) -> Result<Vec<File
 async fn search_workspace(path: String, query: String) -> Result<Vec<FileItemNode>, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let root = find_workspace_root(&path);
+        if is_system_or_user_root(&root) {
+            return Err("Cannot access or search system or volume root as a workspace".to_string());
+        }
         let conn = db::init_db(&root.to_string_lossy()).map_err(|e| e.to_string())?;
         db::search_files_db(&conn, &query, &path).map_err(|e| e.to_string())
     })
@@ -206,6 +216,9 @@ async fn search_workspace(path: String, query: String) -> Result<Vec<FileItemNod
 async fn get_knowledge_graph(path: String) -> Result<db::GraphData, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let root = find_workspace_root(&path);
+        if is_system_or_user_root(&root) {
+            return Err("Cannot access or index system or volume root as a workspace".to_string());
+        }
         let root_str = root.to_string_lossy().to_string();
         let mut conn = db::init_db(&root_str).map_err(|e| e.to_string())?;
         db::index_workspace(&mut conn, &root_str).map_err(|e| e.to_string())?;
@@ -221,11 +234,22 @@ fn move_file_item(source_path: &str, target_dir_path: &str) -> Result<String, St
     use std::path::Path;
 
     let source = Path::new(source_path);
+    if !source.exists() {
+        return Err("Source file does not exist".to_string());
+    }
+    let target_dir = Path::new(target_dir_path);
+    if !target_dir.is_dir() {
+        return Err("Target directory does not exist".to_string());
+    }
+    if is_system_or_user_root(source) || is_system_or_user_root(target_dir) {
+        return Err("Cannot move items in or out of system or volume root directories".to_string());
+    }
+
     let file_name = source
         .file_name()
         .ok_or_else(|| "Invalid source path".to_string())?;
 
-    let destination = Path::new(target_dir_path).join(file_name);
+    let destination = target_dir.join(file_name);
 
     if source == destination {
         return Ok(destination.to_string_lossy().to_string());
@@ -238,7 +262,16 @@ fn move_file_item(source_path: &str, target_dir_path: &str) -> Result<String, St
         ));
     }
 
-    fs::rename(&source, &destination).map_err(|e| format!("Failed to move file: {}", e))?;
+    if let Err(e) = fs::rename(&source, &destination) {
+        // Cross-device fallback (EXDEV)
+        if source.is_file() {
+            fs::copy(&source, &destination)
+                .map_err(|copy_err| format!("Failed to move file across devices: {}", copy_err))?;
+            let _ = fs::remove_file(&source);
+        } else {
+            return Err(format!("Failed to move folder: {}", e));
+        }
+    }
 
     Ok(destination.to_string_lossy().to_string())
 }
@@ -287,29 +320,26 @@ fn reveal_in_explorer(path: &str) -> Result<(), String> {
 
     #[cfg(target_os = "macos")]
     {
-        Command::new("open")
-            .arg("-R")
-            .arg(path)
-            .spawn()
-            .map_err(|e| e.to_string())?;
+        let path = path.to_string();
+        std::thread::spawn(move || {
+            let _ = Command::new("open").arg("-R").arg(&path).status();
+        });
     }
 
     #[cfg(target_os = "windows")]
     {
-        Command::new("explorer")
-            .arg("/select,")
-            .arg(path)
-            .spawn()
-            .map_err(|e| e.to_string())?;
+        let arg = format!("/select,{}", path);
+        std::thread::spawn(move || {
+            let _ = Command::new("explorer").arg(&arg).status();
+        });
     }
 
     #[cfg(target_os = "linux")]
     {
-        let parent = std::path::Path::new(path).parent().unwrap_or(std::path::Path::new(path));
-        Command::new("xdg-open")
-            .arg(parent)
-            .spawn()
-            .map_err(|e| e.to_string())?;
+        let parent = std::path::Path::new(path).parent().unwrap_or(std::path::Path::new(path)).to_path_buf();
+        std::thread::spawn(move || {
+            let _ = Command::new("xdg-open").arg("--").arg(&parent).status();
+        });
     }
 
     Ok(())
@@ -317,7 +347,7 @@ fn reveal_in_explorer(path: &str) -> Result<(), String> {
 
 use std::sync::Arc;
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
-use tauri::tray::{TrayIconBuilder, TrayIconEvent};
+use tauri::tray::TrayIconBuilder;
 use tauri::Emitter;
 use tauri::Manager;
 use tauri::State;
@@ -601,7 +631,7 @@ pub fn run() {
             app.on_menu_event(move |app_handle, event| {
                 let id = event.id().0.as_str();
                 match id {
-                    "new_file" | "new_folder" | "open_file" | "open_folder" | "save" | "save_as" | "print" => {
+                    "new_file" | "new_folder" | "open_file" | "open_folder" | "close_folder" | "save" | "save_as" | "print" => {
                         let _ = app_handle.emit("menu-event", id);
                     }
                     _ => {}
@@ -621,18 +651,6 @@ pub fn run() {
                 .icon(app.default_window_icon().unwrap().clone())
                 .menu(&tray_menu)
                 .show_menu_on_left_click(true)
-                .on_tray_icon_event(|tray, event| {
-                    if let TrayIconEvent::Click { .. } = event {
-                        let app = tray.app_handle();
-                        if let Some(window) = app.get_webview_window("main") {
-                            let _ = if window.is_visible().unwrap_or(false) {
-                                window.hide()
-                            } else {
-                                window.show()
-                            };
-                        }
-                    }
-                })
                 .on_menu_event(|app_handle, event| {
                     let id = event.id().0.as_str();
                     match id {
@@ -659,8 +677,11 @@ pub fn run() {
         })
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                api.prevent_close();
-                let _ = window.hide();
+                #[cfg(target_os = "macos")]
+                {
+                    api.prevent_close();
+                    let _ = window.hide();
+                }
             }
         })
         .build(tauri::generate_context!())

@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { VNetworkGraph } from "v-network-graph";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import "v-network-graph/lib/style.css";
 import * as vNG from "v-network-graph";
 import { ForceLayout } from "v-network-graph/lib/force-layout";
@@ -10,9 +10,7 @@ const props = defineProps<{
   folderPath: string;
 }>();
 
-const emit = defineEmits<{
-  (e: "select", path: string): void;
-}>();
+const emit = defineEmits<(e: "select", path: string) => void>();
 
 const nodes = ref<Record<string, { name: string }>>({});
 const edges = ref<Record<string, { source: string; target: string }>>({});
@@ -132,10 +130,21 @@ async function loadGraphData() {
     let edgeIdx = 0;
 
     for (const e of data.edges) {
-      const targetQuery = e.target.toLowerCase();
-      const targetId = nodeNameMap[targetQuery];
+      let cleanTarget = e.target.split(/[?#]/)[0].trim();
+      try {
+        cleanTarget = decodeURIComponent(cleanTarget);
+      } catch {}
+      const targetFileName = cleanTarget.split(/[/\\]/).pop() || cleanTarget;
+      const targetWithoutExt = targetFileName
+        .replace(/\.md$/i, "")
+        .replace(/\.markdown$/i, "");
 
-      if (targetId) {
+      const targetId =
+        nodeNameMap[cleanTarget.toLowerCase()] ||
+        nodeNameMap[targetFileName.toLowerCase()] ||
+        nodeNameMap[targetWithoutExt.toLowerCase()];
+
+      if (targetId && targetId !== e.source) {
         mappedEdges[`edge${edgeIdx++}`] = {
           source: e.source,
           target: targetId,

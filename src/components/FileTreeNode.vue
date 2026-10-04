@@ -1,14 +1,14 @@
 <script setup lang="ts">
-import { ref, computed, watch, nextTick, onMounted } from "vue";
-import {
-  readDir,
-  mkdir,
-  writeTextFile,
-  rename,
-  remove,
-  exists,
-} from "@tauri-apps/plugin-fs";
 import { invoke } from "@tauri-apps/api/core";
+import {
+  exists,
+  mkdir,
+  readDir,
+  remove,
+  rename,
+  writeTextFile,
+} from "@tauri-apps/plugin-fs";
+import { computed, nextTick, onMounted, ref, watch } from "vue";
 
 const isTauri =
   typeof window !== "undefined" &&
@@ -31,6 +31,7 @@ const props = defineProps<{
   depth: number;
   activePath?: string;
   collapseTrigger?: number;
+  sortMode?: string;
   activeCreateRequest?: {
     parentPath: string;
     type: "file" | "directory";
@@ -115,7 +116,7 @@ const fetchChildren = async () => {
         }[]
       >("read_workspace_tree", {
         path: props.node.path,
-        sortMode: "name-asc",
+        sortMode: props.sortMode || "name-asc",
       });
       children.value = rawNodes.map((n) => ({
         name: n.name,
@@ -210,6 +211,15 @@ watch(
 );
 
 watch(
+  () => props.sortMode,
+  () => {
+    if (isOpen.value && props.node.isDirectory) {
+      fetchChildren();
+    }
+  },
+);
+
+watch(
   () => props.activeRenamePath,
   (newVal) => {
     if (newVal === props.node.path) {
@@ -259,7 +269,7 @@ watch(
       const normalizedNode = props.node.path.replace(/\\/g, "/");
       const normalizedActive = newVal.replace(/\\/g, "/");
       if (
-        normalizedActive.startsWith(normalizedNode + "/") ||
+        normalizedActive.startsWith(`${normalizedNode}/`) ||
         normalizedActive === normalizedNode
       ) {
         ensureOpen();
@@ -384,14 +394,16 @@ async function handleChildCreateConfirm(payload: {
   const fullPath = `${payload.parentPath}/${payload.name}`;
   try {
     if (await exists(fullPath)) {
-      alert(`An item named "${payload.name}" already exists. Creation cancelled.`);
+      alert(
+        `An item named "${payload.name}" already exists. Creation cancelled.`,
+      );
       handleChildCreateCancel();
       return;
     }
     if (payload.type === "file") {
       await writeTextFile(
         fullPath,
-        "# " + payload.name.replace(/\.md$/, "") + "\n\n",
+        `# ${payload.name.replace(/\.md$/, "")}\n\n`,
       );
       emit("select", fullPath);
     } else {
@@ -550,6 +562,7 @@ async function refresh() {
         :depth="depth + 1"
         :active-path="activePath"
         :collapse-trigger="collapseTrigger"
+        :sort-mode="props.sortMode"
         :active-create-request="activeCreateRequest"
         :active-rename-path="activeRenamePath"
         @select="$emit('select', $event)"

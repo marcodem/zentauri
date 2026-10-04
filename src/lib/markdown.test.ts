@@ -111,4 +111,52 @@ Ausseres Fazit
     expect(typst).toContain("Innere Regeln");
     expect(typst).toContain("Ausseres Fazit");
   });
+
+  it("preserves pipe syntax and container keywords inside fenced code blocks", () => {
+    const codeMd = "```bash\n|| test |\n::: grammar-box\n```";
+    const html = renderMarkdown(codeMd);
+    expect(html).toContain("|| test |");
+    expect(html).toContain("::: grammar-box");
+    expect(html).not.toContain("custom-block");
+  });
+
+  it("respects markdownExtensionsEnabled option", () => {
+    const mdSrc = "::: grammar-box\nInhalt\n:::";
+    const withExt = renderMarkdown(mdSrc, { markdownExtensionsEnabled: true });
+    expect(withExt).toContain("grammar-box custom-block");
+
+    const withoutExt = renderMarkdown(mdSrc, {
+      markdownExtensionsEnabled: false,
+    });
+    expect(withoutExt).not.toContain("grammar-box custom-block");
+  });
+
+  it("does not treat currency as inline math and handles escaped dollars", () => {
+    const currencyHtml = renderMarkdown("The price is $10 and $20.");
+    expect(currencyHtml).not.toContain("katex");
+    expect(currencyHtml).toContain("$10 and $20.");
+
+    const escapedHtml = renderMarkdown("Escaped: \\$100 total.");
+    expect(escapedHtml).not.toContain("katex");
+    expect(escapedHtml).toContain("$100 total.");
+
+    const validMath = renderMarkdown("Formula: $\\alpha$");
+    expect(validMath).toContain("katex");
+  });
+
+  it("safely handles unclosed math block without swallowing following text", () => {
+    const unclosedMd = "$$\nx = 1\n\nSome trailing text";
+    const html = renderMarkdown(unclosedMd);
+    expect(html).toContain("Some trailing text");
+  });
+
+  it("sanitizes dangerous javascript and data:text/html links while keeping safe images", () => {
+    const maliciousHtml = renderMarkdown(
+      '<a href="javascript:alert(1)">bad link</a> <a href="data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==">bad data link</a> <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY44YAAAAASUVORK5CYII=" alt="dot">',
+    );
+    expect(maliciousHtml).not.toContain("javascript:");
+    expect(maliciousHtml).not.toContain("data:text/html");
+    expect(maliciousHtml).toContain("data:image/png;base64");
+  });
 });
+

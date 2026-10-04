@@ -2,16 +2,18 @@ import MarkdownIt from "markdown-it";
 import container from "markdown-it-container";
 // @ts-ignore
 import multimdTable from "markdown-it-multimd-table";
-import { adjustContainerNesting } from "./auto-repair";
+import { katexMathPlugin, normalizeMarkdownSource } from "./markdown";
 
 // Initialize a clean markdown-it instance specifically for Typst AST generation
-const mdTypst = new MarkdownIt({ html: false }).use(multimdTable, {
-  multiline: true,
-  rowspan: true,
-  headerless: true,
-  multibody: true,
-  autolabel: true,
-});
+const mdTypst = new MarkdownIt({ html: false })
+  .use(multimdTable, {
+    multiline: true,
+    rowspan: true,
+    headerless: true,
+    multibody: true,
+    autolabel: true,
+  })
+  .use(katexMathPlugin);
 
 const CONTAINERS = [
   "grammar-box",
@@ -48,17 +50,18 @@ const CONTAINERS = [
   "custom5",
 ];
 
-CONTAINERS.forEach((name) => {
+for (const name of CONTAINERS) {
   mdTypst.use(container, name, {
     validate: (params: string) =>
       params.trim().match(new RegExp(`^${name}(?:\\s+(.*))?$`, "i")),
   });
-});
+}
 
 function escapeTypst(text: string): string {
-  // Escape Typst special characters: \ [ ] ( ) $ # * _ ~ `
+  // Escape Typst special characters: \ [ ] ( ) $ # * _ ~ ` and comments //
   return text
     .replace(/\\/g, "\\\\")
+    .replace(/\/\//g, "\\/\\/")
     .replace(/\[/g, "\\[")
     .replace(/\]/g, "\\]")
     .replace(/#/g, "\\#")
@@ -76,55 +79,82 @@ function escapeTypstString(str: string): string {
   return str.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
 }
 
-function processInlineScholarly(text: string): string {
-  // Convert 《Sanskrit》 -> #text(font: "SanskritFont")[Sanskrit]
-  let res = text.replace(
-    /[⟪《]([^⟫⟩》]+)[⟫⟩》](\s*\|\|?)?/g,
-    (match, content, pipe) => {
-      let danda = "";
-      if (pipe) {
-        danda = pipe.trim() === "||" ? "॥" : "।";
-        danda = " " + danda;
+function latexToTypstMath(latex: string): string {
+  return latex
+    .replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, "($1)/($2)")
+    .replace(/\\(?:mathbf|textbf)\{([^}]+)\}/g, 'bold("$1")')
+    .replace(/\\(?:mathit|textit)\{([^}]+)\}/g, 'italic("$1")')
+    .replace(/\\text\{([^}]+)\}/g, '"$1"')
+    .replace(/\\cdot/g, " dot ")
+    .replace(/\\times/g, " times ")
+    .replace(/\\le(?:q)?/g, " <= ")
+    .replace(/\\ge(?:q)?/g, " >= ")
+    .replace(/\\neq/g, " != ")
+    .replace(/\\pm/g, " plus.minus ")
+    .replace(/\\infty/g, " infinity ")
+    .replace(/\\sum/g, " sum ")
+    .replace(/\\prod/g, " product ")
+    .replace(/\\int/g, " integral ")
+    .replace(/\\partial/g, " partial ")
+    .replace(/\\sqrt\{([^}]+)\}/g, "sqrt($1)")
+    .replace(/\\([a-zA-Z]+)/g, "$1")
+    .replace(/\{([^{}]+)\}/g, "($1)");
+}
+
+function processInlineScholarly(rawText: string): string {
+  const regex =
+    /([⟪《][^⟫⟩》]+[⟫⟩》](?:\s*\|\|?)?)|(:sig\[.*?\])|(:mark\[.*?\])|(:br\b)|(:indent\b)/g;
+
+  let lastIndex = 0;
+  let result = "";
+
+  for (const match of rawText.matchAll(regex)) {
+    if (match.index > lastIndex) {
+      result += escapeTypst(rawText.slice(lastIndex, match.index));
+    }
+
+    const matchedStr = match[0];
+    if (match[1]) {
+      // Sanskrit
+      const sktMatch = matchedStr.match(/^[⟪《]([^⟫⟩》]+)[⟫⟩》](\s*\|\|?)?$/);
+      if (sktMatch) {
+        const content = sktMatch[1];
+        const pipe = sktMatch[2];
+        let danda = "";
+        if (pipe) {
+          danda = ` ${pipe.trim() === "||" ? "॥" : "।"}`;
+        }
+        result += `#text(font: "Noto Sans Devanagari")[${escapeTypst(content)}${danda}]`;
+      } else {
+        result += escapeTypst(matchedStr);
       }
-      return `#text(font: "Noto Sans Devanagari")[${escapeTypst(content)}${danda}]`;
-    },
-  );
+    } else if (match[2]) {
+      // :sig[Text]
+      const sigContent = matchedStr.slice(5, -1);
+      result += `#text(fill: red, weight: "bold")[${escapeTypst(sigContent)}]`;
+    } else if (match[3]) {
+      // :mark[Text]
+      const markContent = matchedStr.slice(6, -1);
+      result += `#highlight(fill: yellow)[${escapeTypst(markContent)}]`;
+    } else if (match[4]) {
+      result += "\\\n";
+    } else if (match[5]) {
+      result += "#h(1em)";
+    }
 
-  // Convert :sig[Text] -> #text(fill: red, weight: "bold")[Text]
-  // We use regex replacement on the plain text
-  res = res.replace(/:sig\[(.*?)\]/g, '#text(fill: red, weight: "bold")[$1]');
+    lastIndex = match.index + matchedStr.length;
+  }
 
-  // Convert :mark[Text] -> #highlight(fill: yellow)[Text]
-  res = res.replace(/:mark\[(.*?)\]/g, "#highlight(fill: yellow)[$1]");
+  if (lastIndex < rawText.length) {
+    result += escapeTypst(rawText.slice(lastIndex));
+  }
 
-  // Convert :br
-  res = res.replace(/:br\b/g, "\\\n");
-
-  // Convert :indent
-  res = res.replace(/:indent\b/g, "#h(1em)");
-
-  return res;
+  return result;
 }
 
 export function convertMarkdownToTypst(markdown: string): string {
-  // Apply table normalization as in markdown.ts
-  let normalizedSrc = markdown
-    // Strip empty title brackets on containers: ::: grammar-box [] or ::: grammar-box [   ] -> ::: grammar-box
-    .replace(/^([ \t]*:{3,}[ \t]*[a-zA-Z0-9_-]+)[ \t]*\[\s*\]/gm, "$1")
-    .replace(/^([ \t]*)(:{3,})([a-zA-Z0-9_-]+)[ \t]+(\[)/gm, "$1$2$3$4")
-    .replace(
-      /^([ \t]*)(:{3,})[ \t]*([a-zA-Z0-9_-]+)[ \t]+([^\[\s\n\r][^\n\r]*)$/gm,
-      "$1$2$3[$4]",
-    )
-    .replace(/^([ \t]*)(:{3,})[ \t]+([a-zA-Z0-9_-]+)/gm, "$1$2$3");
-
-  // Adjust container nesting so outer boxes have more colons and parse cleanly in AST
-  const nestingResult = adjustContainerNesting(normalizedSrc, {
-    closeUnclosed: true,
-  });
-  if (nestingResult.didRepair) {
-    normalizedSrc = nestingResult.repaired;
-  }
+  // Reuse code-fence safe normalization from markdown.ts
+  const normalizedSrc = normalizeMarkdownSource(markdown, true);
 
   const tokens = mdTypst.parse(normalizedSrc, {});
   let typstCode = `
@@ -159,7 +189,7 @@ export function convertMarkdownToTypst(markdown: string): string {
         const m = token.info
           .trim()
           .match(new RegExp(`^${name}\\s*\\[(.*?)\\]`, "i"));
-        if (m && m[1] && m[1].trim()) {
+        if (m?.[1]?.trim()) {
           title = `*${escapeTypst(m[1].trim())}*\n\n`;
         }
 
@@ -180,15 +210,14 @@ export function convertMarkdownToTypst(markdown: string): string {
         typstCode += `#rect(width: 100%, fill: ${color}, stroke: (left: 4pt + ${strokeColor}), inset: 1em)[\n${title}`;
       } else {
         // Container close
-        typstCode += `]\n\n`;
+        typstCode += "]\n\n";
       }
       continue;
     }
 
     switch (token.type) {
       case "heading_open":
-        typstCode +=
-          "=".repeat(parseInt(token.tag.replace("h", "")) || 1) + " ";
+        typstCode += `${"=".repeat(Number.parseInt(token.tag.replace("h", "")) || 1)} `;
         break;
       case "heading_close":
         typstCode += "\n\n";
@@ -234,19 +263,25 @@ export function convertMarkdownToTypst(markdown: string): string {
       case "code_block":
       case "fence": {
         const lang = (token.info || "").trim().split(/\s+/)[0];
-        const fence = token.content.includes("```") ? "````" : "```";
+        const backtickMatches = token.content.match(/`+/g) || [];
+        let maxBackticks = 2;
+        for (const m of backtickMatches) {
+          if (m.length > maxBackticks) maxBackticks = m.length;
+        }
+        const fence = "`".repeat(maxBackticks + 1);
         typstCode += `${fence}${lang}\n${token.content}\n${fence}\n\n`;
         break;
       }
       case "table_open":
         inTable = true;
-        // In Typst, we must define the columns explicitly.
-        // Unfortunately, markdown-it token stream doesn't easily tell us column count upfront unless we look ahead.
-        // We'll use a heuristic lookahead for the first tr_open.
         tableColsCount = 0;
         for (let j = i + 1; j < tokens.length; j++) {
           if (tokens[j].type === "th_open" || tokens[j].type === "td_open") {
-            tableColsCount++;
+            const colspanAttr = tokens[j].attrGet("colspan");
+            const span = colspanAttr
+              ? Number.parseInt(colspanAttr, 10) || 1
+              : 1;
+            tableColsCount += span;
           } else if (tokens[j].type === "tr_close" && tableColsCount > 0) {
             break;
           }
@@ -256,7 +291,7 @@ export function convertMarkdownToTypst(markdown: string): string {
         break;
       case "table_close":
         inTable = false;
-        typstCode += `)\n\n`;
+        typstCode += ")\n\n";
         break;
       case "thead_open":
       case "thead_close":
@@ -266,29 +301,45 @@ export function convertMarkdownToTypst(markdown: string): string {
       case "tr_close":
         break;
       case "th_open":
-        typstCode += `  [*`;
+      case "td_open": {
+        const isHeader = token.type === "th_open";
+        const colspanAttr = token.attrGet("colspan");
+        const rowspanAttr = token.attrGet("rowspan");
+        const hasSpan = colspanAttr || rowspanAttr;
+
+        let cellPrefix = "  ";
+        if (hasSpan) {
+          const parts: string[] = [];
+          if (colspanAttr) parts.push(`colspan: ${colspanAttr}`);
+          if (rowspanAttr) parts.push(`rowspan: ${rowspanAttr}`);
+          cellPrefix += `table.cell(${parts.join(", ")})[`;
+        } else {
+          cellPrefix += "[";
+        }
+        if (isHeader) {
+          cellPrefix += "*";
+        }
+        typstCode += cellPrefix;
         break;
+      }
       case "th_close":
-        typstCode += `*],\n`;
-        break;
-      case "td_open":
-        typstCode += `  [`;
+        typstCode += "*],\n";
         break;
       case "td_close":
-        typstCode += `],\n`;
+        typstCode += "],\n";
         break;
       case "math_inline":
-        typstCode += `$${token.content}$`;
+        typstCode += `$${latexToTypstMath(token.content)}$`;
         break;
       case "math_block":
-        typstCode += `$ ${token.content} $\n\n`;
+        typstCode += `$ ${latexToTypstMath(token.content)} $\n\n`;
         break;
       case "inline":
         if (token.children) {
           for (const child of token.children) {
             switch (child.type) {
               case "text":
-                typstCode += processInlineScholarly(escapeTypst(child.content));
+                typstCode += processInlineScholarly(child.content);
                 break;
               case "strong_open":
                 typstCode += "*";
@@ -308,7 +359,7 @@ export function convertMarkdownToTypst(markdown: string): string {
                 break;
               }
               case "math_inline":
-                typstCode += `$${child.content}$`;
+                typstCode += `$${latexToTypstMath(child.content)}$`;
                 break;
               case "link_open": {
                 const href = escapeTypstString(child.attrGet("href") || "");
@@ -316,11 +367,20 @@ export function convertMarkdownToTypst(markdown: string): string {
                 break;
               }
               case "link_close":
-                typstCode += `]`;
+                typstCode += "]";
                 break;
               case "image": {
                 const src = escapeTypstString(child.attrGet("src") || "");
-                typstCode += `#image("${src}")`;
+                // Only embed images with valid paths to prevent Typst engine crashes
+                if (src.startsWith("http://") || src.startsWith("https://")) {
+                  typstCode += `[#link("${src}")[Image]]`;
+                } else if (
+                  src &&
+                  !src.startsWith("zen:") &&
+                  !src.startsWith("zen-asset:")
+                ) {
+                  typstCode += `#image("${src}")`;
+                }
                 break;
               }
               case "softbreak":

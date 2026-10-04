@@ -19,7 +19,12 @@
     "fs:write-all",
     {
       "identifier": "fs:scope",
-      "allow": [{ "path": "**" }]
+      "allow": [
+        { "path": "$APPDATA/**" },
+        { "path": "$DOCUMENT/**" },
+        { "path": "$DOWNLOAD/**" },
+        { "path": "$DESKTOP/**" }
+      ]
     }
   ]
 }

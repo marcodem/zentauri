@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "ZenTauri",
-  "version": "1.1.18",
+  "version": "1.1.19",
   "identifier": "org.zentauri.app",
 
   "build": {
@@ -19,7 +19,7 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": "default-src 'self' tauri: ipc:; img-src 'self' asset: tauri: zen: zen-asset: data: blob: https: http:; style-src 'self' 'unsafe-inline'; font-src 'self' data: https:; connect-src 'self' ipc: tauri: ws: http: https:; script-src 'self'"
     }
   },
   "bundle": {

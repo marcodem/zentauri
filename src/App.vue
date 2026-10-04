@@ -1,31 +1,31 @@
 <script setup lang="ts">
 import {
-  ref,
-  watch,
-  onMounted,
   computed,
   nextTick,
   onBeforeUnmount,
+  onMounted,
+  ref,
+  watch,
 } from "vue";
-import Editor from "./components/Editor.vue";
-import Preview from "./components/Preview.vue";
-import Cheatsheet from "./components/Cheatsheet.vue";
-import FileTree from "./components/FileTree.vue";
-import Settings from "./components/Settings.vue";
-import HelpSystem from "./components/HelpSystem.vue";
-import SearchPanel from "./components/SearchPanel.vue";
 import ActivityBar from "./components/ActivityBar.vue";
+import Cheatsheet from "./components/Cheatsheet.vue";
+import type Editor from "./components/Editor.vue";
+import type FileTree from "./components/FileTree.vue";
 import GraphView from "./components/GraphView.vue";
+import HelpSystem from "./components/HelpSystem.vue";
+import Preview from "./components/Preview.vue";
+import SearchPanel from "./components/SearchPanel.vue";
+import Settings from "./components/Settings.vue";
 import { autoRepairMarkdown } from "./lib/auto-repair";
-import { convertMarkdownToTypst } from "./lib/typstConverter";
 import CHEAT_SHEET, { type SyntaxItem } from "./lib/syntax-cheatsheet";
+import { convertMarkdownToTypst } from "./lib/typstConverter";
 
+import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { open, save } from "@tauri-apps/plugin-dialog";
-import { readTextFile, writeTextFile, mkdir } from "@tauri-apps/plugin-fs";
+import { mkdir, readTextFile, writeTextFile } from "@tauri-apps/plugin-fs";
 import { openUrl as tauriOpenUrl } from "@tauri-apps/plugin-opener";
 import debounce from "lodash.debounce";
-import { listen } from "@tauri-apps/api/event";
-import { invoke } from "@tauri-apps/api/core";
 
 interface Tab {
   id: string;
@@ -143,7 +143,10 @@ function isProtectedSystemPath(dirPath: string): boolean {
 function addWorkspaceFolder(folderPath: string) {
   if (!folderPath) return;
   if (isProtectedSystemPath(folderPath)) {
-    console.warn("Ignoring protected system folder as workspace root:", folderPath);
+    console.warn(
+      "Ignoring protected system folder as workspace root:",
+      folderPath,
+    );
     return;
   }
   const normalizedNew = folderPath.replace(/\\/g, "/");
@@ -151,7 +154,7 @@ function addWorkspaceFolder(folderPath: string) {
   // Check if new folder is already covered by an existing parent folder
   const existingParent = workspaceRoots.value.find((f) => {
     const norm = f.replace(/\\/g, "/");
-    return normalizedNew === norm || normalizedNew.startsWith(norm + "/");
+    return normalizedNew === norm || normalizedNew.startsWith(`${norm}/`);
   });
 
   if (existingParent) {
@@ -162,7 +165,7 @@ function addWorkspaceFolder(folderPath: string) {
   // Remove any subfolders of the new folder that were previously open separately
   workspaceRoots.value = workspaceRoots.value.filter((f) => {
     const norm = f.replace(/\\/g, "/");
-    return !norm.startsWith(normalizedNew + "/");
+    return !norm.startsWith(`${normalizedNew}/`);
   });
 
   workspaceRoots.value.push(folderPath);
@@ -195,7 +198,7 @@ async function removeWorkspaceFolder(folderPath: string) {
 
     return !(
       cleanTabPath === normalizedFolder ||
-      cleanTabPath.startsWith(normalizedFolder + "/")
+      cleanTabPath.startsWith(`${normalizedFolder}/`)
     );
   });
 
@@ -214,11 +217,11 @@ async function removeWorkspaceFolder(folderPath: string) {
 function handleCloseActiveFolder() {
   if (workspaceRoots.value.length > 0) {
     const currentTab = tabs.value[activeTabIndex.value];
-    if (currentTab && currentTab.path) {
+    if (currentTab?.path) {
       const normTab = currentTab.path.replace(/\\/g, "/");
       const matchedFolder = workspaceRoots.value.find((f) => {
         const normF = f.replace(/\\/g, "/");
-        return normTab === normF || normTab.startsWith(normF + "/");
+        return normTab === normF || normTab.startsWith(`${normF}/`);
       });
       if (matchedFolder) {
         removeWorkspaceFolder(matchedFolder);
@@ -403,6 +406,12 @@ const isTauri =
   typeof window !== "undefined" &&
   (window as any).__TAURI_INTERNALS__ !== undefined;
 
+const unlistenFns: (() => void)[] = [];
+
+const handleBeforeUnload = () => {
+  handleSaveAll();
+};
+
 // Memory
 onMounted(() => {
   window.addEventListener("keydown", handleGlobalKeydown);
@@ -474,7 +483,7 @@ onMounted(() => {
               tabs.value[0].path.startsWith("untitled://"));
 
           if (hasOnlyUntitled) {
-            const readmePath = initialCwd.replace(/\\/g, "/") + "/README.md";
+            const readmePath = `${initialCwd.replace(/\\/g, "/")}/README.md`;
             try {
               const readmeText = await readTextFile(readmePath);
               tabs.value = [];
@@ -497,8 +506,8 @@ onMounted(() => {
 
   const savedSidebarWidth = localStorage.getItem("zentauri-sidebar-width");
   if (savedSidebarWidth) {
-    const w = parseInt(savedSidebarWidth, 10);
-    if (!isNaN(w) && w >= 160 && w <= 800) {
+    const w = Number.parseInt(savedSidebarWidth, 10);
+    if (!Number.isNaN(w) && w >= 160 && w <= 800) {
       sidebarWidth.value = w;
     }
   }
@@ -511,14 +520,20 @@ onMounted(() => {
     } catch (e) {}
   }
 
+  window.addEventListener("beforeunload", handleBeforeUnload);
+
   if (isTauri) {
     listen<string>("open-file-path", (event) => {
       if (event.payload) {
         handleIncomingPath(event.payload);
       }
-    }).catch((err) => {
-      console.error("Failed to setup open-file-path listener:", err);
-    });
+    })
+      .then((unlisten) => {
+        unlistenFns.push(unlisten);
+      })
+      .catch((err) => {
+        console.error("Failed to setup open-file-path listener:", err);
+      });
 
     invoke<string[]>("get_pending_open_files")
       .then((paths) => {
@@ -534,7 +549,7 @@ onMounted(() => {
 
     invoke<{ content: string; path: string }>("load_custom_stylesheet")
       .then((res) => {
-        if (res && res.content) {
+        if (res?.content) {
           const style = document.createElement("style");
           style.id = "zentauri-custom-style";
           style.innerHTML = res.content;
@@ -573,14 +588,23 @@ onMounted(() => {
           handlePrint();
           break;
       }
-    }).catch((err) => {
-      console.error("Failed to setup Tauri menu event listener:", err);
-    });
+    })
+      .then((unlisten) => {
+        unlistenFns.push(unlisten);
+      })
+      .catch((err) => {
+        console.error("Failed to setup Tauri menu event listener:", err);
+      });
   }
 });
 
 onBeforeUnmount(() => {
   window.removeEventListener("keydown", handleGlobalKeydown);
+  window.removeEventListener("beforeunload", handleBeforeUnload);
+  for (const fn of unlistenFns) {
+    fn();
+  }
+  unlistenFns.length = 0;
 });
 
 function handleGlobalKeydown(e: KeyboardEvent) {
@@ -603,43 +627,76 @@ const saveTabsState = () => {
   );
 };
 
-// Auto-Save
-const autoSave = debounce(async () => {
-  if (!autoSaveEnabled.value) {
-    saveTabsState(); // just save to memory
-    return;
-  }
-  await forceSave();
-}, 1000);
+// Save a specific tab to file, optionally applying auto-repair
+async function saveTabToFile(
+  tab: Tab | null | undefined,
+  runRepair = false,
+) {
+  if (!tab || tab.isWeb) return;
 
-async function forceSave() {
-  const tab = tabs.value[activeTabIndex.value];
-  if (tab && !tab.isWeb) {
+  if (runRepair) {
     const repairResult = autoRepairMarkdown(tab.content);
     if (repairResult.didRepair) {
       tab.content = repairResult.repaired;
-      markdownSource.value = repairResult.repaired;
+      if (tabs.value[activeTabIndex.value] === tab) {
+        markdownSource.value = repairResult.repaired;
+      }
       isAutoRepaired.value = true;
       setTimeout(() => {
         isAutoRepaired.value = false;
       }, 1500);
     }
+  }
 
-    if (tab.path && !tab.path.startsWith("untitled://")) {
-      isSaving.value = true;
-      try {
-        await writeTextFile(tab.path, tab.content);
-        saveTabsState();
-      } catch (err) {
-        console.error("Auto-save failed", err);
-      } finally {
-        setTimeout(() => {
-          isSaving.value = false;
-        }, 500);
-      }
-    } else {
-      // If untitled, do Save As
+  if (
+    tab.path &&
+    !tab.path.startsWith("untitled://") &&
+    !tab.path.startsWith("browser://")
+  ) {
+    isSaving.value = true;
+    try {
+      await writeTextFile(tab.path, tab.content);
+      saveTabsState();
+    } catch (err) {
+      console.error("Save failed for tab:", tab.path, err);
+    } finally {
+      setTimeout(() => {
+        isSaving.value = false;
+      }, 500);
+    }
+  } else {
+    saveTabsState();
+  }
+}
+
+// Auto-Save: debounced, saves only text (no auto-repair while typing)
+let pendingSaveTab: Tab | null = null;
+
+const autoSave = debounce(async () => {
+  if (!autoSaveEnabled.value) {
+    saveTabsState(); // persist to local state
+    return;
+  }
+  const target = pendingSaveTab || tabs.value[activeTabIndex.value];
+  if (target) {
+    await saveTabToFile(target, false);
+  }
+  pendingSaveTab = null;
+}, 1000);
+
+async function forceSave(manual = true) {
+  const tab = tabs.value[activeTabIndex.value];
+  if (tab && !tab.isWeb) {
+    if (
+      tab.path &&
+      !tab.path.startsWith("untitled://") &&
+      !tab.path.startsWith("browser://")
+    ) {
+      await saveTabToFile(tab, manual /* run repair on explicit save */);
+    } else if (manual) {
       await handleSaveAs();
+    } else {
+      saveTabsState();
     }
   }
 }
@@ -695,6 +752,7 @@ watch(markdownSource, (newVal) => {
   const tab = tabs.value[activeTabIndex.value];
   if (tab && !tab.isWeb && tab.content !== newVal) {
     tab.content = newVal;
+    pendingSaveTab = tab;
     autoSave();
   }
 });
@@ -742,7 +800,7 @@ function openTab(title: string, path: string, content: string) {
 async function openExternalUrl(rawUrl: string) {
   let url = rawUrl.trim();
   if (!url.startsWith("http://") && !url.startsWith("https://")) {
-    url = "https://" + url;
+    url = `https://${url}`;
   }
   try {
     if (isTauri) {
@@ -756,8 +814,16 @@ async function openExternalUrl(rawUrl: string) {
   }
 }
 
-function closeTab(index: number, event?: Event) {
+async function closeTab(index: number, event?: Event) {
   if (event) event.stopPropagation();
+  const closingTab = tabs.value[index];
+  if (closingTab && !closingTab.isWeb) {
+    autoSave.cancel();
+    if (autoSaveEnabled.value) {
+      await saveTabToFile(closingTab, false);
+    }
+  }
+
   tabs.value.splice(index, 1);
   if (tabs.value.length === 0) {
     openTab("Untitled Document", `untitled://${Date.now()}`, "");
@@ -774,7 +840,19 @@ function closeTab(index: number, event?: Event) {
   saveTabsState();
 }
 
-function selectTab(index: number) {
+async function selectTab(index: number) {
+  if (index === activeTabIndex.value) return;
+
+  const currentTab = tabs.value[activeTabIndex.value];
+  if (currentTab && !currentTab.isWeb) {
+    autoSave.cancel();
+    if (autoSaveEnabled.value) {
+      await saveTabToFile(currentTab, true);
+    } else {
+      saveTabsState();
+    }
+  }
+
   activeTabIndex.value = index;
   const tab = tabs.value[index];
   if (tab && !tab.isWeb) {
@@ -782,6 +860,41 @@ function selectTab(index: number) {
     focusEditor();
   }
   saveTabsState();
+}
+
+async function handlePreviewOpenFile(linkPath: string) {
+  const cleanLink = linkPath.split(/[?#]/)[0].trim();
+  if (!cleanLink) return;
+
+  const activeTab = tabs.value[activeTabIndex.value];
+  let fullPath = cleanLink;
+
+  if (
+    activeTab?.path &&
+    !activeTab.path.startsWith("untitled://") &&
+    !activeTab.path.startsWith("browser://")
+  ) {
+    const lastSlash = Math.max(
+      activeTab.path.lastIndexOf("/"),
+      activeTab.path.lastIndexOf("\\"),
+    );
+    const parentDir =
+      lastSlash !== -1 ? activeTab.path.substring(0, lastSlash) : "";
+    const sep = activeTab.path.includes("\\") ? "\\" : "/";
+    if (parentDir && !cleanLink.startsWith("/") && !cleanLink.includes(":")) {
+      fullPath = `${parentDir}${sep}${cleanLink}`;
+    }
+  }
+
+  if (
+    !fullPath.endsWith(".md") &&
+    !fullPath.endsWith(".markdown") &&
+    !fullPath.includes(".")
+  ) {
+    fullPath += ".md";
+  }
+
+  await loadFile(fullPath);
 }
 
 function showExplorerView() {
@@ -798,7 +911,7 @@ async function handleOpenFile() {
     input.accept = ".md,.markdown,.txt";
     input.onchange = async (e: Event) => {
       const target = e.target as HTMLInputElement;
-      if (target.files && target.files[0]) {
+      if (target.files?.[0]) {
         const file = target.files[0];
         const text = await file.text();
         openTab(file.name, `browser://${file.name}`, text);
@@ -925,7 +1038,7 @@ function handleSettingsClose() {
 
 function handleInsertFromCheatsheet(text: string) {
   if (editorRef.value) {
-    editorRef.value.insertText(text + "\n");
+    editorRef.value.insertText(`${text}\n`);
   }
 }
 
@@ -1177,7 +1290,7 @@ async function handleExportPdf() {
 
           <!-- Preview Pane (Right) -->
           <div v-show="showPreview" class="flex-1 h-full bg-app-bg min-w-0 print:!block print:w-full print:h-auto print:overflow-visible print:bg-white">
-            <Preview :source="markdownSource" @open-url="openExternalUrl" />
+            <Preview :source="markdownSource" @open-url="openExternalUrl" @open-file="handlePreviewOpenFile" />
           </div>
         </div>
 

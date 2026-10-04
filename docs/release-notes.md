@@ -4,6 +4,16 @@ title: Release Notes
 
 # 🚀 Zentauri Release Notes
 
+### ZenTauri v1.1.19
+- **Editor-Datenintegrität & Tab-Stabilität:** Pufferverlust bei Tab-Wechsel und Tab-Schließen behoben; deterministische Sicherung vor Wechseln und bei App-Beendigung (`beforeunload`); strikte Trennung von Autosave und Auto-Repair (Korrekturen erfolgen nur bei manuellem Speichern oder Tab-Wechsel, nie während des Tippens).
+- **Sicherheit & Sandbox-Härtung:** Strikte Content Security Policy (CSP) ohne `unsafe-eval`; Tauri File-System-Scope auf Standardordner gehärtet mit dynamischer Workspace-Freigabe (`fs_scope().allow_directory`); Zugriff auf System- und Volume-Roots (`/Volumes`, `C:\`, `/System` etc.) sowie Traversals strikt blockiert; Mermaid-Diagramme auf `securityLevel: "strict"` gesetzt.
+- **Typst PDF-Export & Formel-Engine:** Übersetzung von LaTeX-Mathematik in native Typst-Math-Syntax (`\frac`, `\cdot`, `\sum`, `\int`, griechische Buchstaben etc.); dynamische Code-Fence-Längen (`max + 1` Backticks); Fließtext-Doppelslashes `//` als `\/\/` maskiert; Codeblöcke vor Normalisierungsfiltern geschützt.
+- **Knowledge-Graph & Navigation:** Klicks auf relative Markdown-Links in der Vorschau öffnen die Zieldatei im Editor statt einer Webview-Fehlernavigation; vollständige Normalisierung von Wikilinks und Markdown-Links im SQLite-Indexer und im Graph-Frontend.
+- **Performance & Rendering:** CodeMirror Live-Preview auf `ViewPlugin` mit `view.visibleRanges` umgestellt (enorme Performance-Steigerung bei großen Dokumenten); Lookaround-RegEx für Kursivschrift verhindert fehlerhaftes Aufsplitten von `snake_case`; Mermaid-Rendering debounced (200 ms) mit Request-ID-Validierung.
+- **Backend- & Plattformstabilität:** Menüeintrag „Ordner schließen“ (`CmdOrCtrl+Shift+W`) reaktiviert; SQLite mit WAL-Modus und 5-Sekunden Busy-Timeout; Indexer-Schutz mit Tiefenlimit (20 Ebenen) und Dateigrößen-Cap (2 MB); Windows- und macOS-Pfadtrenner sowie Zeichenvalidierung beim Umbenennen harmonisiert; Kindprozesse in `reveal_in_explorer` entkoppelt.
+
+---
+
 ### ZenTauri v1.1.18
 - **macOS Systempfad-Schutz & Standalone File Mode:** Das Öffnen von Einzeldateien erklärt den Elternordner (z. B. `~/Desktop`) nicht mehr zum Workspace und verhindert macOS-TCC-Sicherheitswarnungen.
 - **Projekt-CWD-Erkennung:** Beim Start im Terminal oder dev-Modus wird das aktuelle Projektverzeichnis automatisch als Workspace erkannt und dessen `README.md` geöffnet.

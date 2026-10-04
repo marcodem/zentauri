@@ -206,8 +206,12 @@ watch(
   () => props.modelValue,
   (newVal) => {
     if (view && view.state.doc.toString() !== newVal) {
+      const currentSelection = view.state.selection.main;
+      const targetAnchor = Math.min(currentSelection.anchor, newVal.length);
+      const targetHead = Math.min(currentSelection.head, newVal.length);
       view.dispatch({
         changes: { from: 0, to: view.state.doc.length, insert: newVal },
+        selection: { anchor: targetAnchor, head: targetHead },
       });
     }
   },

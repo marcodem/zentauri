@@ -1,21 +1,45 @@
 import DOMPurify from "dompurify";
+import katex from "katex";
 import MarkdownIt from "markdown-it";
 import markdownItAttrs from "markdown-it-attrs";
 // @ts-ignore
-import multimdTable from "markdown-it-multimd-table";
-import katex from "katex";
-// @ts-ignore
 import * as extensiblePluginModule from "markdown-it-extensible";
-const extensiblePlugin =
-  (extensiblePluginModule as any).default || extensiblePluginModule;
-import { recordRendererPerf } from "./perf";
+// @ts-ignore
+import multimdTable from "markdown-it-multimd-table";
 import { adjustContainerNesting } from "./auto-repair";
+import { recordRendererPerf } from "./perf";
+
+type Token = Parameters<
+  NonNullable<MarkdownIt["renderer"]["rules"]["fence"]>
+>[0][number];
+
+type StateInline = Parameters<
+  MarkdownIt["inline"]["ruler"]["after"]
+>[2] extends (state: infer S, ...args: never[]) => unknown
+  ? S
+  : any;
+
+type StateBlock = Parameters<MarkdownIt["block"]["ruler"]["after"]>[2] extends (
+  state: infer S,
+  ...args: never[]
+) => unknown
+  ? S
+  : any;
+
+interface ExtensibleModule {
+  default?: (md: MarkdownIt, options?: unknown) => void;
+  (md: MarkdownIt, options?: unknown): void;
+}
+
+const extensibleModule = extensiblePluginModule as unknown as ExtensibleModule;
+const extensiblePlugin = extensibleModule.default || extensibleModule;
 
 const URI_SCHEME_RE = /^[a-zA-Z][a-zA-Z\d+.-]*:/;
 const ALLOWED_RENDERED_URI_SCHEME_RE =
-  /^(?:https?|mailto|zen|zen-asset|blob|data):/i;
-const ALLOWED_RENDERED_URI_RE =
-  /^(?:(?:https?|mailto|zen|zen-asset|blob|data):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i;
+  /^(?:https?|mailto|zen|zen-asset|blob):/i;
+const SAFE_DATA_IMAGE_URI_RE =
+  /^data:image\/(?:png|jpeg|jpg|gif|webp|svg\+xml)(?:;charset=[^;]+)?;base64,[a-z0-9+/=]+$/i;
+
 const ALLOWED_RENDERED_DATA_ATTRS = [
   "data-callout",
   "data-function-plot-source",
@@ -37,14 +61,15 @@ const ALLOWED_RENDERED_DATA_ATTRS = [
 ];
 
 let sanitizerHooksInstalled = false;
-
 let purifiedInstance: any = null;
 
 function getPurify(): any {
   if (purifiedInstance) return purifiedInstance;
 
-  const raw = (DOMPurify as any).default || DOMPurify;
-  if (typeof raw?.sanitize === "function") {
+  const raw =
+    (DOMPurify as unknown as { default?: unknown }).default || DOMPurify;
+
+  if (typeof (raw as any)?.sanitize === "function") {
     purifiedInstance = raw;
     return purifiedInstance;
   }
@@ -53,15 +78,14 @@ function getPurify(): any {
       typeof window !== "undefined"
         ? window
         : typeof globalThis !== "undefined"
-          ? (globalThis as any).window
+          ? (globalThis as unknown as { window?: Window }).window
           : null;
     if (win) {
-      purifiedInstance = raw(win);
+      purifiedInstance = (raw as (w: Window) => unknown)(win);
       return purifiedInstance;
     }
   }
-  purifiedInstance = raw;
-  return purifiedInstance;
+  return null;
 }
 
 function ensureSanitizerHooks(): void {
@@ -69,23 +93,29 @@ function ensureSanitizerHooks(): void {
   try {
     const purify = getPurify();
     if (purify && typeof purify.addHook === "function") {
-      purify.addHook("uponSanitizeAttribute", (_node: any, data: any) => {
-        if (
-          data.attrName !== "href" &&
-          data.attrName !== "src" &&
-          data.attrName !== "xlink:href"
-        ) {
-          return;
-        }
-        const value = data.attrValue?.trim();
-        if (
-          value &&
-          URI_SCHEME_RE.test(value) &&
-          !ALLOWED_RENDERED_URI_SCHEME_RE.test(value)
-        ) {
-          data.keepAttr = false;
-        }
-      });
+      purify.addHook(
+        "uponSanitizeAttribute",
+        (
+          _node: Element,
+          data: { attrName: string; attrValue?: string; keepAttr?: boolean },
+        ) => {
+          if (
+            data.attrName !== "href" &&
+            data.attrName !== "src" &&
+            data.attrName !== "xlink:href"
+          ) {
+            return;
+          }
+          const value = data.attrValue?.trim();
+          if (value && URI_SCHEME_RE.test(value)) {
+            const isAllowedScheme = ALLOWED_RENDERED_URI_SCHEME_RE.test(value);
+            const isSafeDataUri = SAFE_DATA_IMAGE_URI_RE.test(value);
+            if (!isAllowedScheme && !isSafeDataUri) {
+              data.keepAttr = false;
+            }
+          }
+        },
+      );
       sanitizerHooksInstalled = true;
     } else if (typeof window !== "undefined") {
       console.warn("DOMPurify instance does not support addHook");
@@ -138,88 +168,78 @@ function sanitizeRenderedHtml(html: string): string {
   try {
     const purify = getPurify();
     if (!purify || typeof purify.sanitize !== "function") {
-      return html;
+      return mdBasic.utils.escapeHtml(html);
     }
     return purify.sanitize(html, {
       ALLOW_DATA_ATTR: true,
       ALLOW_ARIA_ATTR: true,
-      ALLOWED_URI_REGEXP: ALLOWED_RENDERED_URI_RE,
       ADD_ATTR: ALLOWED_RENDERED_DATA_ATTRS,
       ADD_TAGS: MATHML_TAGS,
     });
   } catch (e) {
     console.warn("DOMPurify sanitize failed:", e);
-    return html; // fallback
+    return `<pre class="text-sm text-red-600">Sanitization error: ${mdBasic.utils.escapeHtml(String(e))}</pre>`;
   }
 }
 
 const MARKDOWN_RENDER_CACHE_LIMIT = 24;
 const markdownRenderCache = new Map<string, string>();
 
-const md = new MarkdownIt({ html: true })
-  .use(multimdTable, {
-    multiline: true,
-    rowspan: true,
-    headerless: true,
-    multibody: true,
-    autolabel: true,
-  })
-  .use(markdownItAttrs)
-  .use(extensiblePlugin, {
-    injectStyles: false,
-    blockContainers: [
-      { name: "grammar-box2", className: "grammar-box2" },
-      { name: "grammarbox2", className: "grammar-box2" },
-      { name: "grammar-box", className: "grammar-box" },
-      { name: "grammarbox", className: "grammar-box" },
-      { name: "deleteme-box", className: "deleteme-box" },
-      { name: "deletemebox", className: "deleteme-box" },
-      { name: "metrik-schema", className: "metrik-schema" },
-      { name: "metrikschema", className: "metrik-schema" },
-      { name: "note-box", className: "note-box" },
-      { name: "notebox", className: "note-box" },
-      { name: "laut-table", className: "laut-table" },
-      { name: "lauttable", className: "laut-table" },
-      { name: "media", className: "media" },
-      { name: "center", className: "center" },
-      { name: "important", className: "important" },
-      { name: "indent", className: "indent" },
-      { name: "compact", className: "compact" },
-      { name: "no-header", className: "no-header" },
-      { name: "noheader", className: "no-header" },
-      { name: "info", className: "info custom-block" },
-      { name: "tip", className: "tip custom-block" },
-      { name: "warning", className: "warning custom-block" },
-      { name: "danger", className: "danger custom-block" },
-      { name: "details", className: "details custom-block" },
-      { name: "custom1", className: "custom1" },
-      { name: "custom2", className: "custom2" },
-      { name: "custom3", className: "custom3" },
-      { name: "custom4", className: "custom4" },
-      { name: "custom5", className: "custom5" },
-    ],
-  });
-
 // Custom KaTeX Math Plugin
-function katexMathPlugin(mdInstance: any) {
+export function katexMathPlugin(mdInstance: MarkdownIt) {
   // Inline math rule: $...$
   mdInstance.inline.ruler.after(
     "escape",
     "math_inline",
-    (state: any, silent: boolean) => {
+    (state: StateInline, silent: boolean) => {
       if (state.src.charCodeAt(state.pos) !== 0x24 /* $ */) return false;
       if (state.src.charCodeAt(state.pos + 1) === 0x24 /* $$ */) return false;
 
       const start = state.pos + 1;
-      let match = start;
-      while ((match = state.src.indexOf("$", match)) !== -1) {
-        if (state.src.charCodeAt(match - 1) !== 0x5c /* \ */) {
-          break;
-        }
-        match++;
+      if (
+        state.src.charCodeAt(start) === 0x20 ||
+        state.src.charCodeAt(start) === 0x09
+      ) {
+        return false;
       }
 
-      if (match === -1) return false;
+      let match = start;
+      let found = false;
+
+      while (match < state.src.length) {
+        match = state.src.indexOf("$", match);
+        if (match === -1) break;
+
+        const slice = state.src.slice(start, match);
+        if (slice.includes("\n\n")) {
+          return false;
+        }
+
+        let backslashCount = 0;
+        let idx = match - 1;
+        while (idx >= start && state.src.charCodeAt(idx) === 0x5c /* \ */) {
+          backslashCount++;
+          idx--;
+        }
+
+        if (backslashCount % 2 === 1) {
+          match++;
+          continue;
+        }
+
+        if (
+          state.src.charCodeAt(match - 1) === 0x20 ||
+          state.src.charCodeAt(match - 1) === 0x09
+        ) {
+          match++;
+          continue;
+        }
+
+        found = true;
+        break;
+      }
+
+      if (!found || match === -1) return false;
       const content = state.src.slice(start, match);
 
       if (!silent) {
@@ -236,7 +256,12 @@ function katexMathPlugin(mdInstance: any) {
   mdInstance.block.ruler.after(
     "blockquote",
     "math_block",
-    (state: any, startLine: number, endLine: number, silent: boolean) => {
+    (
+      state: StateBlock,
+      startLine: number,
+      endLine: number,
+      silent: boolean,
+    ) => {
       const startPos = state.bMarks[startLine] + state.tShift[startLine];
       const maxPos = state.eMarks[startLine];
 
@@ -270,7 +295,7 @@ function katexMathPlugin(mdInstance: any) {
           lines.push(lineText);
         }
 
-        if (!foundEnd && silent) return false;
+        if (!foundEnd) return false;
         content = lines.join("\n");
       }
 
@@ -287,100 +312,186 @@ function katexMathPlugin(mdInstance: any) {
   );
 
   // Renderers
-  mdInstance.renderer.rules.math_inline = (tokens: any[], idx: number) => {
+  mdInstance.renderer.rules.math_inline = (tokens: Token[], idx: number) => {
     try {
       return katex.renderToString(tokens[idx].content, {
         displayMode: false,
         throwOnError: false,
       });
-    } catch (err) {
+    } catch (_err) {
       return `<span class="text-red-500 font-mono">${mdInstance.utils.escapeHtml(tokens[idx].content)}</span>`;
     }
   };
 
-  mdInstance.renderer.rules.math_block = (tokens: any[], idx: number) => {
+  mdInstance.renderer.rules.math_block = (tokens: Token[], idx: number) => {
     try {
       return `<div class="katex-block my-4 flex justify-center">${katex.renderToString(tokens[idx].content, { displayMode: true, throwOnError: false })}</div>`;
-    } catch (err) {
+    } catch (_err) {
       return `<pre class="text-red-500 font-mono">${mdInstance.utils.escapeHtml(tokens[idx].content)}</pre>`;
     }
   };
 }
 
-md.use(katexMathPlugin);
+function setupFenceRule(mdInstance: MarkdownIt) {
+  const defaultFence = mdInstance.renderer.rules.fence;
+  mdInstance.renderer.rules.fence = (tokens, idx, options, env, self) => {
+    const token = tokens[idx];
+    const info = token.info.trim();
+    if (info === "mermaid") {
+      const code = token.content.trim();
+      return `<pre class="mermaid" data-mermaid-source="${mdInstance.utils.escapeHtml(code)}">${mdInstance.utils.escapeHtml(code)}</pre>`;
+    }
+    if (info === "math" || info === "katex") {
+      try {
+        return `<div class="katex-block my-4 flex justify-center">${katex.renderToString(token.content.trim(), { displayMode: true, throwOnError: false })}</div>`;
+      } catch (_err) {
+        return `<pre class="text-red-500 font-mono">${mdInstance.utils.escapeHtml(token.content)}</pre>`;
+      }
+    }
+    return defaultFence ? defaultFence(tokens, idx, options, env, self) : "";
+  };
+}
 
-// Custom fence rule for Mermaid & Math block rendering
-const defaultFence = md.renderer.rules.fence;
-md.renderer.rules.fence = (tokens, idx, options, env, self) => {
-  const token = tokens[idx];
-  const info = token.info.trim();
-  if (info === "mermaid") {
-    const code = token.content.trim();
-    return `<pre class="mermaid" data-mermaid-source="${md.utils.escapeHtml(code)}">${md.utils.escapeHtml(code)}</pre>`;
-  }
-  if (info === "math" || info === "katex") {
-    try {
-      return `<div class="katex-block my-4 flex justify-center">${katex.renderToString(token.content.trim(), { displayMode: true, throwOnError: false })}</div>`;
-    } catch (err) {
-      return `<pre class="text-red-500 font-mono">${md.utils.escapeHtml(token.content)}</pre>`;
+function createBaseMarkdownIt(): MarkdownIt {
+  const instance = new MarkdownIt({ html: true })
+    .use(multimdTable, {
+      multiline: true,
+      rowspan: true,
+      headerless: true,
+      multibody: true,
+      autolabel: true,
+    })
+    .use(markdownItAttrs)
+    .use(katexMathPlugin);
+
+  setupFenceRule(instance);
+  return instance;
+}
+
+const mdBasic = createBaseMarkdownIt();
+const mdExtended = createBaseMarkdownIt().use(extensiblePlugin, {
+  injectStyles: false,
+  blockContainers: [
+    { name: "grammar-box2", className: "grammar-box2" },
+    { name: "grammarbox2", className: "grammar-box2" },
+    { name: "grammar-box", className: "grammar-box" },
+    { name: "grammarbox", className: "grammar-box" },
+    { name: "deleteme-box", className: "deleteme-box" },
+    { name: "deletemebox", className: "deleteme-box" },
+    { name: "metrik-schema", className: "metrik-schema" },
+    { name: "metrikschema", className: "metrik-schema" },
+    { name: "note-box", className: "note-box" },
+    { name: "notebox", className: "note-box" },
+    { name: "laut-table", className: "laut-table" },
+    { name: "lauttable", className: "laut-table" },
+    { name: "media", className: "media" },
+    { name: "center", className: "center" },
+    { name: "important", className: "important" },
+    { name: "indent", className: "indent" },
+    { name: "compact", className: "compact" },
+    { name: "no-header", className: "no-header" },
+    { name: "noheader", className: "no-header" },
+    { name: "info", className: "info custom-block" },
+    { name: "tip", className: "tip custom-block" },
+    { name: "warning", className: "warning custom-block" },
+    { name: "danger", className: "danger custom-block" },
+    { name: "details", className: "details custom-block" },
+    { name: "custom1", className: "custom1" },
+    { name: "custom2", className: "custom2" },
+    { name: "custom3", className: "custom3" },
+    { name: "custom4", className: "custom4" },
+    { name: "custom5", className: "custom5" },
+  ],
+});
+
+export function normalizeMarkdownSource(
+  src: string,
+  extensionsEnabled: boolean,
+): string {
+  const lines = src.split("\n");
+  let inCodeFence = false;
+  let codeFenceChar = "";
+  let codeFenceLen = 0;
+
+  const processedLines = lines.map((line) => {
+    // Check code fence toggle: ``` or ~~~
+    const fenceMatch = line.match(/^[ \t]*(`{3,}|~{3,})/);
+    if (fenceMatch) {
+      const char = fenceMatch[1][0];
+      const len = fenceMatch[1].length;
+      if (!inCodeFence) {
+        inCodeFence = true;
+        codeFenceChar = char;
+        codeFenceLen = len;
+        return line;
+      }
+      if (char === codeFenceChar && len >= codeFenceLen) {
+        inCodeFence = false;
+        return line;
+      }
+    }
+
+    if (inCodeFence) {
+      return line;
+    }
+
+    let current = line;
+
+    // Container title bracket normalization (only if extensions are enabled)
+    if (extensionsEnabled) {
+      current = current
+        .replace(/^([ \t]*:{3,}[ \t]*[a-zA-Z0-9_-]+)[ \t]*\[\s*\]/, "$1")
+        .replace(/^([ \t]*)(:{3,})([a-zA-Z0-9_-]+)[ \t]+(\[)/, "$1$2$3$4")
+        .replace(
+          /^([ \t]*)(:{3,})[ \t]*([a-zA-Z0-9_-]+)[ \t]+([^\[\s\n\r][^\n\r]*)$/,
+          "$1$2$3[$4]",
+        )
+        .replace(/^([ \t]*)(:{3,})[ \t]+([a-zA-Z0-9_-]+)/, "$1$2$3");
+    }
+
+    // Table cell merge & MultiMarkdown pipe syntax
+    const trimmed = current.trim();
+    if (trimmed.endsWith("|")) {
+      if (trimmed.match(/^\|\|+\s*[^|\n]/)) {
+        const pipeCount = (trimmed.match(/^\|+/)?.[0] || "").length;
+        const rest = trimmed.replace(/^\|+/, "").trim();
+        const content = rest.replace(/\|$/, "").trim();
+        const trailingPipes = "|".repeat(pipeCount);
+        current = `| ${content} ${trailingPipes}`;
+      } else {
+        current = current.replace(
+          /\|(\|+)\s*([^|\n]+?)\s*\|/g,
+          (match, extraPipes, content) => {
+            if (content.trim() === "^^") return match;
+            return `| ${content.trim()} |${extraPipes}`;
+          },
+        );
+      }
+    }
+
+    return current;
+  });
+
+  let result = processedLines.join("\n");
+
+  if (extensionsEnabled) {
+    const nestingResult = adjustContainerNesting(result, {
+      closeUnclosed: true,
+    });
+    if (nestingResult.didRepair) {
+      result = nestingResult.repaired;
     }
   }
-  return defaultFence ? defaultFence(tokens, idx, options, env, self) : "";
-};
+
+  return result;
+}
 
 export function renderMarkdown(
   src: string,
   options?: { markdownExtensionsEnabled?: boolean },
 ): string {
   const markdownExtensionsEnabled = options?.markdownExtensionsEnabled ?? true;
-
-  // Table cell merge & Payer compatibility normalize
-  let normalizedSrc = src
-    // Strip empty title brackets on containers: ::: grammar-box [] or ::: grammar-box [   ] -> ::: grammar-box
-    .replace(/^([ \t]*:{3,}[ \t]*[a-zA-Z0-9_-]+)[ \t]*\[\s*\]/gm, "$1")
-    .replace(/^([ \t]*)(:{3,})([a-zA-Z0-9_-]+)[ \t]+(\[)/gm, "$1$2$3$4")
-    .replace(
-      /^([ \t]*)(:{3,})[ \t]*([a-zA-Z0-9_-]+)[ \t]+([^\[\s\n\r][^\n\r]*)$/gm,
-      "$1$2$3[$4]",
-    )
-    .replace(/^([ \t]*)(:{3,})[ \t]+([a-zA-Z0-9_-]+)/gm, "$1$2$3");
-
-  // Automatically adjust container nesting depth (outer containers get progressive colons)
-  const nestingResult = adjustContainerNesting(normalizedSrc, {
-    closeUnclosed: true,
-  });
-  if (nestingResult.didRepair) {
-    normalizedSrc = nestingResult.repaired;
-  }
-
-  // Normalize leading-pipe colspan syntaxes like "|| text |" or "||text|" into MultiMarkdown trailing-pipe syntax "| text ||"
-  normalizedSrc = normalizedSrc
-    .split("\n")
-    .map((line) => {
-      const trimmed = line.trim();
-      if (!trimmed.endsWith("|")) return line;
-
-      // Row starts with multiple pipes: e.g. "|| test |" or "||test|"
-      if (trimmed.match(/^\|\|+\s*[^|\n]/)) {
-        const pipeCount = (trimmed.match(/^\|+/)?.[0] || "").length;
-        const rest = trimmed.replace(/^\|+/, "").trim();
-        const content = rest.replace(/\|$/, "").trim();
-        const trailingPipes = "|".repeat(pipeCount);
-        return `| ${content} ${trailingPipes}`;
-      }
-
-      // Cell inside row has leading extra pipes: e.g. "| || test |"
-      let updated = line;
-      updated = updated.replace(
-        /\|(\|+)\s*([^|\n]+?)\s*\|/g,
-        (match, extraPipes, content) => {
-          if (content.trim() === "^^") return match;
-          return `| ${content.trim()} |${extraPipes}`;
-        },
-      );
-      return updated;
-    })
-    .join("\n");
+  const normalizedSrc = normalizeMarkdownSource(src, markdownExtensionsEnabled);
 
   const cacheKey = markdownExtensionsEnabled
     ? `ext:${normalizedSrc}`
@@ -395,21 +506,27 @@ export function renderMarkdown(
 
   const startedAt = performance.now();
   try {
-    let rawHtml = md.render(normalizedSrc);
+    const renderer = markdownExtensionsEnabled ? mdExtended : mdBasic;
+    let rawHtml = renderer.render(normalizedSrc);
 
-    // Remove empty title containers (e.g. <div class="md-box__title"></div> or whitespace only)
-    rawHtml = rawHtml.replace(/<div class="md-box__title">\s*<\/div>\n?/g, "");
-    rawHtml = rawHtml.replace(
-      /<div class="custom-block-title">\s*<\/div>\n?/g,
-      "",
-    );
+    if (markdownExtensionsEnabled) {
+      // Remove empty title containers (e.g. <div class="md-box__title"></div> or whitespace only)
+      rawHtml = rawHtml.replace(
+        /<div class="md-box__title">\s*<\/div>\n?/g,
+        "",
+      );
+      rawHtml = rawHtml.replace(
+        /<div class="custom-block-title">\s*<\/div>\n?/g,
+        "",
+      );
 
-    // Remove empty paragraphs immediately following container opening or preceding container closing
-    rawHtml = rawHtml.replace(
-      /(<div class="[^"]*(?:custom-block|box)[^"]*">\n?)(?:\s*<p>\s*<\/p>\n?)+/g,
-      "$1",
-    );
-    rawHtml = rawHtml.replace(/(?:\s*<p>\s*<\/p>\n?)+(<\/div>\n?)/g, "$1");
+      // Remove empty paragraphs immediately following container opening or preceding container closing
+      rawHtml = rawHtml.replace(
+        /(<div class="[^"]*(?:custom-block|box)[^"]*">\n?)(?:\s*<p>\s*<\/p>\n?)+/g,
+        "$1",
+      );
+      rawHtml = rawHtml.replace(/(?:\s*<p>\s*<\/p>\n?)+(<\/div>\n?)/g, "$1");
+    }
 
     const html = sanitizeRenderedHtml(rawHtml);
     markdownRenderCache.set(cacheKey, html);

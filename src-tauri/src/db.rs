@@ -24,6 +24,8 @@ pub fn init_db(workspace_path: &str) -> Result<Connection> {
     
     let db_path = zentauri_dir.join("index.db");
     let conn = Connection::open(db_path)?;
+    conn.busy_timeout(std::time::Duration::from_secs(5))?;
+    let _ = conn.execute_batch("PRAGMA journal_mode=WAL;");
 
     // Check schema compatibility: if parent_path column is missing, recreate files tables
     let has_parent_col: bool = conn
@@ -121,22 +123,85 @@ fn extract_metadata(content: &str) -> Frontmatter {
     fm
 }
 
+fn percent_decode(input: &str) -> String {
+    let mut bytes = Vec::new();
+    let mut chars = input.bytes();
+    while let Some(b) = chars.next() {
+        if b == b'%' {
+            let h1 = chars.next();
+            let h2 = chars.next();
+            if let (Some(h1), Some(h2)) = (h1, h2) {
+                let s = [h1, h2];
+                if let Ok(hex_str) = std::str::from_utf8(&s) {
+                    if let Ok(byte_val) = u8::from_str_radix(hex_str, 16) {
+                        bytes.push(byte_val);
+                        continue;
+                    }
+                }
+                bytes.push(b'%');
+                bytes.push(h1);
+                bytes.push(h2);
+            } else {
+                bytes.push(b'%');
+                if let Some(h1) = h1 {
+                    bytes.push(h1);
+                }
+            }
+        } else {
+            bytes.push(b);
+        }
+    }
+    String::from_utf8_lossy(&bytes).to_string()
+}
+
+fn normalize_link_target(raw: &str) -> Option<String> {
+    let trimmed = raw.trim();
+    if trimmed.is_empty()
+        || trimmed.starts_with('#')
+        || trimmed.starts_with("http:")
+        || trimmed.starts_with("https:")
+        || trimmed.starts_with("mailto:")
+        || trimmed.starts_with("//")
+    {
+        return None;
+    }
+    let clean = trimmed.split('#').next().unwrap_or("").split('?').next().unwrap_or("");
+    if clean.is_empty() {
+        return None;
+    }
+    let decoded = percent_decode(clean);
+    let filename = decoded.rsplit(|c| c == '/' || c == '\\').next().unwrap_or(&decoded);
+    let stem = if filename.to_lowercase().ends_with(".markdown") {
+        &filename[..filename.len() - 9]
+    } else if filename.to_lowercase().ends_with(".md") {
+        &filename[..filename.len() - 3]
+    } else {
+        filename
+    };
+    if stem.is_empty() {
+        None
+    } else {
+        Some(stem.to_string())
+    }
+}
+
 fn extract_links(content: &str) -> Vec<String> {
     let mut links = Vec::new();
     
     // Match [[Link]] or [[Link|Alias]]
     for cap in WIKI_RE.captures_iter(content) {
         if let Some(m) = cap.get(1) {
-            links.push(m.as_str().trim().to_string());
+            if let Some(norm) = normalize_link_target(m.as_str()) {
+                links.push(norm);
+            }
         }
     }
     
     // Match [Text](link.md)
     for cap in MD_RE.captures_iter(content) {
         if let Some(m) = cap.get(1) {
-            let link = m.as_str().trim().to_string();
-            if !link.starts_with("http") && !link.starts_with("www") {
-                links.push(link);
+            if let Some(norm) = normalize_link_target(m.as_str()) {
+                links.push(norm);
             }
         }
     }
@@ -144,12 +209,35 @@ fn extract_links(content: &str) -> Vec<String> {
     links
 }
 
+const MAX_INDEX_DEPTH: usize = 20;
+const MAX_PARSE_FILE_SIZE: i64 = 2 * 1024 * 1024; // 2 MB
+
+fn read_markdown_content_safe(path: &Path, size_bytes: i64) -> String {
+    if size_bytes <= MAX_PARSE_FILE_SIZE {
+        fs::read_to_string(path).unwrap_or_default()
+    } else {
+        use std::io::Read;
+        let mut buf = vec![0u8; 65536];
+        if let Ok(mut f) = fs::File::open(path) {
+            let n = f.read(&mut buf).unwrap_or(0);
+            String::from_utf8_lossy(&buf[..n]).to_string()
+        } else {
+            String::new()
+        }
+    }
+}
+
 fn index_dir_recursive(
     tx: &rusqlite::Transaction,
     current_dir: &Path,
     parent_path_str: &str,
     seen_paths: &mut HashSet<String>,
+    depth: usize,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    if depth >= MAX_INDEX_DEPTH {
+        return Ok(());
+    }
+
     let entries = match fs::read_dir(current_dir) {
         Ok(e) => e,
         Err(_) => return Ok(()),
@@ -165,6 +253,16 @@ fn index_dir_recursive(
             || file_name == "target"
             || file_name == "dist"
         {
+            continue;
+        }
+
+        let file_type = match entry.file_type() {
+            Ok(ft) => ft,
+            Err(_) => continue,
+        };
+
+        // Skip symlinks to prevent cyclic traversal and stack overflows
+        if file_type.is_symlink() {
             continue;
         }
 
@@ -218,12 +316,12 @@ fn index_dir_recursive(
         )?;
 
         if is_dir {
-            index_dir_recursive(tx, &entry_path, &file_path, seen_paths)?;
+            index_dir_recursive(tx, &entry_path, &file_path, seen_paths, depth + 1)?;
         } else if needs_metadata_reparse {
             tx.execute("DELETE FROM markdown_metadata WHERE file_path = ?1", params![&file_path])?;
             tx.execute("DELETE FROM markdown_links WHERE source_path = ?1", params![&file_path])?;
 
-            let content = fs::read_to_string(&entry_path).unwrap_or_default();
+            let content = read_markdown_content_safe(&entry_path, size_bytes);
             let fm = extract_metadata(&content);
             let tags_json = fm.tags.map(|t| serde_json::to_string(&t).unwrap_or_default());
             tx.execute(
@@ -253,7 +351,7 @@ pub fn index_workspace(conn: &mut Connection, workspace_path: &str) -> Result<()
     let tx = conn.transaction()?;
 
     let mut seen_paths = HashSet::new();
-    index_dir_recursive(&tx, workspace, workspace_path, &mut seen_paths)?;
+    index_dir_recursive(&tx, workspace, workspace_path, &mut seen_paths, 0)?;
 
     // Remove deleted files from DB
     let db_paths: Vec<String> = {
@@ -303,6 +401,16 @@ pub fn sync_directory(
             || file_name == "target"
             || file_name == "dist"
         {
+            continue;
+        }
+
+        let file_type = match entry.file_type() {
+            Ok(ft) => ft,
+            Err(_) => continue,
+        };
+
+        // Skip symlinks to prevent cyclic traversal and stack overflows
+        if file_type.is_symlink() {
             continue;
         }
 
@@ -361,7 +469,7 @@ pub fn sync_directory(
             tx.execute("DELETE FROM markdown_metadata WHERE file_path = ?1", params![&file_path])?;
             tx.execute("DELETE FROM markdown_links WHERE source_path = ?1", params![&file_path])?;
 
-            let content = fs::read_to_string(&entry_path).unwrap_or_default();
+            let content = read_markdown_content_safe(&entry_path, size_bytes);
             let fm = extract_metadata(&content);
             let tags_json = fm.tags.map(|t| serde_json::to_string(&t).unwrap_or_default());
             tx.execute(
@@ -447,7 +555,8 @@ pub fn read_workspace_tree_db(conn: &Connection, parent_path: &str, sort_mode: &
 pub fn search_files_db(conn: &Connection, query: &str, scope_path: &str) -> Result<Vec<FileItemNode>> {
     let escaped = query.replace('\\', "\\\\").replace('%', "\\%").replace('_', "\\_");
     let like_query = format!("%{}%", escaped);
-    let scope_prefix = format!("{}/%", scope_path.trim_end_matches('/'));
+    let escaped_scope = scope_path.trim_end_matches('/').replace('\\', "\\\\").replace('%', "\\%").replace('_', "\\_");
+    let scope_prefix = format!("{}/%", escaped_scope);
     
     let mut stmt = conn.prepare(
         "SELECT f.name, f.path, f.is_directory, f.modified_at, f.size_bytes, 

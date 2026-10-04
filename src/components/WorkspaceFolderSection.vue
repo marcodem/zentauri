@@ -1,16 +1,16 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from "vue";
-import {
-  readDir,
-  mkdir,
-  writeTextFile,
-  rename,
-  remove,
-  exists,
-} from "@tauri-apps/plugin-fs";
 import { invoke } from "@tauri-apps/api/core";
-import FileTreeNode, { type FileEntry } from "./FileTreeNode.vue";
+import {
+  exists,
+  mkdir,
+  readDir,
+  remove,
+  rename,
+  writeTextFile,
+} from "@tauri-apps/plugin-fs";
+import { computed, onMounted, ref, watch } from "vue";
 import ContextMenu from "./ContextMenu.vue";
+import FileTreeNode, { type FileEntry } from "./FileTreeNode.vue";
 
 const props = defineProps<{
   folderPath: string;
@@ -72,21 +72,23 @@ const loadRoot = async () => {
 
   if (isTauri) {
     try {
-      let rawNodes;
-      if (props.quickFilter && props.quickFilter.trim()) {
-        rawNodes = await invoke<
-          { name: string; path: string; is_directory: boolean }[]
-        >("search_workspace", {
-          path: props.folderPath,
-          query: props.quickFilter.trim(),
-        });
+      let rawNodes: { name: string; path: string; is_directory: boolean }[] = [];
+      if (props.quickFilter?.trim()) {
+        rawNodes =
+          (await invoke<
+            { name: string; path: string; is_directory: boolean }[]
+          >("search_workspace", {
+            path: props.folderPath,
+            query: props.quickFilter.trim(),
+          })) || [];
       } else {
-        rawNodes = await invoke<
-          { name: string; path: string; is_directory: boolean }[]
-        >("read_workspace_tree", {
-          path: props.folderPath,
-          sortMode: sortMode.value,
-        });
+        rawNodes =
+          (await invoke<
+            { name: string; path: string; is_directory: boolean }[]
+          >("read_workspace_tree", {
+            path: props.folderPath,
+            sortMode: sortMode.value,
+          })) || [];
       }
 
       rootEntries.value = rawNodes.map((n) => ({
@@ -216,14 +218,16 @@ async function handleRootCreateConfirm(payload: {
   const fullPath = `${parent}/${payload.name}`;
   try {
     if (await exists(fullPath)) {
-      alert(`An item named "${payload.name}" already exists. Creation cancelled.`);
+      alert(
+        `An item named "${payload.name}" already exists. Creation cancelled.`,
+      );
       handleRootCreateCancel();
       return;
     }
     if (payload.type === "file") {
       await writeTextFile(
         fullPath,
-        "# " + payload.name.replace(/\.md$/, "") + "\n\n",
+        `# ${payload.name.replace(/\.md$/, "")}\n\n`,
       );
       emit("select", fullPath);
     } else {
@@ -241,12 +245,34 @@ function handleRootCreateCancel() {
   activeCreateRequest.value = null;
 }
 
+function getParentDirPath(p: string): string {
+  const lastSlashIndex = Math.max(p.lastIndexOf("/"), p.lastIndexOf("\\"));
+  return lastSlashIndex !== -1 ? p.substring(0, lastSlashIndex) : "";
+}
+
+function getPathSeparator(p: string): string {
+  return p.includes("\\") ? "\\" : "/";
+}
+
 async function handleRootRenameConfirm(payload: {
   path: string;
   newName: string;
 }) {
-  const parentDir = payload.path.substring(0, payload.path.lastIndexOf("/"));
-  const newPath = `${parentDir}/${payload.newName}`;
+  const cleanName = payload.newName.trim();
+  if (
+    cleanName.includes("/") ||
+    cleanName.includes("\\") ||
+    cleanName === ".." ||
+    cleanName === "." ||
+    cleanName === ""
+  ) {
+    alert("Invalid name: cannot contain path separators or '.'/'..'");
+    return;
+  }
+
+  const parentDir = getParentDirPath(payload.path);
+  const sep = getPathSeparator(payload.path);
+  const newPath = parentDir ? `${parentDir}${sep}${cleanName}` : cleanName;
   try {
     await rename(payload.path, newPath);
     activeRenamePath.value = null;
@@ -292,7 +318,7 @@ const contextMenuItems = computed(() => {
 async function onContextAction(action: string) {
   if (!contextTarget.value) return;
   const node = contextTarget.value.node;
-  const parentPath = node.path.substring(0, node.path.lastIndexOf("/"));
+  const parentPath = getParentDirPath(node.path);
 
   switch (action) {
     case "new-file": {
@@ -449,6 +475,7 @@ defineExpose({
           :depth="0"
           :active-path="activePath"
           :collapse-trigger="collapseTrigger"
+          :sort-mode="sortMode"
           :active-create-request="activeCreateRequest"
           :active-rename-path="activeRenamePath"
           @select="$emit('select', $event)"

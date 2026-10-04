@@ -223,26 +223,59 @@ export function autoRepairMarkdown(src: string): AutoRepairResult {
     repairedCount += nestingResult.adjustedCount;
   }
 
-  // 2. Repair unclosed Sanskrit double brackets 《 ... 》
-  const openDoubleAngleCount = (text.match(/《/g) || []).length;
-  const closeDoubleAngleCount = (text.match(/》/g) || []).length;
+  // 2. Sanskrit brackets repair - only per-line outside code blocks, without appending to end of document
+  const rawLines = text.split("\n");
+  let inCodeFence = false;
+  let codeFenceChar = "";
+  let codeFenceLen = 0;
 
-  if (openDoubleAngleCount > closeDoubleAngleCount) {
-    const diff = openDoubleAngleCount - closeDoubleAngleCount;
-    text += "》".repeat(diff);
-    didRepair = true;
-    repairedCount += diff;
-  }
+  const repairedLines = rawLines.map((line) => {
+    const fenceMatch = line.match(/^[ \t]*(`{3,}|~{3,})/);
+    if (fenceMatch) {
+      const char = fenceMatch[1][0];
+      const len = fenceMatch[1].length;
+      if (!inCodeFence) {
+        inCodeFence = true;
+        codeFenceChar = char;
+        codeFenceLen = len;
+        return line;
+      }
+      if (char === codeFenceChar && len >= codeFenceLen) {
+        inCodeFence = false;
+        return line;
+      }
+    }
 
-  // 3. Repair unclosed Sanskrit double angle brackets ⟪ ... ⟫
-  const openSpecialAngleCount = (text.match(/⟪/g) || []).length;
-  const closeSpecialAngleCount = (text.match(/⟫/g) || []).length;
+    if (inCodeFence) {
+      return line;
+    }
 
-  if (openSpecialAngleCount > closeSpecialAngleCount) {
-    const diff = openSpecialAngleCount - closeSpecialAngleCount;
-    text += "⟫".repeat(diff);
-    didRepair = true;
-    repairedCount += diff;
+    let modified = line;
+    // Check line-level unclosed 《 ... 》
+    const openDouble = (modified.match(/《/g) || []).length;
+    const closeDouble = (modified.match(/》/g) || []).length;
+    if (openDouble > closeDouble) {
+      const diff = openDouble - closeDouble;
+      modified += "》".repeat(diff);
+      didRepair = true;
+      repairedCount += diff;
+    }
+
+    // Check line-level unclosed ⟪ ... ⟫
+    const openSpecial = (modified.match(/⟪/g) || []).length;
+    const closeSpecial = (modified.match(/⟫/g) || []).length;
+    if (openSpecial > closeSpecial) {
+      const diff = openSpecial - closeSpecial;
+      modified += "⟫".repeat(diff);
+      didRepair = true;
+      repairedCount += diff;
+    }
+
+    return modified;
+  });
+
+  if (didRepair) {
+    text = repairedLines.join("\n");
   }
 
   return {

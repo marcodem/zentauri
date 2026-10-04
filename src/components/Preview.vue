@@ -1,43 +1,65 @@
 <script setup lang="ts">
-import { ref, watch, onMounted, nextTick } from "vue";
-import { renderMarkdown } from "../lib/markdown";
 import mermaid from "mermaid";
+import { nextTick, onMounted, ref, watch } from "vue";
+import { renderMarkdown } from "../lib/markdown";
 
 const props = defineProps<{ source: string }>();
 
 const container = ref<HTMLElement>();
 const html = ref("");
+let mermaidRunId = 0;
+let mermaidDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 
-// Initialize Mermaid once
+// Initialize Mermaid with strict security to prevent XSS / arbitrary DOM execution
 mermaid.initialize({
   startOnLoad: false,
   theme: document.documentElement.classList.contains("dark")
     ? "dark"
     : "default",
-  securityLevel: "loose",
+  securityLevel: "strict",
 });
 
-async function updatePreview() {
-  html.value = renderMarkdown(props.source);
-
+async function runMermaidSafely() {
+  const currentRunId = ++mermaidRunId;
   await nextTick();
+  if (currentRunId !== mermaidRunId || !container.value) return;
+
+  const mermaidNodes =
+    container.value.querySelectorAll<HTMLElement>(".mermaid");
+  if (mermaidNodes.length === 0) return;
+
   try {
     const isDark = document.documentElement.classList.contains("dark");
     mermaid.initialize({
       startOnLoad: false,
       theme: isDark ? "dark" : "default",
-      securityLevel: "loose",
+      securityLevel: "strict",
     });
-    await mermaid.run({
-      querySelector: ".mermaid",
-    });
+
+    if (currentRunId === mermaidRunId) {
+      await mermaid.run({
+        nodes: Array.from(mermaidNodes),
+      });
+    }
   } catch (e) {
     console.error("Mermaid render failed:", e);
   }
 }
 
+function updatePreview() {
+  html.value = renderMarkdown(props.source);
+
+  if (mermaidDebounceTimer) {
+    clearTimeout(mermaidDebounceTimer);
+  }
+  mermaidDebounceTimer = setTimeout(() => {
+    runMermaidSafely();
+  }, 200);
+}
+
 const emit = defineEmits<{
   (e: "open-url", url: string): void;
+  (e: "open-file", path: string): void;
 }>();
 
 function handleContainerClick(event: MouseEvent) {
@@ -46,22 +68,32 @@ function handleContainerClick(event: MouseEvent) {
   const anchor = target.closest("a") as HTMLAnchorElement | null;
   if (anchor) {
     const href = anchor.getAttribute("href");
-    if (href) {
-      if (
-        href.startsWith("http://") ||
-        href.startsWith("https://") ||
-        href.startsWith("//") ||
-        href.startsWith("www.")
-      ) {
-        event.preventDefault();
-        event.stopPropagation();
-        const fullUrl = href.startsWith("www.")
-          ? `https://${href}`
-          : href.startsWith("//")
-            ? `https:${href}`
-            : href;
-        emit("open-url", fullUrl);
-      }
+    if (!href) return;
+
+    // In-page hash anchors (e.g. #heading) are allowed
+    if (href.startsWith("#")) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (
+      href.startsWith("http://") ||
+      href.startsWith("https://") ||
+      href.startsWith("//") ||
+      href.startsWith("www.") ||
+      href.startsWith("mailto:")
+    ) {
+      const fullUrl = href.startsWith("www.")
+        ? `https://${href}`
+        : href.startsWith("//")
+          ? `https:${href}`
+          : href;
+      emit("open-url", fullUrl);
+    } else {
+      // Relative file or markdown link
+      emit("open-file", href);
     }
   }
 }
