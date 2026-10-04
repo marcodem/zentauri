@@ -31,6 +31,7 @@ venv
 
 # Zentauri workspace cache
 .zentauri
+.agents/review-status.json
 
 # VitePress
 docs/.vitepress/dist
