@@ -1,3 +1,29 @@
+# Release Notes — ZenTauri v1.1.18
+
+ZenTauri v1.1.18 introduces standalone single-file editing mode, protected system directory isolation (eliminating macOS TCC permission dialogs), automatic project CWD detection, CLI folder handling, multi-tab stability enhancements, and the complete migration of the technical documentation to VitePress on GitHub Pages.
+
+## Highlights & Key Features (v1.1.18)
+
+### 🛡️ macOS System Directory Protection & Standalone File Mode
+* **Standalone File Mode:** Opening an external file no longer auto-promotes its parent directory (e.g. `~/Desktop`) to a workspace. Only the selected file is read, eliminating macOS TCC permission alerts.
+* **Protected System Folder Filtering:** Special paths (`/`, user home `~`, `~/Desktop`, `~/Downloads`) are strictly guarded against recursive SQLite indexing.
+* **Rust Ancestor Crawl Guard:** `find_workspace_root()` halts recursive checks for `.git` or `.zentauri` when encountering system or user root directories.
+
+### 📂 Automatic Project CWD & CLI Detection
+* **Terminal CWD Auto-Mounting:** When Zentauri is launched from a terminal or dev environment, it automatically registers the working directory as the active workspace.
+* **Automatic `README.md` Loading:** If a project contains a `README.md` and no existing tabs are restored, Zentauri automatically opens `README.md`.
+* **Folder Path Arguments:** Passing directory paths (e.g. `zentauri .`) accurately mounts them as workspace folders instead of attempting to parse them as text files.
+
+### 📑 Tab & Workspace State Persistence
+* **Decoupled Tabs:** Standalone file tabs and untitled drafts are preserved even when no workspace folder is open.
+* **Selective Folder Removal:** Removing a workspace folder closes only tabs residing inside that directory, keeping all other tabs intact.
+
+### 📚 Documentation Migration & Birchville Design Polish
+* **VitePress on GitHub Pages:** Technical documentation and guides published at `https://marcodem.github.io/zentauri/`.
+* **Sidebar Caret Alignment:** Cleaned up heading margins, flex layout, and caret alignment in the VitePress documentation sidebar.
+
+---
+
 # Release Notes — ZenTauri v1.1.0
 
 ZenTauri v1.1.0 is a major feature release introducing seamless **Tauri v2 In-App Auto-Updates**, **Silent Auto-Repair on Save** for Markdown syntax, full integration of the shared **`markdown-it-extensible`** rendering engine, and modern code formatting with Biome.

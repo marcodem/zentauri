@@ -4,6 +4,15 @@ title: Release Notes
 
 # 🚀 Zentauri Release Notes
 
+### ZenTauri v1.1.18
+- **macOS Systempfad-Schutz & Standalone File Mode:** Das Öffnen von Einzeldateien erklärt den Elternordner (z. B. `~/Desktop`) nicht mehr zum Workspace und verhindert macOS-TCC-Sicherheitswarnungen.
+- **Projekt-CWD-Erkennung:** Beim Start im Terminal oder dev-Modus wird das aktuelle Projektverzeichnis automatisch als Workspace erkannt und dessen `README.md` geöffnet.
+- **CLI & Verzeichnispfad-Support:** Übergebene Ordner (z. B. `zentauri .`) werden korrekt als Workspace-Ordner eingehängt, Dateien als Tabs geladen.
+- **Tab- & Workspace-Stabilität:** Ungespeicherte und Standalone-Tabs bleiben auch ohne aktiven Workspace-Ordner dauerhaft erhalten.
+- **Birchville Design & Layout:** Sidebar-Gruppenüberschriften, Klapppfeile und Einrückungen harmonisiert; redundante Randspalten entfernt.
+
+---
+
 ### ZenTauri v1.1.17
 - **Plugin Update:** Updated `markdown-it-extensible` to 1.3.0 with automatic container nesting elevation (`adjustContainerNesting`).
 - **Typst Native PDF Export:** High-performance direct PDF generation without headless browser dependencies.
