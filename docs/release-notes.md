@@ -4,6 +4,15 @@ title: Release Notes
 
 # 🚀 Zentauri Release Notes
 
+### ZenTauri v1.1.23
+- **Tab-Management & Schutz ungespeicherter Änderungen:** Schließen von modifizierten Tabs bei deaktiviertem Auto-Save blendet einen nativen 3-Wege-Dialog (Speichern, Nicht speichern, Abbrechen) via Tauri Dialog ein. Neues Kontextmenü per Rechtsklick auf Tabs (Schließen, Andere schließen, Rechts davon schließen, Pfad kopieren, Im Finder anzeigen).
+- **Dateisystem-Synchronisation (Rust-First Watcher):** Einbindung des `notify`-Crates im Rust-Backend zur rekursiven Überwachung gemounteter Arbeitsbereiche. Änderungen werden über debouncte `workspace-fs-changed`-Events an das Frontend gestreamt, um den Dateibaum live zu synchronisieren.
+- **Typst-PDF-Export & Sanskrit-Typografie:** Robuste Schriftarten-Kaskade für Devanagari (`Kohinoor Devanagari`, `Noto Sans Devanagari`, `Noto Serif Devanagari`, `Devanagari MT`) für fehlerfreie Ligaturen und Akzente. Einstellbare Papierformate (A4 / US Letter) im Einstellungsdialog.
+- **Finder & CLI-Integration:** Beim Öffnen einer Datei über den Finder (Doppelklick) oder die Kommandozeile wird ein noch unberührter, leerer Entwurf automatisch ersetzt.
+- **Performance & Code-Splitting:** Aufteilung schwerer Bibliotheken (Mermaid, KaTeX, Cytoscape), wodurch der Haupt-Bundle von 2.2 MB auf 491 kB optimiert wurde.
+
+---
+
 ### ZenTauri v1.1.22
 - **Sicherheit & Pfadvalidierung (PDF-Export):** Strikte Härtung von `export_pdf` gegen Path-Traversal und Arbitrary-File-Writes. Exportpfade werden auf Nullbytes, `.pdf`-Endung, sensible Konfigurationsdateien (`.ssh`, `.gnupg`, Shell-Configs) und geschützte Systemverzeichnisse validiert. Direkte Root-Schreibzugriffe werden blockiert.
 - **Datenintegrität & SQLite-Bereinigung beim Löschen:** Implementierung des nativen Rust-Commands `delete_file_item`, der Dateien und Verzeichnisse löscht und atomar alle SQLite-Einträge sowie Kindelemente und Verlinkungen (`path LIKE (?1 || '/%')`) aus der Datenbank entfernt. `sync_directory` um rekursives Pruning gelöschter Ordnerinhalte erweitert.

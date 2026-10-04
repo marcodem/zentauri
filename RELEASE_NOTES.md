@@ -1,3 +1,31 @@
+# Release Notes — ZenTauri v1.1.23
+
+ZenTauri v1.1.23 delivers advanced tab lifecycle management with native unsaved confirmation dialogs and context menus, an asynchronous Rust-first filesystem watcher for live workspace synchronization, enhanced Typst PDF export featuring a robust Sanskrit/Devanagari font cascade and configurable paper formats, Finder double-click tab replacement, and major frontend bundle optimizations.
+
+## Highlights & Key Features (v1.1.23)
+
+### 📑 Tab Lifecycle Management & Context Menus
+* **Unsaved Changes Prompt on Close:** Closing a modified tab with Auto-Save disabled prompts a native 3-way dialog (Save, Don't Save, Cancel) via Tauri Dialog to prevent data loss.
+* **Tab Bar Context Menu:** Right-clicking any tab opens a native context menu with actions: Close, Close Others, Close to the Right, Copy Path, and Reveal in Finder.
+* **Clear Save State Indication:** Unsaved tabs display an amber dot when Auto-Save is disabled, while the global save button reflects dirty document status accurately.
+* **Untitled Tab Replacement:** Opening an existing file (via Finder double-click, CLI, or File Explorer) replaces an untouched, pristine untitled draft instead of leaving an empty tab behind.
+
+### ⚡ Rust-First Live File Watcher (`notify`)
+* **Real-Time Workspace Sync:** Integrated the native Rust `notify` crate to watch mounted workspace directories recursively.
+* **Tauri Event Streaming:** Emits debounced `workspace-fs-changed` events to the frontend whenever files or folders are added, deleted, or renamed externally.
+* **Smart Noise Filtering:** Automatically filters out noise such as `.git/`, `.DS_Store`, and `node_modules/`.
+
+### 📄 Typst PDF Export: Sanskrit Typography & Page Settings
+* **Devanagari Font Cascade:** Configured Typst font fallback hierarchy (`Kohinoor Devanagari`, `Noto Sans Devanagari`, `Noto Serif Devanagari`, `Devanagari MT`) ensuring seamless rendering of complex Sanskrit ligatures and Vedic accents.
+* **Configurable Paper Formats:** Added PDF page format selection (A4 and US Letter) to Settings (`Settings.vue`), passed dynamically to the Typst compilation engine.
+* **Standardized Margins & Pagination:** Applied 2.2 cm margins and centered page numbers (`1 / N`) in native Typst export.
+
+### 🚀 Performance & Code-Splitting
+* **Bundle Size Optimization:** Code-split secondary views, KaTeX, Cytoscape, and Mermaid diagram components, reducing the main entry chunk from 2.2 MB to 491 kB.
+* **Biome Linter Optimization:** Excluded generated Tauri schema files from formatting sweeps for faster builds.
+
+---
+
 # Release Notes — ZenTauri v1.1.18
 
 ZenTauri v1.1.18 introduces standalone single-file editing mode, protected system directory isolation (eliminating macOS TCC permission dialogs), automatic project CWD detection, CLI folder handling, multi-tab stability enhancements, and the complete migration of the technical documentation to VitePress on GitHub Pages.
