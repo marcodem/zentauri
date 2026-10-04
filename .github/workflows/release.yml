@@ -74,7 +74,7 @@ jobs:
 
   manifest:
     needs: release
-    if: always()
+    if: success()
     permissions:
       contents: write
     runs-on: ubuntu-latest
@@ -96,6 +96,11 @@ jobs:
           SIG_WIN_X64=$(cat ZenTauri_${CLEAN_VER}_x64-setup.exe.sig 2>/dev/null || cat *x64-setup.exe.sig 2>/dev/null || echo "")
           SIG_WIN_ARM64=$(cat ZenTauri_${CLEAN_VER}_arm64-setup.exe.sig 2>/dev/null || cat *arm64-setup.exe.sig 2>/dev/null || echo "")
           SIG_LINUX_X64=$(cat ZenTauri_${CLEAN_VER}_amd64.AppImage.sig 2>/dev/null || cat *amd64.AppImage.sig 2>/dev/null || echo "")
+
+          if [ -z "$SIG_DARWIN" ] || [ -z "$SIG_WIN_X64" ] || [ -z "$SIG_LINUX_X64" ]; then
+            echo "Error: Missing required signature files for release manifest."
+            exit 1
+          fi
 
           ARM64_SIG_FILE=$(ls ZenTauri_*arm64*.AppImage.sig ZenTauri_*aarch64*.AppImage.sig 2>/dev/null | head -n 1)
           if [ -n "$ARM64_SIG_FILE" ]; then

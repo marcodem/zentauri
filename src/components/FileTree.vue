@@ -1,17 +1,6 @@
 <script setup lang="ts">
-import { ref, watch, onMounted, onBeforeUpdate, computed } from "vue";
-import {
-  readDir,
-  mkdir,
-  writeTextFile,
-  rename,
-  remove,
-} from "@tauri-apps/plugin-fs";
-import { invoke } from "@tauri-apps/api/core";
-import FileTreeNode, { type FileEntry } from "./FileTreeNode.vue";
-import ContextMenu from "./ContextMenu.vue";
-
-import WorkspaceFolderSection from "./WorkspaceFolderSection.vue";
+import { computed, onBeforeUpdate, ref } from "vue";
+import type WorkspaceFolderSection from "./WorkspaceFolderSection.vue";
 
 const props = defineProps<{
   rootPath?: string | null;
@@ -52,148 +41,8 @@ const displayOpenTabs = computed(() => {
   );
 });
 
-const rootEntries = ref<FileEntry[]>([]);
-const isLoading = ref(false);
-const loadError = ref<string | null>(null);
-
 const isOpenEditorsExpanded = ref(true);
-const isFolderExpanded = ref(true);
-const sortMode = ref<"name-asc" | "name-desc" | "date-desc" | "date-asc">(
-  "name-asc",
-);
 const quickFilter = ref("");
-
-const computedFilteredEntries = computed(() => {
-  if (!quickFilter.value.trim()) return rootEntries.value;
-  const q = quickFilter.value.toLowerCase().trim();
-  return rootEntries.value.filter((e) => e.name.toLowerCase().includes(q));
-});
-
-const isTauri =
-  typeof window !== "undefined" &&
-  (window as any).__TAURI_INTERNALS__ !== undefined;
-
-const loadRoot = async () => {
-  if (!props.rootPath) {
-    rootEntries.value = [];
-    loadError.value = null;
-    return;
-  }
-
-  isLoading.value = true;
-  loadError.value = null;
-
-  if (isTauri) {
-    try {
-      const rawNodes = await invoke<
-        {
-          name: string;
-          path: string;
-          is_directory: boolean;
-          title?: string;
-          tags?: string[];
-          iast?: string;
-          devanagari?: string;
-        }[]
-      >("read_workspace_tree", {
-        path: props.rootPath,
-        sortMode: sortMode.value,
-      });
-      rootEntries.value = rawNodes.map((n) => ({
-        name: n.name,
-        path: n.path,
-        isDirectory: n.is_directory,
-        title: n.title,
-        tags: n.tags,
-        iast: n.iast,
-        devanagari: n.devanagari,
-      }));
-      isLoading.value = false;
-      return;
-    } catch (e) {
-      console.error("Failed to load workspace root via Rust IPC:", e);
-    }
-  }
-
-  // Browser Mode or Fallback
-  try {
-    const entries = await readDir(props.rootPath);
-    rootEntries.value = entries
-      .map((e) => ({
-        name: e.name || "unknown",
-        path: `${props.rootPath}/${e.name}`,
-        isDirectory: e.isDirectory,
-      }))
-      .filter(
-        (e) =>
-          e.isDirectory ||
-          e.name.toLowerCase().endsWith(".md") ||
-          e.name.toLowerCase().endsWith(".markdown"),
-      )
-      .sort((a, b) => {
-        if (a.isDirectory && !b.isDirectory) return -1;
-        if (!a.isDirectory && b.isDirectory) return 1;
-        return a.name.localeCompare(b.name);
-      });
-  } catch (fsErr) {
-    // Browser mode fallback when direct filesystem access is restricted
-    rootEntries.value = [
-      {
-        name: "01_Welcome.md",
-        path: `${props.rootPath}/01_Welcome.md`,
-        isDirectory: false,
-      },
-      {
-        name: "02_Sanskrit_Notes.md",
-        path: `${props.rootPath}/02_Sanskrit_Notes.md`,
-        isDirectory: false,
-      },
-      {
-        name: "Grammar_Exercises",
-        path: `${props.rootPath}/Grammar_Exercises`,
-        isDirectory: true,
-      },
-    ];
-    loadError.value = null;
-  } finally {
-    isLoading.value = false;
-  }
-};
-
-async function handleMoveConfirm(payload: {
-  sourcePath: string;
-  targetDirPath: string;
-}) {
-  try {
-    if (isTauri) {
-      await invoke("move_file_item", {
-        sourcePath: payload.sourcePath,
-        targetDirPath: payload.targetDirPath,
-      });
-    } else {
-      await rename(
-        payload.sourcePath,
-        `${payload.targetDirPath}/${payload.sourcePath.split(/[/\\]/).pop()}`,
-      );
-    }
-    await loadRoot();
-  } catch (err) {
-    alert(`Failed to move item: ${err}`);
-  }
-}
-
-async function revealActiveFile() {
-  if (!props.activePath) return;
-  if (isTauri) {
-    try {
-      await invoke("reveal_in_explorer", { path: props.activePath });
-    } catch (err) {
-      console.error("Failed to reveal active file:", err);
-    }
-  } else {
-    alert(`Active file in browser: ${props.activePath}`);
-  }
-}
 
 const getDisplayDirectory = (path: string) => {
   if (!path || path.startsWith("untitled://")) return "";
@@ -209,7 +58,7 @@ const getDisplayDirectory = (path: string) => {
 
   if (props.rootPath) {
     const normalizedRoot = props.rootPath.replace(/\\/g, "/");
-    if (cleanPath.startsWith(normalizedRoot + "/")) {
+    if (cleanPath.startsWith(`${normalizedRoot}/`)) {
       const rel = cleanPath.slice(normalizedRoot.length + 1);
       const parts = rel.split("/");
       parts.pop(); // remove filename
@@ -222,32 +71,9 @@ const getDisplayDirectory = (path: string) => {
   return parentPath.split("/").filter(Boolean).pop() || "";
 };
 
-defineExpose({ loadRoot, triggerNewRootFile, triggerNewRootFolder });
-
-// Context menu state
-const contextTarget = ref<{ node: FileEntry; x: number; y: number } | null>(
-  null,
-);
-const collapseTrigger = ref(0);
-const activeCreateRequest = ref<{
-  parentPath: string;
-  type: "file" | "directory";
-} | null>(null);
-const activeRenamePath = ref<string | null>(null);
-
-function showContextMenu(node: FileEntry, x: number, y: number) {
-  contextTarget.value = { node, x, y };
-}
-
-function closeContextMenu() {
-  contextTarget.value = null;
-}
-
-function collapseAll() {
-  collapseTrigger.value++;
-}
-
-const folderSectionRefs = ref<(InstanceType<typeof WorkspaceFolderSection> | null)[]>([]);
+const folderSectionRefs = ref<
+  (InstanceType<typeof WorkspaceFolderSection> | null)[]
+>([]);
 
 onBeforeUpdate(() => {
   folderSectionRefs.value = [];
@@ -255,7 +81,9 @@ onBeforeUpdate(() => {
 
 function setFolderSectionRef(el: unknown, idx: number) {
   if (el) {
-    folderSectionRefs.value[idx] = el as InstanceType<typeof WorkspaceFolderSection>;
+    folderSectionRefs.value[idx] = el as InstanceType<
+      typeof WorkspaceFolderSection
+    >;
   }
 }
 
@@ -301,153 +129,7 @@ function triggerNewRootFolder() {
   targetSection?.triggerNewRootFolder?.();
 }
 
-async function handleRootCreateConfirm(payload: {
-  parentPath: string;
-  name: string;
-  type: "file" | "directory";
-}) {
-  const parent = payload.parentPath || props.rootPath || "";
-  const fullPath = `${parent}/${payload.name}`;
-  try {
-    if (payload.type === "file") {
-      await writeTextFile(
-        fullPath,
-        "# " + payload.name.replace(/\.md$/, "") + "\n\n",
-      );
-      emit("select", fullPath);
-    } else {
-      await mkdir(fullPath);
-    }
-    await loadRoot();
-    activeCreateRequest.value = null;
-  } catch (err) {
-    alert(`Failed to create: ${err}`);
-  }
-}
-
-function handleRootCreateCancel() {
-  rootEntries.value = rootEntries.value.filter((e) => !e.isNew);
-  activeCreateRequest.value = null;
-}
-
-async function handleRootRenameConfirm(payload: {
-  path: string;
-  newName: string;
-}) {
-  const parentDir = payload.path.substring(0, payload.path.lastIndexOf("/"));
-  const newPath = `${parentDir}/${payload.newName}`;
-  try {
-    await rename(payload.path, newPath);
-    activeRenamePath.value = null;
-    await loadRoot();
-  } catch (err) {
-    alert(`Failed to rename: ${err}`);
-  }
-}
-
-async function handleRootDeleteConfirm(payload: { path: string }) {
-  try {
-    await remove(payload.path);
-    await loadRoot();
-  } catch (err) {
-    alert(`Failed to delete: ${err}`);
-  }
-}
-
-// Context menu items
-const contextMenuItems = computed(() => {
-  if (!contextTarget.value) return [];
-
-  const isDir = contextTarget.value.node.isDirectory;
-  return [
-    { label: "New File", action: "new-file" },
-    { label: "New Folder", action: "new-folder" },
-    ...(!isDir ? [{ label: "Duplicate Note", action: "duplicate" }] : []),
-    { divider: true },
-    { label: "Rename", action: "rename" },
-    { label: "Delete", action: "delete" },
-    { divider: true },
-    ...(!isDir
-      ? [{ label: "Copy Markdown Link", action: "copy-md-link" }]
-      : []),
-    { label: "Reveal in System Finder", action: "reveal" },
-    { label: "Copy Full Path", action: "copy-path" },
-  ];
-});
-
-async function onContextAction(action: string) {
-  if (!contextTarget.value) return;
-
-  const node = contextTarget.value.node;
-  const parentPath = node.path.substring(0, node.path.lastIndexOf("/"));
-
-  switch (action) {
-    case "new-file":
-      if (node.isDirectory) {
-        activeCreateRequest.value = { parentPath: node.path, type: "file" };
-      } else {
-        activeCreateRequest.value = { parentPath, type: "file" };
-      }
-      break;
-    case "new-folder":
-      if (node.isDirectory) {
-        activeCreateRequest.value = {
-          parentPath: node.path,
-          type: "directory",
-        };
-      } else {
-        activeCreateRequest.value = { parentPath, type: "directory" };
-      }
-      break;
-    case "duplicate":
-      try {
-        if (isTauri) {
-          await invoke("duplicate_file_item", { sourcePath: node.path });
-        } else {
-          alert(`Duplicate in browser mode: ${node.name}`);
-        }
-        await loadRoot();
-      } catch (err) {
-        alert(`Duplicate failed: ${err}`);
-      }
-      break;
-    case "rename":
-      activeRenamePath.value = node.path;
-      break;
-    case "delete":
-      if (confirm(`Are you sure you want to delete "${node.name}"?`)) {
-        handleRootDeleteConfirm({ path: node.path });
-      }
-      break;
-    case "copy-md-link":
-      {
-        const title = node.name.replace(/\.md$/i, "");
-        const relDir = getDisplayDirectory(node.path);
-        const relPath = relDir ? `${relDir}/${node.name}` : node.name;
-        navigator.clipboard.writeText(`[${title}](${relPath})`);
-      }
-      break;
-    case "reveal":
-      try {
-        if (isTauri) {
-          await invoke("reveal_in_explorer", { path: node.path });
-        } else {
-          alert(`File path: ${node.path}`);
-        }
-      } catch (err) {
-        console.error("Reveal failed:", err);
-      }
-      break;
-
-    case "copy-path":
-      navigator.clipboard.writeText(node.path);
-      break;
-  }
-  closeContextMenu();
-}
-
-watch(() => props.rootPath, loadRoot);
-onMounted(loadRoot);
+defineExpose({ triggerNewRootFile, triggerNewRootFolder });
 </script>
 
 <template>
@@ -549,7 +231,7 @@ onMounted(loadRoot);
           <WorkspaceFolderSection
             v-for="(folderPath, idx) in computedRootPaths"
             :key="folderPath"
-            :ref="el => setFolderSectionRef(el, idx)"
+            :ref="(el: any) => setFolderSectionRef(el, idx)"
             :folderPath="folderPath"
             :activePath="activePath"
             :quickFilter="quickFilter"
