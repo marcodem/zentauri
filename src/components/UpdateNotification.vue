@@ -98,7 +98,13 @@ onUnmounted(() => {
   if (intervalTimer) clearInterval(intervalTimer);
 });
 
-defineExpose({ runUpdateCheck, isVisible, showNotes, updateBody, updateVersion });
+defineExpose({
+  runUpdateCheck,
+  isVisible,
+  showNotes,
+  updateBody,
+  updateVersion,
+});
 </script>
 
 <template>

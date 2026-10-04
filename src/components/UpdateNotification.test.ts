@@ -19,7 +19,9 @@ describe("UpdateNotification Component", () => {
     vi.clearAllMocks();
     sessionStorage.clear();
     // Simulate Tauri environment
-    (window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ = {};
+    (
+      window as unknown as { __TAURI_INTERNALS__?: unknown }
+    ).__TAURI_INTERNALS__ = {};
   });
 
   it("does not render when isVisible is false", () => {
@@ -38,7 +40,11 @@ describe("UpdateNotification Component", () => {
     const wrapper = mount(UpdateNotification);
 
     // Call exposed runUpdateCheck
-    await (wrapper.vm as unknown as { runUpdateCheck: (force?: boolean) => Promise<void> }).runUpdateCheck(true);
+    await (
+      wrapper.vm as unknown as {
+        runUpdateCheck: (force?: boolean) => Promise<void>;
+      }
+    ).runUpdateCheck(true);
     await wrapper.vm.$nextTick();
 
     expect(wrapper.find("[role='alert']").exists()).toBe(true);
@@ -75,7 +81,11 @@ describe("UpdateNotification Component", () => {
     });
 
     const wrapper = mount(UpdateNotification);
-    await (wrapper.vm as unknown as { runUpdateCheck: (force?: boolean) => Promise<void> }).runUpdateCheck(true);
+    await (
+      wrapper.vm as unknown as {
+        runUpdateCheck: (force?: boolean) => Promise<void>;
+      }
+    ).runUpdateCheck(true);
     await wrapper.vm.$nextTick();
 
     expect(wrapper.find("[role='alert']").exists()).toBe(true);
@@ -85,6 +95,8 @@ describe("UpdateNotification Component", () => {
     await wrapper.vm.$nextTick();
 
     expect(wrapper.find("[role='alert']").exists()).toBe(false);
-    expect(sessionStorage.getItem("zentauri_dismissed_update_version")).toBe("1.2.0");
+    expect(sessionStorage.getItem("zentauri_dismissed_update_version")).toBe(
+      "1.2.0",
+    );
   });
 });
