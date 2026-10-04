@@ -43,6 +43,7 @@ interface Tab {
   content: string;
   isWeb?: boolean;
   url?: string;
+  isDirty?: boolean;
 }
 
 const defaultContent = `# Welcome to Zentauri
@@ -186,8 +187,10 @@ async function removeWorkspaceFolder(folderPath: string) {
   if (!folderPath) return;
   const normalizedFolder = folderPath.replace(/\\/g, "/").toLowerCase();
 
-  // Save all tabs before closing folder to prevent data loss
-  await handleSaveAll();
+  // Save all tabs before closing folder to prevent data loss only if autoSave is enabled
+  if (autoSaveEnabled.value) {
+    await handleSaveAll();
+  }
 
   // Remove folder from workspaceRoots
   workspaceRoots.value = workspaceRoots.value.filter(
@@ -295,6 +298,49 @@ const isSaving = ref(false);
 const isAutoRepaired = ref(false);
 const isPdfExported = ref(false);
 const autoSaveEnabled = ref(true);
+
+const saveStatus = computed(() => {
+  if (isPdfExported.value) {
+    return {
+      text: "PDF Exported",
+      dotClass: "w-2.5 h-2.5 bg-blue-500 animate-pulse",
+      title: "PDF successfully exported",
+    };
+  }
+  if (isAutoRepaired.value) {
+    return {
+      text: "Auto-Repaired & Saved",
+      dotClass: "w-2.5 h-2.5 bg-amber-400 animate-bounce",
+      title: "Syntax auto-repaired and saved",
+    };
+  }
+  if (isSaving.value) {
+    return {
+      text: "Saving...",
+      dotClass: "w-2 h-2 bg-amber-500 animate-pulse",
+      title: "Saving changes to disk...",
+    };
+  }
+  if (!autoSaveEnabled.value) {
+    if (activeTab.value?.isDirty) {
+      return {
+        text: "Unsaved (Auto-Save Off)",
+        dotClass: "w-2 h-2 bg-amber-500",
+        title: "Unsaved changes. Press Cmd/Ctrl+S or click Save.",
+      };
+    }
+    return {
+      text: "Saved (Auto-Save Off)",
+      dotClass: "w-2 h-2 bg-slate-400 dark:bg-slate-500",
+      title: "All changes saved to disk. Auto-Save is disabled.",
+    };
+  }
+  return {
+    text: "Saved",
+    dotClass: "w-2 h-2 bg-emerald-500",
+    title: "All changes automatically saved to disk",
+  };
+});
 
 const quickSnippets = [
   {
@@ -451,7 +497,10 @@ onMounted(() => {
     try {
       const savedData = JSON.parse(savedTabsStr);
       if (savedData.tabs && savedData.tabs.length > 0) {
-        tabs.value = savedData.tabs;
+        tabs.value = savedData.tabs.map((t: Tab) => ({
+          ...t,
+          isDirty: t.isDirty ?? false,
+        }));
         activeTabIndex.value =
           typeof savedData.activeIndex === "number" ? savedData.activeIndex : 0;
         if (activeTabIndex.value >= tabs.value.length) {
@@ -689,6 +738,7 @@ async function saveTabToFile(tab: Tab | null | undefined, runRepair = false) {
     isSaving.value = true;
     try {
       await writeTextFile(tab.path, tab.content);
+      tab.isDirty = false;
       saveTabsState();
     } catch (err) {
       console.error("Save failed for tab:", tab.path, err);
@@ -698,6 +748,7 @@ async function saveTabToFile(tab: Tab | null | undefined, runRepair = false) {
       }, 500);
     }
   } else {
+    tab.isDirty = false;
     saveTabsState();
   }
 }
@@ -740,6 +791,7 @@ async function handleSaveAll() {
     for (const tab of tabs.value) {
       if (tab.path && !tab.path.startsWith("untitled://") && !tab.isWeb) {
         await writeTextFile(tab.path, tab.content);
+        tab.isDirty = false;
       }
     }
     saveTabsState();
@@ -756,7 +808,9 @@ function handleBeforeUnload() {
   if (autoSave) {
     autoSave.cancel();
   }
-  handleSaveAll();
+  if (autoSaveEnabled.value) {
+    handleSaveAll();
+  }
   saveTabsState();
 }
 
@@ -777,6 +831,7 @@ async function handleSaveAs() {
       await writeTextFile(newPath, tab.content);
       tab.path = newPath;
       tab.title = newPath.split(/[/\\]/).pop() || "Unknown";
+      tab.isDirty = false;
       saveTabsState();
     } catch (err) {
       console.error("Save As failed", err);
@@ -793,6 +848,7 @@ watch(markdownSource, (newVal) => {
   const tab = tabs.value[activeTabIndex.value];
   if (tab && !tab.isWeb && tab.content !== newVal) {
     tab.content = newVal;
+    tab.isDirty = true;
     pendingSaveTab = tab;
     autoSave();
   }
@@ -853,6 +909,7 @@ function openTab(title: string, path: string, content: string) {
           title,
           content,
           isWeb: false,
+          isDirty: false,
         },
       ];
       activeTabIndex.value = 0;
@@ -864,6 +921,7 @@ function openTab(title: string, path: string, content: string) {
         title,
         content,
         isWeb: false,
+        isDirty: false,
       });
       activeTabIndex.value = tabs.value.length - 1;
       markdownSource.value = content;
@@ -1174,17 +1232,26 @@ async function handleExportPdf() {
     <header class="flex-none flex items-center px-4 py-2 border-b border-app-border bg-app-bg-secondary select-none print:hidden" data-tauri-drag-region>
       <!-- Auto-Save, Auto-Repair & Export Status -->
       <div class="flex-1 text-center text-sm font-medium text-app-text-muted absolute left-0 right-0 pointer-events-none flex items-center justify-center gap-2">
-        <span v-if="isPdfExported" class="inline-block w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse" title="PDF Exported"></span>
-        <span v-else-if="isAutoRepaired" class="inline-block w-2.5 h-2.5 rounded-full bg-amber-400 animate-bounce" title="Auto-Repaired Syntax"></span>
-        <span v-else-if="isSaving" class="inline-block w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
-        <span v-else class="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
-        {{ isPdfExported ? 'PDF Exported' : (isAutoRepaired ? 'Auto-Repaired & Saved' : (isSaving ? 'Saving...' : 'Saved')) }}
+        <span class="inline-block rounded-full" :class="saveStatus.dotClass" :title="saveStatus.title"></span>
+        <span>{{ saveStatus.text }}</span>
       </div>
       
       <div class="flex gap-2 z-10 relative ml-auto">
         <button 
+          v-if="!autoSaveEnabled || activeTab?.isDirty"
+          @click="() => forceSave(true)"
+          class="px-2.5 py-1 text-xs font-semibold rounded transition-colors border shadow-xs flex items-center gap-1.5 cursor-pointer"
+          :class="activeTab?.isDirty 
+            ? 'bg-amber-500 hover:bg-amber-600 text-white border-amber-600 dark:bg-amber-500 dark:hover:bg-amber-600 dark:text-slate-950' 
+            : 'bg-app-bg hover:bg-app-bg-secondary text-app-text-muted hover:text-app-text border-app-border'"
+          title="Save file to disk (Cmd/Ctrl+S)"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+          Save
+        </button>
+        <button 
           @click="handleExportPdf"
-          class="px-3 py-1 bg-amber-600 hover:bg-amber-700 text-white dark:bg-amber-500 dark:hover:bg-amber-600 dark:text-slate-950 text-xs font-semibold rounded transition-colors shadow-xs"
+          class="px-3 py-1 bg-amber-600 hover:bg-amber-700 text-white dark:bg-amber-500 dark:hover:bg-amber-600 dark:text-slate-950 text-xs font-semibold rounded transition-colors shadow-xs cursor-pointer"
           title="Export as native PDF via Typst (Cmd/Ctrl+P)"
         >
           Export PDF
@@ -1305,6 +1372,11 @@ async function handleExportPdf() {
             ]"
           >
             <span>{{ tab.title }}</span>
+            <span 
+              v-if="tab.isDirty" 
+              class="w-2 h-2 rounded-full bg-amber-500 shrink-0" 
+              title="Unsaved changes"
+            ></span>
             <button 
               @click="closeTab(index, $event)" 
               class="w-5 h-5 flex items-center justify-center rounded-sm hover:bg-app-border text-app-text-muted hover:text-app-text transition-colors"
