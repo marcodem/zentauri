@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { ref, shallowRef, toRaw, watch, onMounted } from "vue";
-import { checkForUpdates, installAppUpdate } from "../lib/updater";
-import type { Update } from "@tauri-apps/plugin-updater";
 import { getVersion } from "@tauri-apps/api/app";
 import { relaunch } from "@tauri-apps/plugin-process";
+import type { Update } from "@tauri-apps/plugin-updater";
+import { computed, onMounted, ref, shallowRef, toRaw, watch } from "vue";
+import { renderMarkdown } from "../lib/markdown";
+import { checkForUpdates, installAppUpdate } from "../lib/updater";
 
 defineProps<{
   isOpen: boolean;
@@ -11,7 +12,7 @@ defineProps<{
 
 const emit = defineEmits<{
   (e: "close"): void;
-  (e: "update", settings: any): void;
+  (e: "update", settings: Record<string, unknown>): void;
 }>();
 
 const currentTheme = ref("system");
@@ -74,12 +75,20 @@ const updateState = ref<
   "idle" | "checking" | "available" | "up-to-date" | "downloading" | "error"
 >("idle");
 const updateMessage = ref("");
+const updateBody = ref("");
+const showSettingsNotes = ref(true);
 const activeUpdate = shallowRef<Update | null>(null);
+
+const renderedSettingsNotes = computed(() => {
+  if (!updateBody.value) return "";
+  return renderMarkdown(updateBody.value, { markdownExtensionsEnabled: false });
+});
 
 async function checkUpdates() {
   updateState.value = "checking";
   updateMessage.value = "Checking for updates...";
   activeUpdate.value = null;
+  updateBody.value = "";
 
   const result = await checkForUpdates();
   if (result.error) {
@@ -88,6 +97,7 @@ async function checkUpdates() {
   } else if (result.available && result.update) {
     updateState.value = "available";
     activeUpdate.value = result.update;
+    updateBody.value = result.body || "";
     updateMessage.value = `New version v${result.version} is available!`;
   } else {
     updateState.value = "up-to-date";
@@ -109,9 +119,9 @@ async function installUpdate() {
     });
     updateMessage.value = "Update installed! Restarting app...";
     await relaunch();
-  } catch (err: any) {
+  } catch (err: unknown) {
     updateState.value = "error";
-    updateMessage.value = `Installation failed: ${err?.message || String(err)}`;
+    updateMessage.value = `Installation failed: ${err instanceof Error ? err.message : String(err)}`;
   }
 }
 </script>
@@ -195,6 +205,26 @@ async function installUpdate() {
             {{ updateMessage }}
           </div>
 
+          <!-- Release Notes in Settings -->
+          <div
+            v-if="updateState === 'available' && updateBody && updateBody.trim()"
+            class="flex flex-col gap-1.5"
+          >
+            <button
+              type="button"
+              @click="showSettingsNotes = !showSettingsNotes"
+              class="text-xs font-medium text-amber-700 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-300 flex items-center justify-between cursor-pointer transition-colors"
+            >
+              <span>Release Notes</span>
+              <span class="text-[11px] opacity-80">{{ showSettingsNotes ? 'Ausblenden' : 'Anzeigen' }}</span>
+            </button>
+            <div
+              v-if="showSettingsNotes"
+              class="max-h-40 overflow-y-auto p-2.5 rounded-md bg-app-bg-secondary border border-app-border text-xs text-app-text leading-relaxed select-text release-notes-content"
+              v-html="renderedSettingsNotes"
+            ></div>
+          </div>
+
           <button
             v-if="updateState === 'available' && activeUpdate"
             @click="installUpdate"
@@ -215,3 +245,49 @@ async function installUpdate() {
     </div>
   </div>
 </template>
+
+<style scoped>
+.release-notes-content :deep(h1),
+.release-notes-content :deep(h2),
+.release-notes-content :deep(h3),
+.release-notes-content :deep(h4) {
+  font-weight: 600;
+  margin-top: 0.5rem;
+  margin-bottom: 0.25rem;
+  color: var(--app-text, inherit);
+}
+.release-notes-content :deep(h1) { font-size: 0.95rem; }
+.release-notes-content :deep(h2) { font-size: 0.875rem; }
+.release-notes-content :deep(h3) { font-size: 0.8rem; }
+.release-notes-content :deep(ul) {
+  list-style-type: disc;
+  padding-left: 1.25rem;
+  margin: 0.25rem 0;
+}
+.release-notes-content :deep(ol) {
+  list-style-type: decimal;
+  padding-left: 1.25rem;
+  margin: 0.25rem 0;
+}
+.release-notes-content :deep(li) {
+  margin: 0.125rem 0;
+}
+.release-notes-content :deep(code) {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.75rem;
+  padding: 0.1rem 0.25rem;
+  border-radius: 0.25rem;
+  background-color: rgba(125, 125, 125, 0.15);
+}
+.release-notes-content :deep(p) {
+  margin: 0.25rem 0;
+}
+.release-notes-content :deep(a) {
+  color: #b45309;
+  text-decoration: underline;
+}
+:root.dark .release-notes-content :deep(a),
+.dark .release-notes-content :deep(a) {
+  color: #eab308;
+}
+</style>

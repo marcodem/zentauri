@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { relaunch } from "@tauri-apps/plugin-process";
 import type { Update } from "@tauri-apps/plugin-updater";
-import { onMounted, onUnmounted, ref, shallowRef, toRaw } from "vue";
+import { computed, onMounted, onUnmounted, ref, shallowRef, toRaw } from "vue";
+import { renderMarkdown } from "../lib/markdown";
 import { checkForUpdates, installAppUpdate } from "../lib/updater";
 
 const isTauri =
@@ -12,25 +13,31 @@ const isTauri =
 const isVisible = ref(false);
 const updateVersion = ref("");
 const updateBody = ref("");
+const showNotes = ref(false);
 const activeUpdate = shallowRef<Update | null>(null);
 const isInstalling = ref(false);
 const installProgress = ref(0);
 const installStatus = ref("");
 const errorMessage = ref("");
 
+const renderedNotes = computed(() => {
+  if (!updateBody.value) return "";
+  return renderMarkdown(updateBody.value, { markdownExtensionsEnabled: false });
+});
+
 let checkTimer: ReturnType<typeof setTimeout> | null = null;
 let intervalTimer: ReturnType<typeof setInterval> | null = null;
 
 const DISMISS_KEY = "zentauri_dismissed_update_version";
 
-async function runUpdateCheck() {
+async function runUpdateCheck(force = false) {
   if (!isTauri) return;
   try {
     const result = await checkForUpdates();
     if (result.available && result.update && result.version) {
       // Check if user already dismissed this specific version in this session
       const dismissed = sessionStorage.getItem(DISMISS_KEY);
-      if (dismissed === result.version) {
+      if (!force && dismissed === result.version) {
         return;
       }
       activeUpdate.value = result.update;
@@ -90,6 +97,8 @@ onUnmounted(() => {
   if (checkTimer) clearTimeout(checkTimer);
   if (intervalTimer) clearInterval(intervalTimer);
 });
+
+defineExpose({ runUpdateCheck, isVisible, showNotes, updateBody, updateVersion });
 </script>
 
 <template>
@@ -103,7 +112,7 @@ onUnmounted(() => {
   >
     <div
       v-if="isVisible"
-      class="fixed bottom-5 right-5 z-50 w-96 rounded-xl border border-amber-600/30 dark:border-amber-400/30 bg-app-bg/95 dark:bg-[#0f1e35]/95 backdrop-blur-md shadow-2xl p-4 text-app-text select-none"
+      class="fixed bottom-5 right-5 z-50 w-[420px] max-w-[calc(100vw-2.5rem)] rounded-xl border border-amber-600/30 dark:border-amber-400/30 bg-app-bg/95 dark:bg-[#0f1e35]/95 backdrop-blur-md shadow-2xl p-4 text-app-text select-none"
       role="alert"
       aria-live="polite"
     >
@@ -138,6 +147,32 @@ onUnmounted(() => {
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
           </svg>
         </button>
+      </div>
+
+      <!-- Release Notes Toggle & Details -->
+      <div v-if="updateBody && updateBody.trim()" class="mt-3">
+        <button
+          type="button"
+          @click="showNotes = !showNotes"
+          class="text-xs font-medium text-amber-700 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-300 flex items-center gap-1.5 cursor-pointer transition-colors"
+        >
+          <span>{{ showNotes ? 'Release Notes ausblenden' : 'Was ist neu in v' + updateVersion + '?' }}</span>
+          <svg
+            class="w-3.5 h-3.5 transition-transform duration-200"
+            :class="{ 'rotate-180': showNotes }"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+
+        <div
+          v-if="showNotes"
+          class="mt-2 max-h-48 overflow-y-auto rounded-lg border border-app-border bg-app-bg-secondary/70 p-3 text-xs text-app-text select-text release-notes-content leading-relaxed"
+          v-html="renderedNotes"
+        ></div>
       </div>
 
       <!-- Installation Progress Bar -->
@@ -180,3 +215,50 @@ onUnmounted(() => {
     </div>
   </Transition>
 </template>
+
+<style scoped>
+.release-notes-content :deep(h1),
+.release-notes-content :deep(h2),
+.release-notes-content :deep(h3),
+.release-notes-content :deep(h4) {
+  font-weight: 600;
+  margin-top: 0.5rem;
+  margin-bottom: 0.25rem;
+  color: var(--app-text, inherit);
+}
+.release-notes-content :deep(h1) { font-size: 0.95rem; }
+.release-notes-content :deep(h2) { font-size: 0.875rem; }
+.release-notes-content :deep(h3) { font-size: 0.8rem; }
+.release-notes-content :deep(ul) {
+  list-style-type: disc;
+  padding-left: 1.25rem;
+  margin: 0.25rem 0;
+}
+.release-notes-content :deep(ol) {
+  list-style-type: decimal;
+  padding-left: 1.25rem;
+  margin: 0.25rem 0;
+}
+.release-notes-content :deep(li) {
+  margin: 0.125rem 0;
+}
+.release-notes-content :deep(code) {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.75rem;
+  padding: 0.1rem 0.25rem;
+  border-radius: 0.25rem;
+  background-color: rgba(125, 125, 125, 0.15);
+}
+.release-notes-content :deep(p) {
+  margin: 0.25rem 0;
+}
+.release-notes-content :deep(a) {
+  color: #b45309;
+  text-decoration: underline;
+}
+:root.dark .release-notes-content :deep(a),
+.dark .release-notes-content :deep(a) {
+  color: #eab308;
+}
+</style>
+
