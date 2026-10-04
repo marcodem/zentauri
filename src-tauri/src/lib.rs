@@ -90,8 +90,40 @@ fn register_workspace_root(path: &Path) {
     }
 }
 
+fn is_system_or_user_root(path: &Path) -> bool {
+    let norm = path.to_string_lossy().replace('\\', "/");
+    let norm_lower = norm.trim_end_matches('/').to_lowercase();
+
+    if norm_lower.is_empty() || norm_lower == "/" || (norm_lower.len() == 2 && norm_lower.ends_with(':')) {
+        return true;
+    }
+
+    let top_system = [
+        "/applications", "/system", "/library", "/volumes", "/private", "/usr", "/bin", "/etc", "/var",
+    ];
+    if top_system.contains(&norm_lower.as_str()) {
+        return true;
+    }
+
+    let parts: Vec<&str> = norm_lower.split('/').filter(|s| !s.is_empty()).collect();
+    if (parts.first() == Some(&"users") || parts.first() == Some(&"home")) && parts.len() <= 2 {
+        return true;
+    }
+    if (parts.first() == Some(&"users") || parts.first() == Some(&"home")) && parts.len() == 3 {
+        let leaf = parts[2];
+        if leaf == "desktop" || leaf == "schreibtisch" || leaf == "downloads" {
+            return true;
+        }
+    }
+
+    false
+}
+
 fn find_workspace_root(start_path: &str) -> PathBuf {
     let p = Path::new(start_path);
+    if is_system_or_user_root(p) {
+        return p.to_path_buf();
+    }
     
     // First, check if start_path is under any already-registered workspace root
     if let Ok(set) = KNOWN_WORKSPACES.lock() {
@@ -105,6 +137,9 @@ fn find_workspace_root(start_path: &str) -> PathBuf {
     // Next, check ancestors for .zentauri or .git
     let mut current = p.to_path_buf();
     loop {
+        if is_system_or_user_root(&current) {
+            break;
+        }
         if current.join(".zentauri").exists() || current.join(".git").exists() {
             register_workspace_root(&current);
             return current;

@@ -100,8 +100,52 @@ function saveWorkspaceRoots() {
   }
 }
 
+function isProtectedSystemPath(dirPath: string): boolean {
+  if (!dirPath) return true;
+  const norm = dirPath.replace(/\\/g, "/").replace(/\/+$/, "").toLowerCase();
+
+  // Root paths
+  if (norm === "" || norm === "/" || /^[a-z]:\/?$/i.test(norm)) return true;
+
+  // User home directory itself: e.g. /users/username, /home/username
+  if (/^\/(users|home)\/[^/]+$/.test(norm)) return true;
+
+  // System directories
+  if (
+    [
+      "/applications",
+      "/system",
+      "/library",
+      "/volumes",
+      "/private",
+      "/usr",
+      "/bin",
+      "/etc",
+      "/var",
+    ].includes(norm)
+  ) {
+    return true;
+  }
+
+  // User special folders: Desktop, Downloads, Documents
+  if (/^\/(users|home)\/[^/]+\/(desktop|schreibtisch|downloads)$/i.test(norm)) {
+    return true;
+  }
+
+  // Windows user special folders
+  if (/^[a-z]:\/users\/[^/]+\/(desktop|downloads)$/i.test(norm)) {
+    return true;
+  }
+
+  return false;
+}
+
 function addWorkspaceFolder(folderPath: string) {
   if (!folderPath) return;
+  if (isProtectedSystemPath(folderPath)) {
+    console.warn("Ignoring protected system folder as workspace root:", folderPath);
+    return;
+  }
   const normalizedNew = folderPath.replace(/\\/g, "/");
 
   // Check if new folder is already covered by an existing parent folder
@@ -126,45 +170,6 @@ function addWorkspaceFolder(folderPath: string) {
   showExplorerView();
 }
 
-function cleanupOrphanTabsAndWorkspace() {
-  if (workspaceRoots.value.length === 0) {
-    tabs.value = [];
-    openTab("Untitled Document", `untitled://${Date.now()}`, "");
-    saveTabsState();
-    return;
-  }
-
-  const validTabs = tabs.value.filter((tab) => {
-    if (!tab.path || tab.path.startsWith("untitled://") || tab.isWeb) {
-      return false;
-    }
-    const cleanTabPath = tab.path
-      .replace("browser://", "")
-      .replace(/\\/g, "/")
-      .toLowerCase();
-
-    return workspaceRoots.value.some((folder) => {
-      const normFolder = folder.replace(/\\/g, "/").toLowerCase();
-      return (
-        cleanTabPath === normFolder || cleanTabPath.startsWith(normFolder + "/")
-      );
-    });
-  });
-
-  if (validTabs.length === 0) {
-    tabs.value = [];
-    openTab("Untitled Document", `untitled://${Date.now()}`, "");
-  } else {
-    tabs.value = validTabs;
-    activeTabIndex.value = Math.min(
-      activeTabIndex.value,
-      tabs.value.length - 1,
-    );
-    markdownSource.value = tabs.value[activeTabIndex.value]?.content || "";
-  }
-  saveTabsState();
-}
-
 async function removeWorkspaceFolder(folderPath: string) {
   if (!folderPath) return;
   const normalizedFolder = folderPath.replace(/\\/g, "/").toLowerCase();
@@ -178,8 +183,32 @@ async function removeWorkspaceFolder(folderPath: string) {
   );
   saveWorkspaceRoots();
 
-  // Purge any open tabs that no longer belong to an active workspace folder
-  cleanupOrphanTabsAndWorkspace();
+  // Close only tabs located inside this specific removed folder
+  tabs.value = tabs.value.filter((tab) => {
+    if (!tab.path || tab.path.startsWith("untitled://") || tab.isWeb) {
+      return true; // Keep untitled and web tabs
+    }
+    const cleanTabPath = tab.path
+      .replace("browser://", "")
+      .replace(/\\/g, "/")
+      .toLowerCase();
+
+    return !(
+      cleanTabPath === normalizedFolder ||
+      cleanTabPath.startsWith(normalizedFolder + "/")
+    );
+  });
+
+  if (tabs.value.length === 0) {
+    openTab("Untitled Document", `untitled://${Date.now()}`, "");
+  } else {
+    activeTabIndex.value = Math.min(
+      activeTabIndex.value,
+      tabs.value.length - 1,
+    );
+    markdownSource.value = tabs.value[activeTabIndex.value]?.content || "";
+  }
+  saveTabsState();
 }
 
 function handleCloseActiveFolder() {
@@ -382,18 +411,24 @@ onMounted(() => {
     try {
       const parsed = JSON.parse(savedFoldersStr);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        workspaceRoots.value = parsed;
-        workspaceRoot.value = parsed[0];
+        const safeFolders = parsed.filter(
+          (f) => typeof f === "string" && !isProtectedSystemPath(f),
+        );
+        workspaceRoots.value = safeFolders;
+        workspaceRoot.value = safeFolders[0] || null;
       }
     } catch (e) {}
   }
   if (workspaceRoots.value.length === 0) {
     const savedWorkspace = localStorage.getItem("zentauri-workspace");
-    if (savedWorkspace) {
+    if (savedWorkspace && !isProtectedSystemPath(savedWorkspace)) {
       workspaceRoots.value = [savedWorkspace];
       workspaceRoot.value = savedWorkspace;
+    } else {
+      localStorage.removeItem("zentauri-workspace");
     }
   }
+  saveWorkspaceRoots();
 
   const savedTabsStr = localStorage.getItem("zentauri-tabs");
   if (savedTabsStr) {
@@ -401,17 +436,20 @@ onMounted(() => {
       const savedData = JSON.parse(savedTabsStr);
       if (savedData.tabs && savedData.tabs.length > 0) {
         tabs.value = savedData.tabs;
-        activeTabIndex.value = savedData.activeIndex;
+        activeTabIndex.value =
+          typeof savedData.activeIndex === "number" ? savedData.activeIndex : 0;
+        if (activeTabIndex.value >= tabs.value.length) {
+          activeTabIndex.value = 0;
+        }
         markdownSource.value = tabs.value[activeTabIndex.value]?.content || "";
       }
     } catch (e) {}
-  } else {
+  }
+
+  if (tabs.value.length === 0) {
     // Default tab if none
     openTab("Untitled Document", "untitled://1", defaultContent);
   }
-
-  // Purge any orphan tabs that do not belong to active workspace folders
-  cleanupOrphanTabsAndWorkspace();
 
   const savedSidebarWidth = localStorage.getItem("zentauri-sidebar-width");
   if (savedSidebarWidth) {
@@ -692,44 +730,11 @@ function closeTab(index: number, event?: Event) {
   saveTabsState();
 }
 
-function ensureWorkspaceForFile(filePath: string) {
-  if (!filePath || filePath.startsWith("untitled://")) {
-    return;
-  }
-
-  let cleanPath = filePath;
-  if (cleanPath.startsWith("browser://")) {
-    cleanPath = cleanPath.replace("browser://", "");
-  }
-
-  const lastSlashIndex = Math.max(
-    cleanPath.lastIndexOf("/"),
-    cleanPath.lastIndexOf("\\"),
-  );
-
-  if (lastSlashIndex <= 0) {
-    return;
-  }
-
-  const parentDir = cleanPath.substring(0, lastSlashIndex);
-  const normalizedParent = parentDir.replace(/\\/g, "/");
-
-  const isCovered = workspaceRoots.value.some((folder) => {
-    const norm = folder.replace(/\\/g, "/");
-    return normalizedParent === norm || normalizedParent.startsWith(norm + "/");
-  });
-
-  if (!isCovered) {
-    addWorkspaceFolder(parentDir);
-  }
-}
-
 function selectTab(index: number) {
   activeTabIndex.value = index;
   const tab = tabs.value[index];
   if (tab && !tab.isWeb) {
     markdownSource.value = tab.content;
-    ensureWorkspaceForFile(tab.path);
     focusEditor();
   }
   saveTabsState();
@@ -818,8 +823,6 @@ async function handleOpenFolder() {
 }
 
 async function loadFile(path: string) {
-  ensureWorkspaceForFile(path);
-
   const existingIndex = tabs.value.findIndex(
     (t) => t.path === path || t.id === path,
   );
