@@ -446,6 +446,50 @@ onMounted(() => {
     } catch (e) {}
   }
 
+  async function handleIncomingPath(path: string) {
+    if (isTauri) {
+      try {
+        const isDir = await invoke<boolean>("is_directory_path", { path });
+        if (isDir) {
+          addWorkspaceFolder(path);
+          return;
+        }
+      } catch (e) {
+        console.error("is_directory_path check failed:", e);
+      }
+    }
+    await loadFile(path);
+  }
+
+  if (workspaceRoots.value.length === 0 && isTauri) {
+    invoke<string | null>("get_app_cwd")
+      .then(async (initialCwd) => {
+        if (initialCwd && !isProtectedSystemPath(initialCwd)) {
+          addWorkspaceFolder(initialCwd);
+
+          const hasOnlyUntitled =
+            tabs.value.length === 0 ||
+            (tabs.value.length === 1 &&
+              tabs.value[0].path &&
+              tabs.value[0].path.startsWith("untitled://"));
+
+          if (hasOnlyUntitled) {
+            const readmePath = initialCwd.replace(/\\/g, "/") + "/README.md";
+            try {
+              const readmeText = await readTextFile(readmePath);
+              tabs.value = [];
+              openTab("README.md", readmePath, readmeText);
+            } catch (e) {
+              // No README.md
+            }
+          }
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to get initial CWD:", err);
+      });
+  }
+
   if (tabs.value.length === 0) {
     // Default tab if none
     openTab("Untitled Document", "untitled://1", defaultContent);
@@ -470,7 +514,7 @@ onMounted(() => {
   if (isTauri) {
     listen<string>("open-file-path", (event) => {
       if (event.payload) {
-        loadFile(event.payload);
+        handleIncomingPath(event.payload);
       }
     }).catch((err) => {
       console.error("Failed to setup open-file-path listener:", err);
@@ -480,7 +524,7 @@ onMounted(() => {
       .then((paths) => {
         if (paths && paths.length > 0) {
           for (const path of paths) {
-            loadFile(path);
+            handleIncomingPath(path);
           }
         }
       })

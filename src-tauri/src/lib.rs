@@ -334,6 +334,29 @@ fn get_pending_open_files(state: State<'_, PendingOpenFiles>) -> Vec<String> {
     result
 }
 
+fn get_valid_cwd() -> Option<PathBuf> {
+    let mut cwd = std::env::current_dir().ok()?;
+    if cwd.file_name().map(|n| n == "src-tauri").unwrap_or(false) {
+        if let Some(parent) = cwd.parent() {
+            cwd = parent.to_path_buf();
+        }
+    }
+    if is_system_or_user_root(&cwd) {
+        return None;
+    }
+    Some(cwd)
+}
+
+#[tauri::command]
+fn get_app_cwd() -> Option<String> {
+    get_valid_cwd().map(|p| p.to_string_lossy().to_string())
+}
+
+#[tauri::command]
+fn is_directory_path(path: &str) -> bool {
+    std::path::Path::new(path).is_dir()
+}
+
 #[derive(serde::Serialize)]
 pub struct CustomStylesheetResult {
     pub content: String,
@@ -468,7 +491,9 @@ pub fn run() {
             load_custom_stylesheet,
             export_pdf,
             search_workspace,
-            get_knowledge_graph
+            get_knowledge_graph,
+            get_app_cwd,
+            is_directory_path
         ])
         .setup(|app| {
             // Process initial CLI args on launch
