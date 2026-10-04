@@ -19,6 +19,7 @@ const currentTheme = ref("system");
 const fontSize = ref(16);
 const autoSave = ref(true);
 const vimMode = ref(false);
+const pdfPaper = ref<"a4" | "us-letter">("a4");
 
 const appVersion = ref(
   typeof __APP_VERSION__ !== "undefined" ? __APP_VERSION__ : "1.1.10",
@@ -36,6 +37,7 @@ onMounted(async () => {
       if (s.fontSize) fontSize.value = s.fontSize;
       if (s.autoSave !== undefined) autoSave.value = s.autoSave;
       if (s.vimMode !== undefined) vimMode.value = s.vimMode;
+      if (s.pdfPaper) pdfPaper.value = s.pdfPaper;
     } catch (e) {}
   }
   applySettings();
@@ -46,12 +48,13 @@ onMounted(async () => {
   } catch (e) {}
 });
 
-watch([currentTheme, fontSize, autoSave, vimMode], () => {
+watch([currentTheme, fontSize, autoSave, vimMode, pdfPaper], () => {
   const s = {
     theme: currentTheme.value,
     fontSize: fontSize.value,
     autoSave: autoSave.value,
     vimMode: vimMode.value,
+    pdfPaper: pdfPaper.value,
   };
   localStorage.setItem("zentauri-settings", JSON.stringify(s));
   applySettings();
@@ -67,6 +70,7 @@ function applySettings() {
     fontSize: fontSize.value,
     autoSave: autoSave.value,
     vimMode: vimMode.value,
+    pdfPaper: pdfPaper.value,
   };
   emit("update", s);
 }
@@ -175,6 +179,15 @@ async function installUpdate() {
         <div class="flex items-center justify-between">
           <label class="text-sm font-medium text-app-text">Vim Mode</label>
           <input type="checkbox" v-model="vimMode" class="w-5 h-5 text-blue-600 bg-app-bg border-app-border rounded cursor-pointer focus:ring-blue-500">
+        </div>
+
+        <!-- PDF Paper Format -->
+        <div class="flex items-center justify-between">
+          <label class="text-sm font-medium text-app-text">PDF Paper Format</label>
+          <select v-model="pdfPaper" class="bg-app-bg text-app-text text-sm border border-app-border rounded-md px-3 py-1 focus:outline-none focus:border-blue-500 cursor-pointer">
+            <option value="a4">DIN A4</option>
+            <option value="us-letter">US Letter</option>
+          </select>
         </div>
 
         <!-- About ZenTauri & Software Updates -->

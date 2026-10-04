@@ -317,6 +317,7 @@ const isSaving = ref(false);
 const isAutoRepaired = ref(false);
 const isPdfExported = ref(false);
 const autoSaveEnabled = ref(true);
+const pdfPaper = ref<"a4" | "us-letter">("a4");
 
 const saveStatus = computed(() => {
   if (isPdfExported.value) {
@@ -607,6 +608,7 @@ onMounted(() => {
     try {
       const s = JSON.parse(settingsStr);
       if (s.autoSave !== undefined) autoSaveEnabled.value = s.autoSave;
+      if (s.pdfPaper) pdfPaper.value = s.pdfPaper;
     } catch (e) {}
   }
 
@@ -1332,6 +1334,7 @@ function handleSettingsUpdate(settings: any) {
   if (settings.autoSave !== undefined)
     autoSaveEnabled.value = settings.autoSave;
   if (settings.vimMode !== undefined) vimMode.value = settings.vimMode;
+  if (settings.pdfPaper !== undefined) pdfPaper.value = settings.pdfPaper;
   if (settings.showCheatsheet !== undefined)
     showCheatsheet.value = settings.showCheatsheet;
 }
@@ -1374,7 +1377,9 @@ async function handleExportPdf() {
 
     if (destPath) {
       isSaving.value = true;
-      const typstMarkup = convertMarkdownToTypst(tab.content);
+      const typstMarkup = convertMarkdownToTypst(tab.content, {
+        paper: pdfPaper.value,
+      });
       await invoke("export_pdf", { typstMarkup, destinationPath: destPath });
       isPdfExported.value = true;
       setTimeout(() => {

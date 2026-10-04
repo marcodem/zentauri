@@ -124,7 +124,7 @@ function processInlineScholarly(rawText: string): string {
         if (pipe) {
           danda = ` ${pipe.trim() === "||" ? "॥" : "।"}`;
         }
-        result += `#text(font: "Noto Sans Devanagari")[${escapeTypst(content)}${danda}]`;
+        result += `#text(font: ("Kohinoor Devanagari", "Noto Sans Devanagari", "Noto Serif Devanagari", "Devanagari MT"))[${escapeTypst(content)}${danda}]`;
       } else {
         result += escapeTypst(matchedStr);
       }
@@ -152,19 +152,36 @@ function processInlineScholarly(rawText: string): string {
   return result;
 }
 
-export function convertMarkdownToTypst(markdown: string): string {
+export interface TypstExportOptions {
+  paper?: "a4" | "us-letter";
+  margin?: { x?: string; y?: string };
+  fontSize?: number;
+  numbering?: string;
+}
+
+export function convertMarkdownToTypst(
+  markdown: string,
+  options?: TypstExportOptions,
+): string {
   // Reuse code-fence safe normalization from markdown.ts
   const normalizedSrc = normalizeMarkdownSource(markdown, true);
 
   const tokens = mdTypst.parse(normalizedSrc, {});
+  const paper = options?.paper ?? "a4";
+  const marginX = options?.margin?.x ?? "2cm";
+  const marginY = options?.margin?.y ?? "2.5cm";
+  const fontSize = options?.fontSize ?? 11;
+  const numbering = options?.numbering ?? "1";
+
   let typstCode = `
 #set page(
-  paper: "a4",
-  margin: (x: 2cm, y: 2.5cm),
+  paper: "${paper}",
+  margin: (x: ${marginX}, y: ${marginY}),
+  numbering: "${numbering}",
 )
 #set text(
-  font: ("Linux Libertine", "Noto Sans Devanagari"),
-  size: 11pt,
+  font: ("Linux Libertine", "Times New Roman", "Kohinoor Devanagari", "Noto Sans Devanagari", "Noto Serif Devanagari", "Devanagari MT"),
+  size: ${fontSize}pt,
 )
 #set par(justify: true)
 
