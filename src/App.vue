@@ -816,6 +816,19 @@ function focusEditor() {
   }, 50);
 }
 
+function scrollToActiveTab() {
+  nextTick(() => {
+    const activeEl = document.querySelector(".tab-item-active") as HTMLElement;
+    if (activeEl && typeof activeEl.scrollIntoView === "function") {
+      activeEl.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+        inline: "nearest",
+      });
+    }
+  });
+}
+
 function openTab(title: string, path: string, content: string) {
   const existingIndex = tabs.value.findIndex(
     (t) => t.path === path && !t.isWeb,
@@ -824,18 +837,41 @@ function openTab(title: string, path: string, content: string) {
     activeTabIndex.value = existingIndex;
     markdownSource.value = tabs.value[existingIndex].content;
   } else {
-    tabs.value.push({
-      id: Date.now().toString(),
-      path,
-      title,
-      content,
-      isWeb: false,
-    });
-    activeTabIndex.value = tabs.value.length - 1;
-    markdownSource.value = content;
+    // If only an untouched default/untitled tab exists and we are opening a real file, replace it
+    const hasOnlyUntouchedDefault =
+      !path.startsWith("untitled://") &&
+      tabs.value.length === 1 &&
+      tabs.value[0].path.startsWith("untitled://") &&
+      (tabs.value[0].content === defaultContent ||
+        tabs.value[0].content === "");
+
+    if (hasOnlyUntouchedDefault) {
+      tabs.value = [
+        {
+          id: Date.now().toString(),
+          path,
+          title,
+          content,
+          isWeb: false,
+        },
+      ];
+      activeTabIndex.value = 0;
+      markdownSource.value = content;
+    } else {
+      tabs.value.push({
+        id: Date.now().toString(),
+        path,
+        title,
+        content,
+        isWeb: false,
+      });
+      activeTabIndex.value = tabs.value.length - 1;
+      markdownSource.value = content;
+    }
   }
   saveTabsState();
   focusEditor();
+  scrollToActiveTab();
 }
 
 async function openExternalUrl(rawUrl: string) {
@@ -901,6 +937,7 @@ async function selectTab(index: number) {
     focusEditor();
   }
   saveTabsState();
+  scrollToActiveTab();
 }
 
 async function handlePreviewOpenFile(linkPath: string) {
@@ -1263,7 +1300,7 @@ async function handleExportPdf() {
             class="flex items-center gap-2 px-4 py-2 text-sm cursor-pointer border-r border-app-border transition-colors whitespace-nowrap"
             :class="[
               activeTabIndex === index 
-                ? 'bg-app-bg text-app-text border-t-2 border-t-blue-500' 
+                ? 'bg-app-bg text-app-text border-t-2 border-t-blue-500 tab-item-active' 
                 : 'bg-app-bg-secondary text-app-text-muted hover:bg-app-bg border-t-2 border-t-transparent'
             ]"
           >
