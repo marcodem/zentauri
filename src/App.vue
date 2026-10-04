@@ -25,13 +25,14 @@ const Settings = defineAsyncComponent(
 const HelpSystem = defineAsyncComponent(
   () => import("./components/HelpSystem.vue"),
 );
+import ContextMenu from "./components/ContextMenu.vue";
 import { autoRepairMarkdown } from "./lib/auto-repair";
 import CHEAT_SHEET, { type SyntaxItem } from "./lib/syntax-cheatsheet";
 import { convertMarkdownToTypst } from "./lib/typstConverter";
 
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { open, save } from "@tauri-apps/plugin-dialog";
+import { message, open, save } from "@tauri-apps/plugin-dialog";
 import { mkdir, readTextFile, writeTextFile } from "@tauri-apps/plugin-fs";
 import { openUrl as tauriOpenUrl } from "@tauri-apps/plugin-opener";
 import debounce from "lodash.debounce";
@@ -949,13 +950,50 @@ async function openExternalUrl(rawUrl: string) {
   }
 }
 
-async function closeTab(index: number, event?: Event) {
+async function closeTab(index: number, event?: Event): Promise<boolean> {
   if (event) event.stopPropagation();
   const closingTab = tabs.value[index];
-  if (closingTab && !closingTab.isWeb) {
+  if (!closingTab) return true;
+
+  if (!closingTab.isWeb) {
     autoSave.cancel();
     if (autoSaveEnabled.value) {
       await saveTabToFile(closingTab, false);
+    } else if (closingTab.isDirty) {
+      let decision = "Don't Save";
+      if (isTauri) {
+        try {
+          const res = await message(
+            `"${closingTab.title}" has unsaved changes.\nDo you want to save before closing?`,
+            {
+              title: "Unsaved Changes",
+              kind: "warning",
+              buttons: { yes: "Save", no: "Don't Save", cancel: "Cancel" },
+            },
+          );
+          decision = res;
+        } catch {
+          const ok = window.confirm(
+            `Save changes to "${closingTab.title}" before closing?`,
+          );
+          decision = ok ? "Save" : "Don't Save";
+        }
+      } else if (
+        typeof window !== "undefined" &&
+        typeof window.confirm === "function"
+      ) {
+        const ok = window.confirm(
+          `Save changes to "${closingTab.title}" before closing?`,
+        );
+        decision = ok ? "Save" : "Don't Save";
+      }
+
+      if (decision === "Cancel") {
+        return false;
+      }
+      if (decision === "Save") {
+        await saveTabToFile(closingTab, false);
+      }
     }
   }
 
@@ -973,6 +1011,110 @@ async function closeTab(index: number, event?: Event) {
     }
   }
   saveTabsState();
+  return true;
+}
+
+const tabContextMenuTarget = ref<{
+  node: { name: string; path: string; isDirectory: boolean };
+  x: number;
+  y: number;
+  index: number;
+} | null>(null);
+
+function handleTabContextMenu(index: number, e: MouseEvent) {
+  e.preventDefault();
+  const tab = tabs.value[index];
+  if (!tab) return;
+  tabContextMenuTarget.value = {
+    node: {
+      name: tab.title,
+      path: tab.path,
+      isDirectory: false,
+    },
+    x: e.clientX,
+    y: e.clientY,
+    index,
+  };
+}
+
+const tabContextMenuItems = computed(() => {
+  if (!tabContextMenuTarget.value) return [];
+  const idx = tabContextMenuTarget.value.index;
+  const tab = tabs.value[idx];
+  const isRealFile = Boolean(
+    tab?.path && !tab.path.startsWith("untitled://") && !tab.isWeb,
+  );
+
+  return [
+    { label: "Close Tab", action: "close" },
+    {
+      label: "Close Other Tabs",
+      action: "close-others",
+      disabled: tabs.value.length <= 1,
+    },
+    {
+      label: "Close Tabs to the Right",
+      action: "close-right",
+      disabled: idx >= tabs.value.length - 1,
+    },
+    { divider: true },
+    {
+      label: "Copy Path",
+      action: "copy-path",
+      disabled: !isRealFile,
+    },
+    {
+      label: "Reveal in System Finder",
+      action: "reveal",
+      disabled: !isRealFile || !isTauri,
+    },
+  ];
+});
+
+async function handleTabContextMenuAction(action: string) {
+  if (!tabContextMenuTarget.value) return;
+  const idx = tabContextMenuTarget.value.index;
+  const tab = tabs.value[idx];
+  tabContextMenuTarget.value = null;
+
+  switch (action) {
+    case "close":
+      await closeTab(idx);
+      break;
+    case "close-others": {
+      for (let i = tabs.value.length - 1; i >= 0; i--) {
+        if (i === idx) continue;
+        const closed = await closeTab(i);
+        if (!closed) break;
+      }
+      break;
+    }
+    case "close-right": {
+      for (let i = tabs.value.length - 1; i > idx; i--) {
+        const closed = await closeTab(i);
+        if (!closed) break;
+      }
+      break;
+    }
+    case "copy-path":
+      if (tab?.path) {
+        try {
+          await navigator.clipboard.writeText(tab.path);
+        } catch (err) {
+          console.error("Failed to copy path:", err);
+        }
+      }
+      break;
+    case "reveal":
+      if (tab?.path && isTauri) {
+        try {
+          await invoke("reveal_in_explorer", { path: tab.path });
+        } catch (err) {
+          console.error("Failed to reveal file in finder:", err);
+        }
+      }
+      break;
+  }
 }
 
 async function selectTab(index: number) {
@@ -1364,6 +1506,7 @@ async function handleExportPdf() {
             v-for="(tab, index) in tabs" 
             :key="tab.id"
             @click="selectTab(index)"
+            @contextmenu="handleTabContextMenu(index, $event)"
             class="flex items-center gap-2 px-4 py-2 text-sm cursor-pointer border-r border-app-border transition-colors whitespace-nowrap"
             :class="[
               activeTabIndex === index 
@@ -1452,5 +1595,14 @@ async function handleExportPdf() {
 
       </div>
     </div>
+
+    <!-- Tab Bar Context Menu -->
+    <ContextMenu 
+      v-if="tabContextMenuTarget"
+      :target="tabContextMenuTarget"
+      :items="tabContextMenuItems"
+      @action="handleTabContextMenuAction"
+      @close="tabContextMenuTarget = null"
+    />
   </main>
 </template>
