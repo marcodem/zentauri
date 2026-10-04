@@ -1,13 +1,11 @@
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { computed, ref } from "vue";
 
 const props = defineProps<{
   fileContent: string;
 }>();
 
-const emit = defineEmits<{
-  (e: "jump-to-line", lineNum: number): void;
-}>();
+const emit = defineEmits<(e: "jump-to-line", lineNum: number) => void>();
 
 const searchQuery = ref("");
 const caseSensitive = ref(false);

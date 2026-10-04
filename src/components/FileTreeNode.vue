@@ -11,8 +11,7 @@ import {
 import { computed, nextTick, onMounted, ref, watch } from "vue";
 
 const isTauri =
-  typeof window !== "undefined" &&
-  (window as any).__TAURI_INTERNALS__ !== undefined;
+  typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
 export interface FileEntry {
   name: string;
@@ -435,7 +434,11 @@ async function handleChildRenameConfirm(payload: {
 
 async function handleChildDeleteConfirm(payload: { path: string }) {
   try {
-    await remove(payload.path);
+    if (isTauri) {
+      await invoke("delete_file_item", { path: payload.path });
+    } else {
+      await remove(payload.path);
+    }
     await refresh();
   } catch (err) {
     alert(`Failed to delete: ${err}`);

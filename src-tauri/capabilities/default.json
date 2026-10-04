@@ -16,15 +16,6 @@
     "updater:default",
     "process:allow-restart",
     "fs:read-all",
-    "fs:write-all",
-    {
-      "identifier": "fs:scope",
-      "allow": [
-        { "path": "$APPDATA/**" },
-        { "path": "$DOCUMENT/**" },
-        { "path": "$DOWNLOAD/**" },
-        { "path": "$DESKTOP/**" }
-      ]
-    }
+    "fs:write-all"
   ]
 }

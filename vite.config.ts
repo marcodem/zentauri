@@ -1,17 +1,19 @@
+import { execSync } from "node:child_process";
+import tailwindcss from "@tailwindcss/vite";
+import vue from "@vitejs/plugin-vue";
 /// <reference types="vitest/config" />
 import { defineConfig } from "vite";
-import vue from "@vitejs/plugin-vue";
-import tailwindcss from "@tailwindcss/vite";
-import { execSync } from "child_process";
 import pkg from "./package.json";
 
 let gitHash = "dev";
+let commitCount = "1";
 try {
   gitHash = execSync("git rev-parse --short HEAD").toString().trim();
+  commitCount = execSync("git rev-list --count HEAD").toString().trim();
 } catch (e) {}
 
 const buildNumber =
-  process.env.GITHUB_RUN_NUMBER || process.env.BUILD_NUMBER || gitHash;
+  process.env.GITHUB_RUN_NUMBER || process.env.BUILD_NUMBER || commitCount;
 
 // @ts-expect-error process is a nodejs global
 const host = process.env.TAURI_DEV_HOST;

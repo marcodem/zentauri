@@ -3,7 +3,29 @@ import { describe, expect, it, vi } from "vitest";
 import FileTree from "./FileTree.vue";
 
 vi.mock("@tauri-apps/api/core", () => ({
-  invoke: vi.fn().mockResolvedValue([]),
+  invoke: vi.fn().mockImplementation(async (cmd) => {
+    if (cmd === "read_workspace_tree") {
+      return [
+        {
+          name: "01_Notes.md",
+          path: "/Users/test/my-project/01_Notes.md",
+          is_directory: false,
+          title: "Notes Title",
+        },
+        {
+          name: "02_Draft.md",
+          path: "/Users/test/my-project/02_Draft.md",
+          is_directory: false,
+        },
+        {
+          name: "SubFolder",
+          path: "/Users/test/my-project/SubFolder",
+          is_directory: true,
+        },
+      ];
+    }
+    return [];
+  }),
 }));
 
 vi.mock("@tauri-apps/plugin-fs", () => ({
@@ -32,7 +54,6 @@ describe("FileTree Component", () => {
       },
       global: {
         stubs: {
-          WorkspaceFolderSection: true,
           ContextMenu: true,
         },
       },
@@ -77,7 +98,6 @@ describe("FileTree Component", () => {
       },
       global: {
         stubs: {
-          WorkspaceFolderSection: true,
           ContextMenu: true,
         },
       },
@@ -96,7 +116,13 @@ describe("FileTree Component", () => {
     expect(wrapper.text()).toContain("No folder opened in workspace.");
   });
 
-  it("renders WorkspaceFolderSection when workspace folders are provided", () => {
+  it("renders real WorkspaceFolderSection and file items when workspace folders are provided", async () => {
+    Object.defineProperty(window, "__TAURI_INTERNALS__", {
+      value: {},
+      configurable: true,
+      writable: true,
+    });
+
     const wrapper = mount(FileTree, {
       props: {
         rootPath: "/Users/test/my-project",
@@ -105,15 +131,23 @@ describe("FileTree Component", () => {
       },
       global: {
         stubs: {
-          WorkspaceFolderSection: {
-            template: "<div class='mock-folder-section'>Workspace Folder</div>",
-          },
           ContextMenu: true,
         },
       },
     });
 
-    expect(wrapper.find(".mock-folder-section").exists()).toBe(true);
-    expect(wrapper.text()).toContain("Workspace Folder");
+    // Wait for async loadFolderTree to resolve
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    expect(wrapper.text()).toContain("MY-PROJECT");
+    expect(wrapper.text()).toContain("Notes Title");
+    expect(wrapper.text()).toContain("02_Draft.md");
+    expect(wrapper.text()).toContain("SubFolder");
+
+    Object.defineProperty(window, "__TAURI_INTERNALS__", {
+      value: undefined,
+      configurable: true,
+      writable: true,
+    });
   });
 });

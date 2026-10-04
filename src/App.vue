@@ -9,8 +9,8 @@ import {
 } from "vue";
 import ActivityBar from "./components/ActivityBar.vue";
 import Cheatsheet from "./components/Cheatsheet.vue";
-import type Editor from "./components/Editor.vue";
-import type FileTree from "./components/FileTree.vue";
+import Editor from "./components/Editor.vue";
+import FileTree from "./components/FileTree.vue";
 import GraphView from "./components/GraphView.vue";
 import HelpSystem from "./components/HelpSystem.vue";
 import Preview from "./components/Preview.vue";
@@ -404,13 +404,16 @@ function handleActivityAction(action: string) {
 
 // Check if running inside Tauri
 const isTauri =
-  typeof window !== "undefined" &&
-  (window as any).__TAURI_INTERNALS__ !== undefined;
+  typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
 const unlistenFns: (() => void)[] = [];
 
 const handleBeforeUnload = () => {
+  if (autoSave) {
+    autoSave.cancel();
+  }
   handleSaveAll();
+  saveTabsState();
 };
 
 // Memory
@@ -469,6 +472,27 @@ onMounted(() => {
       }
     }
     await loadFile(path);
+  }
+
+  if (isTauri && workspaceRoots.value.length > 0) {
+    (async () => {
+      const validFolders: string[] = [];
+      for (const folder of workspaceRoots.value) {
+        try {
+          const isDir = await invoke<boolean>("is_directory_path", {
+            path: folder,
+          });
+          if (isDir) {
+            validFolders.push(folder);
+          }
+        } catch {}
+      }
+      if (validFolders.length !== workspaceRoots.value.length) {
+        workspaceRoots.value = validFolders;
+        workspaceRoot.value = validFolders[0] || null;
+        saveWorkspaceRoots();
+      }
+    })();
   }
 
   if (workspaceRoots.value.length === 0 && isTauri) {
@@ -553,7 +577,7 @@ onMounted(() => {
         if (res?.content) {
           const style = document.createElement("style");
           style.id = "zentauri-custom-style";
-          style.innerHTML = res.content;
+          style.textContent = res.content;
           document.head.appendChild(style);
           console.log("Loaded custom stylesheet from:", res.path);
         }
@@ -602,6 +626,10 @@ onMounted(() => {
 onBeforeUnmount(() => {
   window.removeEventListener("keydown", handleGlobalKeydown);
   window.removeEventListener("beforeunload", handleBeforeUnload);
+  if (autoSave) {
+    autoSave.cancel();
+  }
+  saveTabsState();
   for (const fn of unlistenFns) {
     fn();
   }

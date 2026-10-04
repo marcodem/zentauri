@@ -50,7 +50,9 @@ export function adjustContainerNesting(
   const rawLines = src.split("\n");
   // If the last line is empty due to a trailing newline, remove it temporarily
   const lines =
-    hasTrailingNewline && rawLines.length > 0 && rawLines[rawLines.length - 1] === ""
+    hasTrailingNewline &&
+    rawLines.length > 0 &&
+    rawLines[rawLines.length - 1] === ""
       ? rawLines.slice(0, -1)
       : rawLines.slice();
 
@@ -76,7 +78,8 @@ export function adjustContainerNesting(
         codeFenceChar = char;
         codeFenceLen = len;
         continue;
-      } else if (char === codeFenceChar && len >= codeFenceLen) {
+      }
+      if (char === codeFenceChar && len >= codeFenceLen) {
         inCodeFence = false;
         continue;
       }
@@ -132,7 +135,6 @@ export function adjustContainerNesting(
         top.closeIndent = closeMatch[1];
         top.closeColons = closeMatch[2];
       }
-      continue;
     }
   }
 
@@ -147,7 +149,11 @@ export function adjustContainerNesting(
     }
 
     if (block.children.length > 0) {
-      block.targetColonsCount = Math.max(block.colons.length, maxChildColons + 1, 3);
+      block.targetColonsCount = Math.max(
+        block.colons.length,
+        maxChildColons + 1,
+        3,
+      );
     } else {
       block.targetColonsCount = Math.max(block.colons.length, 3);
     }
@@ -175,7 +181,8 @@ export function adjustContainerNesting(
       adjustedCount++;
 
       const newColons = ":".repeat(block.targetColonsCount);
-      lines[block.openLineIndex] = `${block.indent}${newColons}${block.space}${block.name}${block.rest}`;
+      lines[block.openLineIndex] =
+        `${block.indent}${newColons}${block.space}${block.name}${block.rest}`;
 
       if (block.closeLineIndex !== null) {
         lines[block.closeLineIndex] = `${block.closeIndent}${newColons}`;

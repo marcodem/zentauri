@@ -1,4 +1,4 @@
-import { StateField, RangeSetBuilder } from "@codemirror/state";
+import { RangeSetBuilder, StateField } from "@codemirror/state";
 import { Decoration, DecorationSet, EditorView } from "@codemirror/view";
 
 /**
@@ -38,7 +38,7 @@ function buildDecorations(doc: any): DecorationSet {
       "var(--directive-l5)", // Level 5
     ];
 
-    let boxShadows = [];
+    const boxShadows = [];
     for (let i = 0; i < depth; i++) {
       const color = colors[i % colors.length];
       // Use inset box-shadow to stack left borders without shifting layout width

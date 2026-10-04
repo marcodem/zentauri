@@ -156,3 +156,32 @@ $ sum_(k=1)^n k = (n(n+1)) / 2 $
     assert!(pdf_bytes.len() > 1000, "PDF must have content");
     println!("✓ Typst Native PDF Rendering: PASS ({:?}, Size: {} bytes)", output_pdf, pdf_bytes.len());
 }
+
+#[test]
+fn test_export_pdf_validation_rules() {
+    use tauri_app_lib::validate_export_destination;
+
+    // 1. Rejects null bytes
+    assert!(validate_export_destination("/valid/path\0evil.pdf").is_err());
+
+    // 2. Rejects non-pdf extensions
+    assert!(validate_export_destination("/valid/path/file.txt").is_err());
+    assert!(validate_export_destination("/valid/path/file.exe").is_err());
+    assert!(validate_export_destination("/valid/path/file.sh").is_err());
+
+    // 3. Rejects system root paths
+    assert!(validate_export_destination("/evil.pdf").is_err());
+    assert!(validate_export_destination("/etc/evil.pdf").is_err());
+    assert!(validate_export_destination("/system/evil.pdf").is_err());
+    assert!(validate_export_destination("/usr/evil.pdf").is_err());
+
+    // 4. Rejects sensitive configuration components
+    assert!(validate_export_destination("/home/user/.ssh/id_rsa.pdf").is_err());
+    assert!(validate_export_destination("/Users/user/.gnupg/keys.pdf").is_err());
+    assert!(validate_export_destination("/Users/user/.bashrc.pdf").is_err());
+
+    // 5. Accepts valid path in temp directory
+    let temp_target = std::env::temp_dir().join("valid_export_test.pdf");
+    let result = validate_export_destination(temp_target.to_str().unwrap());
+    assert!(result.is_ok(), "Temp path must be allowed: {:?}", result);
+}

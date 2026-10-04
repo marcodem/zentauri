@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUpdate, ref } from "vue";
-import type WorkspaceFolderSection from "./WorkspaceFolderSection.vue";
+import WorkspaceFolderSection from "./WorkspaceFolderSection.vue";
 
 const props = defineProps<{
   rootPath?: string | null;

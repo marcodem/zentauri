@@ -315,6 +315,51 @@ fn duplicate_file_item(source_path: &str) -> Result<String, String> {
 }
 
 #[tauri::command]
+fn delete_file_item(path: &str) -> Result<(), String> {
+    use std::fs;
+    use std::path::Path;
+
+    let target = Path::new(path);
+    if !target.exists() {
+        return Ok(());
+    }
+    if is_system_or_user_root(target) {
+        return Err("Cannot delete system or root directories".to_string());
+    }
+
+    let root = find_workspace_root(path);
+    let root_str = root.to_string_lossy().to_string();
+
+    // 1. Delete on filesystem
+    if target.is_dir() {
+        fs::remove_dir_all(target).map_err(|e| format!("Failed to delete directory: {}", e))?;
+    } else {
+        fs::remove_file(target).map_err(|e| format!("Failed to delete file: {}", e))?;
+    }
+
+    // 2. Clean up SQLite database (item itself + any descendants if it was a folder)
+    if let Ok(mut conn) = db::init_db(&root_str) {
+        if let Ok(tx) = conn.transaction() {
+            let _ = tx.execute(
+                "DELETE FROM files WHERE path = ?1 OR path LIKE (?1 || '/%')",
+                rusqlite::params![path],
+            );
+            let _ = tx.execute(
+                "DELETE FROM markdown_metadata WHERE file_path = ?1 OR file_path LIKE (?1 || '/%')",
+                rusqlite::params![path],
+            );
+            let _ = tx.execute(
+                "DELETE FROM markdown_links WHERE source_path = ?1 OR source_path LIKE (?1 || '/%')",
+                rusqlite::params![path],
+            );
+            let _ = tx.commit();
+        }
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
 fn reveal_in_explorer(path: &str) -> Result<(), String> {
     use std::process::Command;
 
@@ -416,24 +461,129 @@ fn load_custom_stylesheet(app: tauri::AppHandle) -> Result<CustomStylesheetResul
     })
 }
 
+pub fn is_protected_system_destination(path: &std::path::Path) -> bool {
+    let norm = path.to_string_lossy().replace('\\', "/");
+    let norm_lower = norm.trim_end_matches('/').to_lowercase();
+
+    if norm_lower.is_empty() || norm_lower == "/" || (norm_lower.len() == 2 && norm_lower.ends_with(':')) {
+        return true;
+    }
+
+    let parts: Vec<&str> = norm_lower.split('/').filter(|s| !s.is_empty()).collect();
+    if parts.is_empty() {
+        return true;
+    }
+
+    // Direct root file, e.g. /evil.pdf
+    if parts.len() == 1 {
+        return true;
+    }
+
+    let first = parts[0];
+
+    // Protected top-level system paths where users should not write PDFs
+    let system_roots = [
+        "system", "bin", "sbin", "usr", "etc", "dev", "proc", "sys", "opt", "library", "applications",
+    ];
+    if system_roots.contains(&first) {
+        return true;
+    }
+
+    // For /private: /private/etc, /private/var/root, etc. are protected, but /private/var/folders or /private/tmp are temp areas
+    if first == "private" {
+        if parts.len() >= 2 {
+            let second = parts[1];
+            if second == "etc" || (second == "var" && parts.len() >= 3 && parts[2] == "root") {
+                return true;
+            }
+            if second != "tmp" && second != "var" {
+                return true;
+            }
+        } else {
+            return true;
+        }
+    }
+
+    // For /var: /var/folders and /var/tmp are temp areas; all other /var subdirs (like /var/root, /var/log, /var/db, /var/run) are protected
+    if first == "var" {
+        if parts.len() >= 2 {
+            let second = parts[1];
+            if second != "folders" && second != "tmp" {
+                return true;
+            }
+        } else {
+            return true;
+        }
+    }
+
+    // User roots: cannot write directly to /Users or /home or /Users/username (without subfolder)
+    if first == "users" || first == "home" {
+        if parts.len() <= 2 {
+            return true;
+        }
+    }
+
+    // Volume roots: cannot write directly to /Volumes
+    if first == "volumes" && parts.len() <= 1 {
+        return true;
+    }
+
+    false
+}
+
+pub fn validate_export_destination(destination_path: &str) -> Result<std::path::PathBuf, String> {
+    if destination_path.contains('\0') {
+        return Err("Invalid destination path: contains null byte".to_string());
+    }
+    if !destination_path.to_lowercase().ends_with(".pdf") {
+        return Err("Destination path must have a .pdf extension".to_string());
+    }
+    let dest_path = std::path::Path::new(destination_path);
+    if is_protected_system_destination(dest_path) {
+        return Err("Cannot write PDF to protected system or root directory".to_string());
+    }
+
+    // Guard against sensitive configuration directories
+    for component in dest_path.components() {
+        let s = component.as_os_str().to_string_lossy();
+        if s == ".ssh" || s == ".gnupg" || s == ".bashrc" || s == ".zshrc" || s == ".profile" {
+            return Err("Access to sensitive directory or file denied".to_string());
+        }
+    }
+
+    if let Some(parent) = dest_path.parent() {
+        if !parent.as_os_str().is_empty() {
+            if !parent.exists() {
+                return Err("Destination directory does not exist".to_string());
+            }
+            if let Ok(canon_parent) = parent.canonicalize() {
+                if is_protected_system_destination(&canon_parent) {
+                    return Err("Cannot write to protected system directory".to_string());
+                }
+            } else if is_protected_system_destination(parent) {
+                return Err("Cannot write to protected system directory".to_string());
+            }
+        }
+    }
+
+    if dest_path.exists() {
+        if let Ok(canon) = dest_path.canonicalize() {
+            if is_protected_system_destination(&canon) {
+                return Err("Cannot overwrite protected system path".to_string());
+            }
+        }
+    }
+
+    Ok(dest_path.to_path_buf())
+}
+
 #[tauri::command]
 async fn export_pdf(typst_markup: String, destination_path: String) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
         use std::fs;
         use typst_as_lib::TypstEngine;
 
-        if destination_path.contains('\0') {
-            return Err("Invalid destination path: contains null byte".to_string());
-        }
-        if !destination_path.to_lowercase().ends_with(".pdf") {
-            return Err("Destination path must have a .pdf extension".to_string());
-        }
-        let dest_path = std::path::Path::new(&destination_path);
-        if let Some(parent) = dest_path.parent() {
-            if !parent.as_os_str().is_empty() && !parent.exists() {
-                return Err("Destination directory does not exist".to_string());
-            }
-        }
+        let dest_path = validate_export_destination(&destination_path)?;
 
         // Build the engine with system and embedded fonts and the provided markup
         let engine = TypstEngine::builder()
@@ -451,7 +601,7 @@ async fn export_pdf(typst_markup: String, destination_path: String) -> Result<()
         let pdf = typst_pdf::pdf(&doc, &options)
             .map_err(|e| format!("PDF generation failed: {:?}", e))?;
             
-        fs::write(&destination_path, pdf).map_err(|e| format!("Failed to write PDF: {}", e))?;
+        fs::write(&dest_path, pdf).map_err(|e| format!("Failed to write PDF: {}", e))?;
         
         Ok(())
     })
@@ -516,6 +666,7 @@ pub fn run() {
             read_workspace_tree,
             move_file_item,
             duplicate_file_item,
+            delete_file_item,
             reveal_in_explorer,
             get_pending_open_files,
             load_custom_stylesheet,
@@ -604,8 +755,16 @@ pub fn run() {
             let mut menu_items: Vec<&dyn tauri::menu::IsMenuItem<tauri::Wry>> = vec![];
 
             #[cfg(target_os = "macos")]
+            let about_metadata = tauri::menu::AboutMetadata {
+                name: Some("ZenTauri".to_string()),
+                version: Some(app.package_info().version.to_string()),
+                short_version: Some(format!("Build {}", env!("ZENTAURI_BUILD_COUNT"))),
+                ..Default::default()
+            };
+
+            #[cfg(target_os = "macos")]
             let app_menu = Submenu::with_items(app, "Zentauri", true, &[
-                &PredefinedMenuItem::about(app, None, None)?,
+                &PredefinedMenuItem::about(app, None, Some(about_metadata))?,
                 &PredefinedMenuItem::separator(app)?,
                 &PredefinedMenuItem::services(app, None)?,
                 &PredefinedMenuItem::separator(app)?,

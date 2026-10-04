@@ -187,7 +187,7 @@ async function installUpdate() {
               <div class="flex flex-col">
                 <span class="text-sm font-semibold text-app-text">ZenTauri</span>
                 <span class="text-xs text-app-text-muted">
-                  Version {{ appVersion }} <span class="font-mono text-[11px] opacity-75">({{ buildNumber }})</span>
+                  Version {{ appVersion }} <span class="font-mono text-[11px] opacity-75">(Build {{ buildNumber }})</span>
                 </span>
               </div>
             </div>

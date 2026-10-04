@@ -499,9 +499,9 @@ pub fn sync_directory(
 
     for path in db_paths {
         if !seen_paths.contains(&path) {
-            tx.execute("DELETE FROM files WHERE path = ?1", params![&path])?;
-            tx.execute("DELETE FROM markdown_metadata WHERE file_path = ?1", params![&path])?;
-            tx.execute("DELETE FROM markdown_links WHERE source_path = ?1", params![&path])?;
+            tx.execute("DELETE FROM files WHERE path = ?1 OR path LIKE (?1 || '/%')", params![&path])?;
+            tx.execute("DELETE FROM markdown_metadata WHERE file_path = ?1 OR file_path LIKE (?1 || '/%')", params![&path])?;
+            tx.execute("DELETE FROM markdown_links WHERE source_path = ?1 OR source_path LIKE (?1 || '/%')", params![&path])?;
         }
     }
 

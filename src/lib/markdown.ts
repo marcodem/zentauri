@@ -498,6 +498,9 @@ export function renderMarkdown(
     : `noext:${normalizedSrc}`;
   const cached = markdownRenderCache.get(cacheKey);
   if (cached != null) {
+    // Refresh LRU order on hit
+    markdownRenderCache.delete(cacheKey);
+    markdownRenderCache.set(cacheKey, cached);
     recordRendererPerf("markdown.render.cache-hit", 0, {
       chars: normalizedSrc.length,
     });
@@ -530,10 +533,11 @@ export function renderMarkdown(
 
     const html = sanitizeRenderedHtml(rawHtml);
     markdownRenderCache.set(cacheKey, html);
-    while (markdownRenderCache.size > MARKDOWN_RENDER_CACHE_LIMIT) {
+    if (markdownRenderCache.size > MARKDOWN_RENDER_CACHE_LIMIT) {
       const oldest = markdownRenderCache.keys().next().value;
-      if (!oldest) break;
-      markdownRenderCache.delete(oldest);
+      if (oldest !== undefined) {
+        markdownRenderCache.delete(oldest);
+      }
     }
     recordRendererPerf("markdown.render", performance.now() - startedAt, {
       chars: normalizedSrc.length,

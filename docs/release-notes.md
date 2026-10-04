@@ -4,6 +4,17 @@ title: Release Notes
 
 # 🚀 Zentauri Release Notes
 
+### ZenTauri v1.1.22
+- **Sicherheit & Pfadvalidierung (PDF-Export):** Strikte Härtung von `export_pdf` gegen Path-Traversal und Arbitrary-File-Writes. Exportpfade werden auf Nullbytes, `.pdf`-Endung, sensible Konfigurationsdateien (`.ssh`, `.gnupg`, Shell-Configs) und geschützte Systemverzeichnisse validiert. Direkte Root-Schreibzugriffe werden blockiert.
+- **Datenintegrität & SQLite-Bereinigung beim Löschen:** Implementierung des nativen Rust-Commands `delete_file_item`, der Dateien und Verzeichnisse löscht und atomar alle SQLite-Einträge sowie Kindelemente und Verlinkungen (`path LIKE (?1 || '/%')`) aus der Datenbank entfernt. `sync_directory` um rekursives Pruning gelöschter Ordnerinhalte erweitert.
+- **Tauri-Capabilities bereinigt:** Widersprüchlichen und redundanten `fs:scope`-Block aus den App-Capabilities entfernt; `fs:read-all` und `fs:write-all` decken externe Arbeitsverzeichnisse ab.
+- **Performance & Caching:** `markdownRenderCache` auf echte O(1)-LRU-Verwaltung umgestellt (Re-Insert bei Cache-Hit und O(1)-Eviction des ältesten Eintrags).
+- **UX & App-Lebenszyklus:** `autoSave.cancel()` und deterministischer Zustandsabgleich in `onBeforeUnmount` und `beforeunload` verhindern den Verlust ungespeicherter Änderungen oder hängende Timer beim Beenden der Anwendung.
+- **About-Dialog Build-Nummer:** Anzeige der Build-Nummer im About-Dialog und in den Einstellungen (`Version 1.1.22 (Build <N>)`) über `build.rs` und Git-Commit-Zähler.
+- **Erweiterte Testabdeckung:** Neue automatisierte Tests für Link-Normalisierung und Container-Clicks in der Markdown-Vorschau (`Preview.test.ts`) sowie native Integrationstests für die PDF-Export-Pfadvalidierung (`test_features.rs`).
+
+---
+
 ### ZenTauri v1.1.21
 - **Release-Notes-Anzeige im Update-Popup & Einstellungen:** Erweiterung des Update-Popups um einen interaktiven Toggle („Was ist neu in vX.Y.Z?“), der die vom Updater bereitgestellten Markdown-Releasenotes anzeigt. Releasenotes werden über `renderMarkdown` sicher ohne Script- oder Container-Erweiterungen geparst und über DOMPurify sanitisiert gerendert. Auch im Einstellungsdialog werden die Releasenotes nun formatiert eingeblendet.
 - **CI/CD-Härtung der Release-Pipeline:** Der `manifest`-Job wartet nun zwingend auf die erfolgreiche Beendigung des `release`-Jobs (`needs: release`) und verifiziert strikt die Existenz aller Signaturdateien (`.sig`) für Darwin, Windows und Linux, bevor das Update-Manifest `latest.json` publiziert wird.

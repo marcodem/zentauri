@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { renderMarkdown } from "./markdown";
 
 import { convertMarkdownToTypst } from "./typstConverter";
@@ -37,10 +37,16 @@ describe("renderMarkdown", () => {
     const emptyBracketsHtml = renderMarkdown("::: grammar-box []\nInhalt\n:::");
     expect(emptyBracketsHtml).not.toContain("md-box__title");
     expect(emptyBracketsHtml).not.toContain("<p></p>");
-    expect(emptyBracketsHtml).toContain('<div class="grammar-box custom-block">');
+    expect(emptyBracketsHtml).toContain(
+      '<div class="grammar-box custom-block">',
+    );
 
-    const withTitleHtml = renderMarkdown("::: grammar-box [Mein Titel]\nInhalt\n:::");
-    expect(withTitleHtml).toContain('<div class="md-box__title">Mein Titel</div>');
+    const withTitleHtml = renderMarkdown(
+      "::: grammar-box [Mein Titel]\nInhalt\n:::",
+    );
+    expect(withTitleHtml).toContain(
+      '<div class="md-box__title">Mein Titel</div>',
+    );
   });
 
   it("renders grammar-box in typst without empty title", () => {
@@ -48,16 +54,26 @@ describe("renderMarkdown", () => {
     expect(typstNoTitle).not.toContain("**\n");
     expect(typstNoTitle).toContain("Inhalt");
 
-    const typstEmpty = convertMarkdownToTypst("::: grammar-box []\nInhalt\n:::");
+    const typstEmpty = convertMarkdownToTypst(
+      "::: grammar-box []\nInhalt\n:::",
+    );
     expect(typstEmpty).not.toContain("**\n");
     expect(typstEmpty).toContain("Inhalt");
 
-    const typstWithTitle = convertMarkdownToTypst("::: grammar-box [Mein Titel]\nInhalt\n:::");
+    const typstWithTitle = convertMarkdownToTypst(
+      "::: grammar-box [Mein Titel]\nInhalt\n:::",
+    );
     expect(typstWithTitle).toContain("*Mein Titel*");
   });
 
   it("renders other boxes (note-box, metrik-schema, tip, deleteme-box) without empty title lines", () => {
-    const boxes = ["note-box", "metrik-schema", "tip", "deleteme-box", "important"];
+    const boxes = [
+      "note-box",
+      "metrik-schema",
+      "tip",
+      "deleteme-box",
+      "important",
+    ];
     for (const box of boxes) {
       const htmlNoTitle = renderMarkdown(`::: ${box}\nInhalt\n:::`);
       expect(htmlNoTitle).not.toContain("md-box__title");
@@ -90,7 +106,9 @@ Ausseres Fazit
     expect(html).toContain("Innere Regeln");
     expect(html).toContain("Ausseres Fazit");
     // Verify both containers are present and properly closed
-    const openDivCount = (html.match(/<div class="[^"]*custom-block[^"]*">/g) || []).length;
+    const openDivCount = (
+      html.match(/<div class="[^"]*custom-block[^"]*">/g) || []
+    ).length;
     expect(openDivCount).toBe(2);
   });
 
@@ -159,4 +177,3 @@ Ausseres Fazit
     expect(maliciousHtml).toContain("data:image/png;base64");
   });
 });
-

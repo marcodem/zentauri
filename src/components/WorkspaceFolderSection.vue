@@ -42,8 +42,7 @@ const contextTarget = ref<{ node: FileEntry; x: number; y: number } | null>(
 );
 
 const isTauri =
-  typeof window !== "undefined" &&
-  (window as any).__TAURI_INTERNALS__ !== undefined;
+  typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
 const folderName = computed(() => {
   if (!props.folderPath) return "FOLDER";
@@ -72,20 +71,25 @@ const loadRoot = async () => {
 
   if (isTauri) {
     try {
-      let rawNodes: { name: string; path: string; is_directory: boolean }[] = [];
+      interface WorkspaceNodeItem {
+        name: string;
+        path: string;
+        is_directory: boolean;
+        title?: string;
+        tags?: string[];
+        iast?: string;
+        devanagari?: string;
+      }
+      let rawNodes: WorkspaceNodeItem[] = [];
       if (props.quickFilter?.trim()) {
         rawNodes =
-          (await invoke<
-            { name: string; path: string; is_directory: boolean }[]
-          >("search_workspace", {
+          (await invoke<WorkspaceNodeItem[]>("search_workspace", {
             path: props.folderPath,
             query: props.quickFilter.trim(),
           })) || [];
       } else {
         rawNodes =
-          (await invoke<
-            { name: string; path: string; is_directory: boolean }[]
-          >("read_workspace_tree", {
+          (await invoke<WorkspaceNodeItem[]>("read_workspace_tree", {
             path: props.folderPath,
             sortMode: sortMode.value,
           })) || [];
@@ -95,6 +99,10 @@ const loadRoot = async () => {
         name: n.name,
         path: n.path,
         isDirectory: n.is_directory,
+        title: n.title,
+        tags: n.tags,
+        iast: n.iast,
+        devanagari: n.devanagari,
       }));
       isLoading.value = false;
       return;
@@ -284,7 +292,11 @@ async function handleRootRenameConfirm(payload: {
 
 async function handleRootDeleteConfirm(payload: { path: string }) {
   try {
-    await remove(payload.path);
+    if (isTauri) {
+      await invoke("delete_file_item", { path: payload.path });
+    } else {
+      await remove(payload.path);
+    }
     await loadRoot();
   } catch (err) {
     alert(`Failed to delete: ${err}`);

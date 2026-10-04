@@ -1,4 +1,4 @@
-import { check, type Update } from "@tauri-apps/plugin-updater";
+import { type Update, check } from "@tauri-apps/plugin-updater";
 
 export interface AppUpdateInfo {
   available: boolean;

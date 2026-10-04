@@ -1,21 +1,21 @@
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, watch } from "vue";
-import { EditorState, Compartment } from "@codemirror/state";
-import { EditorView, lineNumbers, keymap } from "@codemirror/view";
-import { history, historyKeymap, defaultKeymap } from "@codemirror/commands";
+import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { languages } from "@codemirror/language-data";
+import { Compartment, EditorState } from "@codemirror/state";
+import { EditorView, keymap, lineNumbers } from "@codemirror/view";
 import { vim } from "@replit/codemirror-vim";
+import { onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { adjustContainerNesting } from "../lib/auto-repair";
 import { directiveGuidelines } from "../lib/editor-extensions/directive-guidelines";
 import { livePreviewExtension } from "../lib/editor-extensions/live-preview";
-import { adjustContainerNesting } from "../lib/auto-repair";
 
 const props = defineProps<{
   modelValue: string;
   vimMode?: boolean;
   livePreview?: boolean;
 }>();
-const emit = defineEmits<{ (e: "update:modelValue", value: string): void }>();
+const emit = defineEmits<(e: "update:modelValue", value: string) => void>();
 
 function insertText(text: string) {
   if (!view) return;
