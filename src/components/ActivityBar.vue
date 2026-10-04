@@ -74,11 +74,11 @@ defineEmits<{
 
     <!-- Bottom Items -->
     <div class="flex flex-col gap-4 w-full items-center">
-      <!-- Print -->
+      <!-- Export PDF / Print -->
       <button 
-        @click="$emit('action', 'print')"
+        @click="$emit('action', 'export-pdf')"
         class="p-2 rounded-lg text-app-text-muted hover:text-app-text transition-colors flex items-center justify-center w-10 h-10"
-        title="Export to PDF / Print"
+        title="Export to PDF via Typst (Cmd/Ctrl+P)"
       >
         <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="6 9 6 2 18 2 18 9"></polyline>

@@ -293,6 +293,7 @@ const showHelpSystem = ref(false);
 const vimMode = ref(false);
 const isSaving = ref(false);
 const isAutoRepaired = ref(false);
+const isPdfExported = ref(false);
 const autoSaveEnabled = ref(true);
 
 const quickSnippets = [
@@ -407,6 +408,8 @@ function handleActivityToggle(view: string) {
 function handleActivityAction(action: string) {
   if (action === "print") {
     handlePrint();
+  } else if (action === "export-pdf") {
+    handleExportPdf();
   }
 }
 
@@ -640,9 +643,13 @@ function handleGlobalKeydown(e: KeyboardEvent) {
   if ((e.metaKey || e.ctrlKey) && e.key === "s") {
     e.preventDefault();
     forceSave();
-  } else if ((e.metaKey || e.ctrlKey) && e.key === "p") {
+  } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "p") {
     e.preventDefault();
-    handlePrint();
+    if (e.shiftKey) {
+      handlePrint();
+    } else {
+      handleExportPdf();
+    }
   }
 }
 
@@ -1106,6 +1113,10 @@ async function handleExportPdf() {
       isSaving.value = true;
       const typstMarkup = convertMarkdownToTypst(tab.content);
       await invoke("export_pdf", { typstMarkup, destinationPath: destPath });
+      isPdfExported.value = true;
+      setTimeout(() => {
+        isPdfExported.value = false;
+      }, 2500);
     }
   } catch (err) {
     console.error("Export PDF failed:", err);
@@ -1124,19 +1135,20 @@ async function handleExportPdf() {
     
     <!-- Toolbar -->
     <header class="flex-none flex items-center px-4 py-2 border-b border-app-border bg-app-bg-secondary select-none print:hidden" data-tauri-drag-region>
-      <!-- Auto-Save & Auto-Repair Status -->
+      <!-- Auto-Save, Auto-Repair & Export Status -->
       <div class="flex-1 text-center text-sm font-medium text-app-text-muted absolute left-0 right-0 pointer-events-none flex items-center justify-center gap-2">
-        <span v-if="isAutoRepaired" class="inline-block w-2.5 h-2.5 rounded-full bg-amber-400 animate-bounce" title="Auto-Repaired Syntax"></span>
+        <span v-if="isPdfExported" class="inline-block w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse" title="PDF Exported"></span>
+        <span v-else-if="isAutoRepaired" class="inline-block w-2.5 h-2.5 rounded-full bg-amber-400 animate-bounce" title="Auto-Repaired Syntax"></span>
         <span v-else-if="isSaving" class="inline-block w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
         <span v-else class="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
-        {{ isAutoRepaired ? 'Auto-Repaired & Saved' : (isSaving ? 'Saving...' : 'Saved') }}
+        {{ isPdfExported ? 'PDF Exported' : (isAutoRepaired ? 'Auto-Repaired & Saved' : (isSaving ? 'Saving...' : 'Saved')) }}
       </div>
       
       <div class="flex gap-2 z-10 relative ml-auto">
         <button 
           @click="handleExportPdf"
           class="px-3 py-1 bg-amber-600 hover:bg-amber-700 text-white dark:bg-amber-500 dark:hover:bg-amber-600 dark:text-slate-950 text-xs font-semibold rounded transition-colors shadow-xs"
-          title="Export as native PDF via Typst"
+          title="Export as native PDF via Typst (Cmd/Ctrl+P)"
         >
           Export PDF
         </button>
