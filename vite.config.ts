@@ -31,6 +31,27 @@ export default defineConfig(async () => ({
   optimizeDeps: {
     include: ["markdown-it-extensible"],
   },
+  build: {
+    chunkSizeWarningLimit: 1800,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes("node_modules")) {
+            if (id.includes("katex")) {
+              return "vendor-katex";
+            }
+            if (
+              id.includes("@codemirror") ||
+              id.includes("@lezer") ||
+              id.includes("@replit/codemirror-vim")
+            ) {
+              return "vendor-codemirror";
+            }
+          }
+        },
+      },
+    },
+  },
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //

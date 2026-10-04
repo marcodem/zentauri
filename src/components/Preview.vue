@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import mermaid from "mermaid";
 import { nextTick, onMounted, ref, watch } from "vue";
 import { renderMarkdown } from "../lib/markdown";
 
@@ -9,15 +8,6 @@ const container = ref<HTMLElement>();
 const html = ref("");
 let mermaidRunId = 0;
 let mermaidDebounceTimer: ReturnType<typeof setTimeout> | null = null;
-
-// Initialize Mermaid with strict security to prevent XSS / arbitrary DOM execution
-mermaid.initialize({
-  startOnLoad: false,
-  theme: document.documentElement.classList.contains("dark")
-    ? "dark"
-    : "default",
-  securityLevel: "strict",
-});
 
 async function runMermaidSafely() {
   const currentRunId = ++mermaidRunId;
@@ -29,6 +19,7 @@ async function runMermaidSafely() {
   if (mermaidNodes.length === 0) return;
 
   try {
+    const { default: mermaid } = await import("mermaid");
     const isDark = document.documentElement.classList.contains("dark");
     mermaid.initialize({
       startOnLoad: false,

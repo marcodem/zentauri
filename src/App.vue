@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {
   computed,
+  defineAsyncComponent,
   nextTick,
   onBeforeUnmount,
   onMounted,
@@ -11,12 +12,19 @@ import ActivityBar from "./components/ActivityBar.vue";
 import Cheatsheet from "./components/Cheatsheet.vue";
 import Editor from "./components/Editor.vue";
 import FileTree from "./components/FileTree.vue";
-import GraphView from "./components/GraphView.vue";
-import HelpSystem from "./components/HelpSystem.vue";
 import Preview from "./components/Preview.vue";
 import SearchPanel from "./components/SearchPanel.vue";
-import Settings from "./components/Settings.vue";
 import UpdateNotification from "./components/UpdateNotification.vue";
+
+const GraphView = defineAsyncComponent(
+  () => import("./components/GraphView.vue"),
+);
+const Settings = defineAsyncComponent(
+  () => import("./components/Settings.vue"),
+);
+const HelpSystem = defineAsyncComponent(
+  () => import("./components/HelpSystem.vue"),
+);
 import { autoRepairMarkdown } from "./lib/auto-repair";
 import CHEAT_SHEET, { type SyntaxItem } from "./lib/syntax-cheatsheet";
 import { convertMarkdownToTypst } from "./lib/typstConverter";
