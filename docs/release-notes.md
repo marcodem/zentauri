@@ -4,6 +4,13 @@ title: Release Notes
 
 # 🚀 Zentauri Release Notes
 
+### ZenTauri v1.1.21
+- **Release-Notes-Anzeige im Update-Popup & Einstellungen:** Erweiterung des Update-Popups um einen interaktiven Toggle („Was ist neu in vX.Y.Z?“), der die vom Updater bereitgestellten Markdown-Releasenotes anzeigt. Releasenotes werden über `renderMarkdown` sicher ohne Script- oder Container-Erweiterungen geparst und über DOMPurify sanitisiert gerendert. Auch im Einstellungsdialog werden die Releasenotes nun formatiert eingeblendet.
+- **CI/CD-Härtung der Release-Pipeline:** Der `manifest`-Job wartet nun zwingend auf die erfolgreiche Beendigung des `release`-Jobs (`needs: release`) und verifiziert strikt die Existenz aller Signaturdateien (`.sig`) für Darwin, Windows und Linux, bevor das Update-Manifest `latest.json` publiziert wird.
+- **UI- & Code-Bereinigung:** Entfernung ungenutzter Baum-Navigationsmethoden im Datei-Explorer, Behebung leerer Sidebar-Ansichten beim ersten App-Start und Bereinigung der VitePress-Container-Syntax in der Dokumentation.
+
+---
+
 ### ZenTauri v1.1.20
 - **Update-Benachrichtigung & 1-Click-Aktualisierung:** Automatische Prüfung auf neue Versionen beim Start (nach 4 Sekunden, um den Editorstart nicht zu verzögern) sowie periodisch alle 4 Stunden im laufenden Betrieb. Dezentes Birchville-Frosted-Glass-Popup am unteren Bildschirmrand mit Versionsanzeige, Fortschrittsbalken und 1-Click-Neustart (`UpdateNotification.vue`). Temporäres Zurückstellen („Später“) wird sitzungsbasiert (`sessionStorage`) gespeichert.
 - **Plattform- & CI/CD-Erweiterung für Linux ARM64:** GitHub Actions Release-Pipeline um native ARM64-Runner (`ubuntu-24.04-arm`) erweitert. ZenTauri wird nun auch nativ für `linux-aarch64` (AppImage und komprimiertes AppImage-Archiv) paketiert und im Tauri-Update-Manifest automatisch verlinkt.
