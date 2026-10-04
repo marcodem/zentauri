@@ -408,14 +408,6 @@ const isTauri =
 
 const unlistenFns: (() => void)[] = [];
 
-const handleBeforeUnload = () => {
-  if (autoSave) {
-    autoSave.cancel();
-  }
-  handleSaveAll();
-  saveTabsState();
-};
-
 // Memory
 onMounted(() => {
   window.addEventListener("keydown", handleGlobalKeydown);
@@ -743,6 +735,14 @@ async function handleSaveAll() {
       isSaving.value = false;
     }, 500);
   }
+}
+
+function handleBeforeUnload() {
+  if (autoSave) {
+    autoSave.cancel();
+  }
+  handleSaveAll();
+  saveTabsState();
 }
 
 async function handleSaveAs() {
