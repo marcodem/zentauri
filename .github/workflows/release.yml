@@ -111,10 +111,38 @@ jobs:
             SIG_LINUX_ARM64=""
           fi
 
+          # Extract release notes for current tag
+          NODE_NOTES=$(node -e '
+            const fs = require("fs");
+            const tag = process.argv[1];
+            const cleanVer = tag.replace(/^v/, "");
+            let text = "";
+            try {
+              const content = fs.readFileSync("docs/release-notes.md", "utf8");
+              const re = new RegExp(`###\\s+ZenTauri\\s+v?${cleanVer}[\\s\\S]*?(?=(?:###\\s+ZenTauri|---\\s*###|$))`, "i");
+              const m = content.match(re);
+              if (m) {
+                text = m[0].replace(/^###[^\n]+\n+/, "").trim();
+              }
+            } catch(e) {}
+            if (!text) {
+              try {
+                const content = fs.readFileSync("RELEASE_NOTES.md", "utf8");
+                const re = new RegExp(`#\\s+Release Notes[^\\n]+v?${cleanVer}[\\s\\S]*?(?=(?:#\\s+Release Notes|---\\s*#|$))`, "i");
+                const m = content.match(re);
+                if (m) {
+                  text = m[0].replace(/^#[^\n]+\n+/, "").trim();
+                }
+              } catch(e) {}
+            }
+            if (!text) text = `Zentauri ${tag} Release`;
+            process.stdout.write(JSON.stringify(text));
+          ' "${TAG_NAME}")
+
           cat <<EOF > latest.json
           {
             "version": "${TAG_NAME}",
-            "notes": "Zentauri ${TAG_NAME} Release",
+            "notes": ${NODE_NOTES},
             "pub_date": "$(date -u +'%Y-%m-%dT%H:%M:%SZ')",
             "platforms": {
               "darwin-aarch64": {

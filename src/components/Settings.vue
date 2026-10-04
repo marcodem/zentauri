@@ -80,8 +80,9 @@ const updateState = ref<
 >("idle");
 const updateMessage = ref("");
 const updateBody = ref("");
-const showSettingsNotes = ref(true);
+const showSettingsNotes = ref(false);
 const activeUpdate = shallowRef<Update | null>(null);
+const installProgress = ref(0);
 
 const renderedSettingsNotes = computed(() => {
   if (!updateBody.value) return "";
@@ -93,6 +94,7 @@ async function checkUpdates() {
   updateMessage.value = "Checking for updates...";
   activeUpdate.value = null;
   updateBody.value = "";
+  installProgress.value = 0;
 
   const result = await checkForUpdates();
   if (result.error) {
@@ -113,12 +115,16 @@ async function installUpdate() {
   if (!activeUpdate.value) return;
   updateState.value = "downloading";
   updateMessage.value = "Downloading update...";
+  installProgress.value = 0;
   try {
     const rawUpdate = toRaw(activeUpdate.value);
     await installAppUpdate(rawUpdate, (downloaded, total) => {
       if (total && total > 0) {
-        const pct = Math.round((downloaded / total) * 100);
-        updateMessage.value = `Downloading update... ${pct}%`;
+        installProgress.value = Math.min(
+          100,
+          Math.round((downloaded / total) * 100),
+        );
+        updateMessage.value = `Downloading update... ${installProgress.value}%`;
       }
     });
     updateMessage.value = "Update installed! Restarting app...";
@@ -218,6 +224,28 @@ async function installUpdate() {
             {{ updateMessage }}
           </div>
 
+          <!-- Download & Install button (Prominent, above release notes) -->
+          <button
+            v-if="updateState === 'available' && activeUpdate"
+            @click="installUpdate"
+            class="w-full py-2 bg-amber-500 hover:bg-amber-600 text-black text-xs font-semibold rounded-md transition-colors shadow-sm cursor-pointer flex items-center justify-center gap-1.5"
+          >
+            <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            Download & Install Update
+          </button>
+
+          <!-- Downloading progress bar -->
+          <div v-if="updateState === 'downloading'" class="flex flex-col gap-1">
+            <div class="w-full bg-app-bg-secondary h-2 rounded-full overflow-hidden border border-app-border">
+              <div
+                class="bg-amber-500 h-full transition-all duration-200"
+                :style="{ width: `${installProgress}%` }"
+              ></div>
+            </div>
+          </div>
+
           <!-- Release Notes in Settings -->
           <div
             v-if="updateState === 'available' && updateBody && updateBody.trim()"
@@ -237,14 +265,6 @@ async function installUpdate() {
               v-html="renderedSettingsNotes"
             ></div>
           </div>
-
-          <button
-            v-if="updateState === 'available' && activeUpdate"
-            @click="installUpdate"
-            class="w-full py-2 bg-amber-500 hover:bg-amber-600 text-black text-xs font-semibold rounded-md transition-colors shadow-sm"
-          >
-            Download & Install Update
-          </button>
 
           <p class="text-[11px] text-app-text-muted leading-relaxed">
             Fast, extensible Markdown editor powered by Tauri and Vue 3.
