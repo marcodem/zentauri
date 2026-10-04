@@ -247,11 +247,17 @@ function collapseAll() {
   collapseTrigger.value++;
 }
 
-const folderSectionRefs = ref<any[]>([]);
+const folderSectionRefs = ref<(InstanceType<typeof WorkspaceFolderSection> | null)[]>([]);
 
 onBeforeUpdate(() => {
   folderSectionRefs.value = [];
 });
+
+function setFolderSectionRef(el: unknown, idx: number) {
+  if (el) {
+    folderSectionRefs.value[idx] = el as InstanceType<typeof WorkspaceFolderSection>;
+  }
+}
 
 function triggerNewRootFile() {
   if (!folderSectionRefs.value.length) return;
@@ -259,10 +265,10 @@ function triggerNewRootFile() {
   if (props.activePath) {
     let longestMatchLen = -1;
     for (const sec of folderSectionRefs.value) {
-      const fp: string = sec?.folderPath?.value ?? sec?.folderPath ?? "";
+      const fp: string = sec?.folderPath ?? "";
       if (
         fp &&
-        (props.activePath === fp || props.activePath.startsWith(fp + "/"))
+        (props.activePath === fp || props.activePath.startsWith(`${fp}/`))
       ) {
         if (fp.length > longestMatchLen) {
           longestMatchLen = fp.length;
@@ -280,10 +286,10 @@ function triggerNewRootFolder() {
   if (props.activePath) {
     let longestMatchLen = -1;
     for (const sec of folderSectionRefs.value) {
-      const fp: string = sec?.folderPath?.value ?? sec?.folderPath ?? "";
+      const fp: string = sec?.folderPath ?? "";
       if (
         fp &&
-        (props.activePath === fp || props.activePath.startsWith(fp + "/"))
+        (props.activePath === fp || props.activePath.startsWith(`${fp}/`))
       ) {
         if (fp.length > longestMatchLen) {
           longestMatchLen = fp.length;
@@ -455,17 +461,22 @@ onMounted(loadRoot);
     
     <div class="flex-1 py-2 flex flex-col gap-1">
       <!-- Big Welcome/Empty State when no workspace is open and no files are loaded -->
-      <div v-if="!rootPath && (!openTabs || openTabs.length === 0)" class="px-4 py-8 flex flex-col gap-3">
+      <div v-if="computedRootPaths.length === 0 && displayOpenTabs.length === 0" class="px-4 py-8 flex flex-col gap-3">
+        <div class="text-center mb-1">
+          <p class="text-xs text-app-text-muted leading-relaxed">No folder opened in workspace.</p>
+        </div>
         <button 
           @click="$emit('open-folder')"
-          class="w-full py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-md transition-colors shadow-sm cursor-pointer"
+          class="w-full py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-md transition-colors shadow-sm cursor-pointer flex items-center justify-center gap-2"
         >
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
           Open Folder
         </button>
         <button 
           @click="$emit('open-file')"
-          class="w-full py-2 px-4 bg-app-bg-secondary hover:bg-app-bg text-app-text text-sm font-medium rounded-md border border-app-border transition-colors shadow-sm cursor-pointer"
+          class="w-full py-2 px-4 bg-app-bg-secondary hover:bg-app-bg text-app-text text-sm font-medium rounded-md border border-app-border transition-colors shadow-sm cursor-pointer flex items-center justify-center gap-2"
         >
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
           Open File
         </button>
       </div>
@@ -538,7 +549,7 @@ onMounted(loadRoot);
           <WorkspaceFolderSection
             v-for="(folderPath, idx) in computedRootPaths"
             :key="folderPath"
-            :ref="el => { if (el) folderSectionRefs[idx] = el }"
+            :ref="el => setFolderSectionRef(el, idx)"
             :folderPath="folderPath"
             :activePath="activePath"
             :quickFilter="quickFilter"

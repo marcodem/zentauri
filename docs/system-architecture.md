@@ -62,7 +62,7 @@ Zentauri maintains a local SQLite database (`.zentauri/index.db`) within each op
 - **`markdown_metadata`**: Stores parsed YAML frontmatter like `title`, `tags`, `iast`, and `devanagari` values for scholarly lookup.
 - **`markdown_links`**: Maps `[[wiki-links]]` and standard markdown links, which enables the Interactive Knowledge Graph.
 
-::: important-box
+::: tip WICHTIG
 The indexing process leverages Rust's `regex` and `serde_yaml` crates for high-speed parsing.
 :::
 

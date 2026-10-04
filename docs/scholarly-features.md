@@ -12,7 +12,7 @@ Zentauri integrates custom extensions on top of `markdown-it-extensible` to supp
 
 We've extended the standard markdown parser to support unique semantic blocks crucial for grammatical descriptions and literary analysis:
 
-- **Scholarly Blocks:** Custom containers like `::: grammar-box`, `::: note-box`, and `::: important-box`.
+- **Scholarly Blocks:** Custom containers like `::: grammar-box`, `::: note-box`, and `::: important`.
 - **Inline Sanskrit Typographics:** Support for special inline syntax like `《Sanskrit》` mapping perfectly to custom fallback fonts (e.g., Noto Sans Devanagari) during rendering.
 - **Visual Signals:** Direct inline highlights using `:sig[Signal]` and `:mark[Highlight]`.
 - **Math & Equations:** Native MathJax/KaTeX syntax `$e^{i\pi} + 1 = 0$` mapped to Typst math environments.
