@@ -4,6 +4,12 @@ title: Release Notes
 
 # 🚀 Zentauri Release Notes
 
+### ZenTauri v1.1.20
+- **Update-Benachrichtigung & 1-Click-Aktualisierung:** Automatische Prüfung auf neue Versionen beim Start (nach 4 Sekunden, um den Editorstart nicht zu verzögern) sowie periodisch alle 4 Stunden im laufenden Betrieb. Dezentes Birchville-Frosted-Glass-Popup am unteren Bildschirmrand mit Versionsanzeige, Fortschrittsbalken und 1-Click-Neustart (`UpdateNotification.vue`). Temporäres Zurückstellen („Später“) wird sitzungsbasiert (`sessionStorage`) gespeichert.
+- **Plattform- & CI/CD-Erweiterung für Linux ARM64:** GitHub Actions Release-Pipeline um native ARM64-Runner (`ubuntu-24.04-arm`) erweitert. ZenTauri wird nun auch nativ für `linux-aarch64` (AppImage und komprimiertes AppImage-Archiv) paketiert und im Tauri-Update-Manifest automatisch verlinkt.
+
+---
+
 ### ZenTauri v1.1.19
 - **Editor-Datenintegrität & Tab-Stabilität:** Pufferverlust bei Tab-Wechsel und Tab-Schließen behoben; deterministische Sicherung vor Wechseln und bei App-Beendigung (`beforeunload`); strikte Trennung von Autosave und Auto-Repair (Korrekturen erfolgen nur bei manuellem Speichern oder Tab-Wechsel, nie während des Tippens).
 - **Sicherheit & Sandbox-Härtung:** Strikte Content Security Policy (CSP) ohne `unsafe-eval`; Tauri File-System-Scope auf Standardordner gehärtet mit dynamischer Workspace-Freigabe (`fs_scope().allow_directory`); Zugriff auf System- und Volume-Roots (`/Volumes`, `C:\`, `/System` etc.) sowie Traversals strikt blockiert; Mermaid-Diagramme auf `securityLevel: "strict"` gesetzt.

@@ -16,6 +16,7 @@ import HelpSystem from "./components/HelpSystem.vue";
 import Preview from "./components/Preview.vue";
 import SearchPanel from "./components/SearchPanel.vue";
 import Settings from "./components/Settings.vue";
+import UpdateNotification from "./components/UpdateNotification.vue";
 import { autoRepairMarkdown } from "./lib/auto-repair";
 import CHEAT_SHEET, { type SyntaxItem } from "./lib/syntax-cheatsheet";
 import { convertMarkdownToTypst } from "./lib/typstConverter";
@@ -628,10 +629,7 @@ const saveTabsState = () => {
 };
 
 // Save a specific tab to file, optionally applying auto-repair
-async function saveTabToFile(
-  tab: Tab | null | undefined,
-  runRepair = false,
-) {
+async function saveTabToFile(tab: Tab | null | undefined, runRepair = false) {
   if (!tab || tab.isWeb) return;
 
   if (runRepair) {
@@ -1086,6 +1084,7 @@ async function handleExportPdf() {
   <main class="flex flex-col h-screen w-screen overflow-hidden bg-app-bg text-app-text print:h-auto print:w-auto print:overflow-visible print:bg-white print:text-black">
     <Settings class="print:hidden" :isOpen="showSettings" @close="handleSettingsClose" @update="handleSettingsUpdate" />
     <HelpSystem class="print:hidden" :isOpen="showHelpSystem" @close="showHelpSystem = false" @open-url="openExternalUrl" />
+    <UpdateNotification class="print:hidden" />
     
     <!-- Toolbar -->
     <header class="flex-none flex items-center px-4 py-2 border-b border-app-border bg-app-bg-secondary select-none print:hidden" data-tauri-drag-region>
