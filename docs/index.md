@@ -33,10 +33,10 @@ Zentauri ist ein nativer Desktop-Editor auf Basis des **Tauri v2** Frameworks. E
 ### Architektur & Technik
 - 📐 **[System-Architektur](./system-architecture)**: Rust-First File-Explorer, IPC-Kommunikation, SQLite-Indexierung und Typst-PDF-Pipeline.
 - 📝 **[Scholarly Features](./scholarly-features)**: Container-Blöcke (`::: grammar-box`), Devanāgarī-Formatierung und Knowledge-Graph.
-- 🚀 **[Release Notes](./release-notes)**: Versionshistorie und Feature-Übersicht von v1.0 bis v1.1.17.
+- 🚀 **[Release Notes](./release-notes)**: Versionshistorie und Feature-Übersicht von v1.0 bis v1.1.20.
 
 ---
 
-::: tip-box
+::: tip HINWEIS
 Nutzen Sie die linke Navigationsleiste, um direkt zwischen den Kapiteln zu wechseln.
 :::
