@@ -1,3 +1,27 @@
+# Release Notes — ZenTauri v1.2.0
+
+ZenTauri v1.2.0 is a major minor-feature release introducing the **QA Reference Dual-Document Mode** with intelligent heading-based scroll synchronization, automatic bilingual corpus detection, bidirectional **Harvard-Kyoto (HK) & IAST Sanskrit transliteration**, tag-safe directive conversions, an interactive Birchville status bar, and deep visual polish aligned with the Birchville „Scholarly Synthesis“ standard.
+
+## Highlights & Key Features (v1.2.0)
+
+### 📖 QA Reference Dual-Document Mode & Heading Sync
+* **Side-by-Side Reference Pane (`QaReferencePane.vue`):** Dedicated dual-pane comparison view supporting 2-column (Reference vs. Editor) and 3-column layouts (Reference, Editor, Live Preview) for comparative scholarly reading, translation, and editorial review.
+* **Intelligent Heading Scroll Synchronization (`heading-sync.ts`):** Matches Markdown headings (`#`, `##`, `###`) between source and reference documents to prevent scroll drift across asymmetrical translations (e.g. Sanskrit root verses vs. elaborated commentary). Modes: *Sync: Header*, *Sync: Percentage*, *Sync: Off*.
+* **Instant Column Swap:** One-click SWAP control to interchange reference and editor documents without resetting scroll coordinates or editor cursor state.
+* **Automatic Language Version Matching (`language-detector.ts`):** Heuristic detector that discovers matching language siblings across directory conventions (`/de/` ↔ `/en/`) and file naming suffixes (`_de.md` ↔ `_en.md`).
+
+### 🕉️ Harvard-Kyoto & IAST Sanskrit Transliteration
+* **Harvard-Kyoto Scheme Support:** Full bidirectional transliteration between Harvard-Kyoto (HK) and Devanāgarī alongside existing IAST workflows.
+* **Dedicated Global Shortcuts:** Keyboard bindings `⌥⌘H` (HK ⇄ Devanāgarī) and `⌥⌘D` (IAST ⇄ Devanāgarī) for cursor words or active text selections.
+* **Tag-Safe Directive Protection:** Custom parser preserving structural container directives (`:sig[...]`, `:mark[...]`), transliterating both internal payload and surrounding text safely without corrupting directive syntax.
+* **Hybrid Input Architecture:** Formalized 3-stage input roadmap (`docs/scholarly-input-architecture.md`) ensuring unhindered OS input passthrough while preparing future in-editor live IME scopes.
+
+### 📊 Birchville Status Bar & Interface Polish
+* **Interactive Status Bar (`StatusBar.vue`):** Bottom status bar displaying cursor coordinates (line/column), document metrics (character and word count), real-time heading synchronization status, and instant transliteration schema triggers.
+* **Scholarly Synthesis Design Standard:** Harmonized frosted-glass headers, ivory/deep ink light mode, and candlelit dark mode across all editor panes and documentation pages.
+
+---
+
 # Release Notes — ZenTauri v1.1.23
 
 ZenTauri v1.1.23 delivers advanced tab lifecycle management with native unsaved confirmation dialogs and context menus, an asynchronous Rust-first filesystem watcher for live workspace synchronization, enhanced Typst PDF export featuring a robust Sanskrit/Devanagari font cascade and configurable paper formats, Finder double-click tab replacement, and major frontend bundle optimizations.

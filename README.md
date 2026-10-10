@@ -6,6 +6,12 @@
 
 Zentauri is a lightweight (ca. 30MB on Mac), high-performance Markdown note-taking editor. Built with Tauri and Vue.js, it was first conceived as an extension to ZenNotes, but later built on a modern native desktop tech stack (Tauri -> ZenTauri). It combines native desktop performance with advanced scholarly Markdown rendering features specifically aligned with the Payer project (Sanskritkurs) standards.
 
+> [!NOTE]
+> **Purpose & Minimal Layout Philosophy**
+> - **Primary Goal (Markdown to HTML):** The primary purpose of Zentauri is to generate clean, semantic **HTML from Markdown** (optimized for scholarly digital corpora, VitePress online documentation, and web publications).
+> - **Minimal Layout Syntax:** Zentauri is not a bloated desktop publishing (DTP) suite. It deliberately provides only a focused set of extra Markdown syntax extensions (`::: grammar-box`, `::: note-box`, `::: center`, `:indent`, `:br`, and table spans) that allow a minimal, structured layout directly within the document flow.
+> - **PDF Export:** An integrated PDF export feature is available, designed to output the rendered HTML structure cleanly for archiving and sharing, rather than offering freeform print layouting.
+
 If you wish to explore the full architecture, developer notes, and syntax extensions, visit the [Documentation Wiki](https://marcodem.github.io/zentauri/).
 
 ---

@@ -71,3 +71,15 @@ The indexing process leverages Rust's `regex` and `serde_yaml` crates for high-s
 ## 4. Native PDF Export
 
 Zentauri completely drops heavy Chromium/Playwright dependencies in favor of native Rust rendering. We use **Typst** (`typst-as-lib`) directly inside the Tauri backend. The Vue frontend generates a Typst AST string from the Markdown document, passes it via IPC to Rust, and Rust compiles a beautiful, academic PDF in milliseconds.
+
+---
+
+## 5. Sanskrit-Eingabesteuerung (Hybrid-Architektur)
+
+Für indologische Mischtexte (Deutsch/Englisch + IAST/Devanāgarī) verfolgt Zentauri ein dreistufiges Hybrid-Konzept auf Applikationsebene statt fehleranfälliger OS-Tastaturlayouts oder reinem ASCII-Harvard-Kyoto:
+
+1. **Kanonische Speicherung:** Persistenz im Markdown-Quelltext immer in standardkonformem IAST (`kṛṣṇaḥ`) oder Devanāgarī (`कृष्णः`).
+2. **In-Editor IME (CodeMirror 6):** Automatische Scope-basierte Live-Transliteration aus Harvard-Kyoto innerhalb von `《...》` und `⟪...⟫` sowie Dead-Key/Compose-Sequenzen für den Fließtext.
+3. **Post-Hoc Tooling:** Globale Tastaturkürzel (`⌥⌘D`, `⌥⌘H`) zur schnellen Wandlung markierter Abschnitte.
+
+Ausführliche Spezifikation und Entscheidungsmatrix siehe: [Sanskrit Input Architecture](./scholarly-input-architecture.md).

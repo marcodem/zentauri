@@ -176,4 +176,17 @@ Ausseres Fazit
     expect(maliciousHtml).not.toContain("data:text/html");
     expect(maliciousHtml).toContain("data:image/png;base64");
   });
+
+  it("injects data-source-line attributes on block elements when sourceLines option is true", () => {
+    const md =
+      "# Title\n\nFirst paragraph\n\n## Subheading\n\n```js\nconst x = 1;\n```";
+    const withLines = renderMarkdown(md, { sourceLines: true });
+    expect(withLines).toContain('data-source-line="1"');
+    expect(withLines).toContain('data-source-line="3"');
+    expect(withLines).toContain('data-source-line="5"');
+    expect(withLines).toContain('data-source-line="7"');
+
+    const withoutLines = renderMarkdown(md, { sourceLines: false });
+    expect(withoutLines).not.toContain("data-source-line");
+  });
 });

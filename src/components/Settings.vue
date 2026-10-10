@@ -4,6 +4,7 @@ import { relaunch } from "@tauri-apps/plugin-process";
 import type { Update } from "@tauri-apps/plugin-updater";
 import { computed, onMounted, ref, shallowRef, toRaw, watch } from "vue";
 import { renderMarkdown } from "../lib/markdown";
+import { THEME_OPTIONS, applyTheme } from "../lib/theme";
 import { checkForUpdates, installAppUpdate } from "../lib/updater";
 
 defineProps<{
@@ -19,6 +20,7 @@ const currentTheme = ref("system");
 const fontSize = ref(16);
 const autoSave = ref(true);
 const vimMode = ref(false);
+const syncScroll = ref(true);
 const pdfPaper = ref<"a4" | "us-letter">("a4");
 
 const appVersion = ref(
@@ -37,6 +39,7 @@ onMounted(async () => {
       if (s.fontSize) fontSize.value = s.fontSize;
       if (s.autoSave !== undefined) autoSave.value = s.autoSave;
       if (s.vimMode !== undefined) vimMode.value = s.vimMode;
+      if (s.syncScroll !== undefined) syncScroll.value = s.syncScroll;
       if (s.pdfPaper) pdfPaper.value = s.pdfPaper;
     } catch (e) {}
   }
@@ -48,12 +51,13 @@ onMounted(async () => {
   } catch (e) {}
 });
 
-watch([currentTheme, fontSize, autoSave, vimMode, pdfPaper], () => {
+watch([currentTheme, fontSize, autoSave, vimMode, syncScroll, pdfPaper], () => {
   const s = {
     theme: currentTheme.value,
     fontSize: fontSize.value,
     autoSave: autoSave.value,
     vimMode: vimMode.value,
+    syncScroll: syncScroll.value,
     pdfPaper: pdfPaper.value,
   };
   localStorage.setItem("zentauri-settings", JSON.stringify(s));
@@ -61,15 +65,14 @@ watch([currentTheme, fontSize, autoSave, vimMode, pdfPaper], () => {
 });
 
 function applySettings() {
-  const html = document.documentElement;
-  html.setAttribute("data-theme", currentTheme.value);
-  html.style.setProperty("--editor-font-size", `${fontSize.value}px`);
+  applyTheme(currentTheme.value, fontSize.value);
 
   const s = {
     theme: currentTheme.value,
     fontSize: fontSize.value,
     autoSave: autoSave.value,
     vimMode: vimMode.value,
+    syncScroll: syncScroll.value,
     pdfPaper: pdfPaper.value,
   };
   emit("update", s);
@@ -153,16 +156,9 @@ async function installUpdate() {
             v-model="currentTheme"
             class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-app-border bg-app-bg text-app-text focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
           >
-            <option value="system">System</option>
-            <option value="light">Light</option>
-            <option value="dark">Dark</option>
-            <option value="gruvbox">Gruvbox</option>
-            <option value="solarized">Solarized Light</option>
-            <option value="solarized-dark">Solarized Dark</option>
-            <option value="catppuccin">Catppuccin (Mocha)</option>
-            <option value="tokyonight">Tokyo Night</option>
-            <option value="nord">Nord</option>
-            <option value="dracula">Dracula</option>
+            <option v-for="t in THEME_OPTIONS" :key="t.id" :value="t.id">
+              {{ t.label }}
+            </option>
           </select>
         </div>
         
@@ -185,6 +181,12 @@ async function installUpdate() {
         <div class="flex items-center justify-between">
           <label class="text-sm font-medium text-app-text">Vim Mode</label>
           <input type="checkbox" v-model="vimMode" class="w-5 h-5 text-blue-600 bg-app-bg border-app-border rounded cursor-pointer focus:ring-blue-500">
+        </div>
+
+        <!-- Synchronized Scrolling -->
+        <div class="flex items-center justify-between">
+          <label class="text-sm font-medium text-app-text">Synchronized Scrolling</label>
+          <input type="checkbox" v-model="syncScroll" class="w-5 h-5 text-blue-600 bg-app-bg border-app-border rounded cursor-pointer focus:ring-blue-500">
         </div>
 
         <!-- PDF Paper Format -->

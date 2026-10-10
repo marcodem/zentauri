@@ -9,11 +9,20 @@ const welcomeContent = `# Welcome to Zentauri
 This is your new Markdown home.
 Zentauri combines the simplicity of markdown with powerful extensions like Mermaid and LaTeX.
 
+::: note-box
+**Primary Purpose: Markdown to HTML**  
+The main purpose of Zentauri is compiling Markdown into clean, semantic **HTML** (optimized for web publishing and online digital editions). 
+
+While an integrated **PDF export** is provided, Zentauri deliberately features only a minimal set of extra Markdown syntax extensions (\`::: grammar-box\`, \`::: note-box\`, \`::: center\`, \`:indent\`, \`:br\`, and table formatting) to allow minimal, structured layouting directly within the text.
+:::
+
 ## Shortcuts
 - **Settings:** Click the ⚙️ icon to change themes or font sizes.
 - **Help:** Click the ? icon to open this guide.
 - **Vim Mode:** Toggle Vim mode from the toolbar if you prefer keyboard navigation.
 - **Cheatsheet:** A quick reference to standard Markdown.
+- **Transliteration (IAST ⇄ Devanagari):** \`⌥⌘D\` / \`Ctrl+Alt+D\` or \`F4\`
+- **Transliteration (Harvard-Kyoto ⇄ Devanagari):** \`⌥⌘H\` / \`Ctrl+Alt+H\` or \`Shift+F4\`
 
 ---
 Checkout the other help files to learn about advanced extensions!

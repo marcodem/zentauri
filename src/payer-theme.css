@@ -4,7 +4,8 @@ html {
   -moz-osx-font-smoothing: grayscale;
 }
 
-:root {
+:root,
+:root[data-theme="payer-day"] {
   --vp-font-family-base: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI",
     Roboto, sans-serif;
   --vp-font-family-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
@@ -17,19 +18,20 @@ html {
 
   --vp-c-text-1: #03192e;
   --vp-c-text-2: #1e2d37;
-  --vp-c-text-3: #241500;
+  --vp-c-text-3: #6b6257;
 
-  --vp-c-brand-1: #03192e;
-  --vp-c-brand-2: #1e2d37;
-  --vp-c-brand-3: #241500;
-  --vp-c-brand-soft: rgba(3, 25, 46, 0.05);
+  --vp-c-brand-1: #b45309;
+  --vp-c-brand-2: #92400e;
+  --vp-c-brand-3: #78350f;
+  --vp-c-brand-soft: rgba(180, 83, 9, 0.08);
 
-  --vp-c-divider: #a1a1a1;
-  --vp-c-border: #a1a1a1;
+  --vp-c-divider: #d8d2c6;
+  --vp-c-border: #d8d2c6;
   --vp-c-gutter: transparent;
 }
 
-.dark {
+.dark,
+:root[data-theme="payer-night"] {
   /* ── Scholarly Synthesis Dark · "Die illuminierte Handschrift bei Kerzenlicht" ── */
   /* Hintergründe: Deep Ink ── */
   --vp-c-bg: #0a1628;
@@ -57,6 +59,12 @@ html {
   --vp-c-divider: #334155;
   --vp-c-border: #334155;
   --vp-c-gutter: #0a1628;
+}
+
+.dark ::selection,
+:root[data-theme="payer-night"] ::selection {
+  background-color: #27528a !important;
+  color: #e8e0d3 !important;
 }
 
 /* Typografie: Konsistent Source Serif 4 für das gesamte Dokument wie bei Payer */
@@ -203,9 +211,12 @@ html {
 }
 
 .dark .vp-doc mark.marker-yellow,
-.dark .vp-doc mark {
-  background-color: #854d0e !important;
-  color: #fef08a !important;
+.dark .vp-doc mark,
+:root[data-theme="payer-night"] .vp-doc mark {
+  background-color: #eab308 !important;
+  color: #03192e !important;
+  font-weight: 600 !important;
+  box-shadow: 0 0 6px rgba(234, 179, 8, 0.3);
 }
 
 /* Phonetic Tables (Lektion 1, etc.) */
@@ -246,8 +257,9 @@ html {
 }
 
 /* Devanagari Scholarly Styling */
+.vp-doc .sanskrit-dev,
 .sanskrit-dev {
-  color: #b22222; /* Scholastic Red */
+  color: #b22222 !important; /* Scholastic Red (Dunkelrot) */
   font-family: "Sanskrit2003", "ITR Vijay", serif;
   font-size: 1.15em;
   font-weight: 600;
@@ -286,7 +298,7 @@ html[dir="rtl"] .vp-doc em {
 .vp-doc table strong em .sanskrit-dev,
 .vp-doc table em strong .sanskrit-dev,
 .vp-doc table mark .sanskrit-dev {
-  color: #b22222 !important; /* Scholarly red (Hellrot) */
+  color: #b22222 !important; /* Scholastic Red (Dunkelrot) */
 }
 
 /* Make Devanagari inside tables larger for better legibility */
@@ -330,7 +342,11 @@ html[dir="rtl"] .vp-doc em {
 :root[data-theme="dracula"] .grammar-box,
 :root[data-theme="dracula"] .grammarbox,
 :root[data-theme="tokyonight"] .grammar-box,
-:root[data-theme="tokyonight"] .grammarbox {
+:root[data-theme="tokyonight"] .grammarbox,
+:root[data-theme="payer-night"] .grammar-box,
+:root[data-theme="payer-night"] .grammarbox,
+:root[data-theme="payer-night"] .custom-block.grammar-box,
+:root[data-theme="payer-night"] .custom-block.grammarbox {
   background-color: #241500 !important; /* Dark Golden Amber */
   border-left-color: #eab308 !important; /* Golden Yellow Border */
   color: #fef08a !important; /* Soft Yellow Text */
@@ -373,7 +389,11 @@ div.grammarbox2 {
 :root[data-theme="dracula"] .grammar-box2,
 :root[data-theme="dracula"] .grammarbox2,
 :root[data-theme="tokyonight"] .grammar-box2,
-:root[data-theme="tokyonight"] .grammarbox2 {
+:root[data-theme="tokyonight"] .grammarbox2,
+:root[data-theme="payer-night"] .grammar-box2,
+:root[data-theme="payer-night"] .grammarbox2,
+:root[data-theme="payer-night"] .custom-block.grammar-box2,
+:root[data-theme="payer-night"] .custom-block.grammarbox2 {
   background-color: #431407 !important; /* Deep Rich Dark Orange */
   border-left-color: #f97316 !important; /* Vibrant Orange Border */
   color: #ffedd5 !important; /* Soft Warm Orange Text */
@@ -1035,12 +1055,12 @@ a.VPLink[href="/bg/"] {
 /* Signalrot (Red Highlight) */
 .signalrot,
 .vp-doc .signalrot {
-  color: #ee2c30 !important;
+  color: #ff0000 !important;
   font-weight: bold !important;
 }
 .signalrot .sanskrit-dev,
 .vp-doc .signalrot .sanskrit-dev {
-  color: #ee2c30 !important;
+  color: #ff0000 !important;
   font-weight: 600 !important;
 }
 
@@ -1056,9 +1076,12 @@ mark.marker-yellow,
 }
 .dark .marker-yellow,
 .vscode-dark .marker-yellow,
-.dark .vp-doc .marker-yellow {
-  background-color: #854d0e !important;
-  color: #fef08a !important;
+.dark .vp-doc .marker-yellow,
+:root[data-theme="payer-night"] .marker-yellow {
+  background-color: #eab308 !important;
+  color: #03192e !important;
+  font-weight: 600 !important;
+  box-shadow: 0 0 6px rgba(234, 179, 8, 0.3);
 }
 
 /* Sanskrit Devanagari */
@@ -1066,7 +1089,7 @@ mark.marker-yellow,
 .vp-doc .sanskrit-dev {
   font-family: "Sanskrit 2003", "Murty Sanskrit", "Noto Sans Devanagari",
     "Tiro Devanagari Sanskrit", serif !important;
-  color: #ee2c30 !important;
+  color: #b22222 !important; /* Scholastic Red (Dunkelrot) */
   font-weight: 600;
 }
 

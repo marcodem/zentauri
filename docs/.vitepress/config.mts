@@ -47,6 +47,10 @@ export default defineConfig({
         collapsed: false,
         items: [
           { text: "System-Architektur", link: "/system-architecture" },
+          {
+            text: "Sanskrit Input Architecture",
+            link: "/scholarly-input-architecture",
+          },
           { text: "Scholarly Features", link: "/scholarly-features" },
           { text: "Release Notes", link: "/release-notes" },
         ],

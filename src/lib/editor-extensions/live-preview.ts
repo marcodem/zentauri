@@ -63,6 +63,10 @@ const sanskritRuleDeco = Decoration.mark({
   class: "cm-sanskrit-rule",
 });
 
+const markTextDeco = Decoration.mark({
+  class: "cm-live-mark",
+});
+
 const headingLineDecos: Record<number, Decoration> = {
   1: Decoration.line({ class: "cm-live-h1" }),
   2: Decoration.line({ class: "cm-live-h2" }),
@@ -385,6 +389,82 @@ function buildLivePreviewDecorations(view: EditorView): DecorationSet {
         const end = start + match[0].length;
 
         inlineDecos.push({ from: start, to: end, deco: sanskritRuleDeco });
+      }
+
+      // 11. Highlighted Text (==text==)
+      const highlightRegex = /(==)(.*?)\1/g;
+      for (const match of text.matchAll(highlightRegex)) {
+        if (match.index == null) continue;
+        const start = line.from + match.index;
+        const end = start + match[0].length;
+        const delimLen = match[1].length;
+
+        inlineDecos.push({
+          from: start,
+          to: start + delimLen,
+          deco: hiddenSyntaxDeco,
+        });
+        inlineDecos.push({
+          from: start + delimLen,
+          to: end - delimLen,
+          deco: markTextDeco,
+        });
+        inlineDecos.push({
+          from: end - delimLen,
+          to: end,
+          deco: hiddenSyntaxDeco,
+        });
+      }
+
+      // 12. Payer Mark Directive (:mark[text])
+      const markDirectiveRegex = /:mark\[(.*?)\]/g;
+      for (const match of text.matchAll(markDirectiveRegex)) {
+        if (match.index == null) continue;
+        const start = line.from + match.index;
+        const end = start + match[0].length;
+        const prefixLen = 6;
+
+        inlineDecos.push({
+          from: start,
+          to: start + prefixLen,
+          deco: hiddenSyntaxDeco,
+        });
+        inlineDecos.push({
+          from: start + prefixLen,
+          to: end - 1,
+          deco: markTextDeco,
+        });
+        inlineDecos.push({
+          from: end - 1,
+          to: end,
+          deco: hiddenSyntaxDeco,
+        });
+      }
+
+      // 13. HTML Mark Tag (<mark>text</mark>)
+      const htmlMarkRegex = /<mark>(.*?)<\/mark>/gi;
+      for (const match of text.matchAll(htmlMarkRegex)) {
+        if (match.index == null) continue;
+        const start = line.from + match.index;
+        const end = start + match[0].length;
+        const openLen = 6;
+        const closeLen = 7;
+
+        inlineDecos.push({
+          from: start,
+          to: start + openLen,
+          deco: hiddenSyntaxDeco,
+        });
+        inlineDecos.push({
+          from: start + openLen,
+          to: end - closeLen,
+          deco: markTextDeco,
+        });
+        inlineDecos.push({
+          from: end - closeLen,
+          to: end,
+          deco: hiddenSyntaxDeco,
+        });
       }
 
       // Sort inline decorations strictly by `from` position ascending

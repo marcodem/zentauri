@@ -45,9 +45,9 @@ describe("App Component Integration", () => {
           Cheatsheet: true,
           HelpSystem: true,
           Settings: true,
-          GraphView: true,
           SearchPanel: true,
           UpdateNotification: true,
+          StatusBar: true,
         },
       },
     });
@@ -59,5 +59,29 @@ describe("App Component Integration", () => {
     // Verify Editor component is mounted
     const editor = wrapper.findComponent(Editor);
     expect(editor.exists()).toBe(true);
+  });
+
+  it("toggles Vim mode when clicking the toolbar Vim button", async () => {
+    const wrapper = mount(App, {
+      global: {
+        stubs: {
+          Editor: true,
+          Preview: true,
+          Cheatsheet: true,
+          HelpSystem: true,
+          Settings: true,
+          SearchPanel: true,
+          UpdateNotification: true,
+          StatusBar: true,
+        },
+      },
+    });
+
+    const vimBtn = wrapper.find("button[aria-label='Vim Mode']");
+    expect(vimBtn.exists()).toBe(true);
+    expect(vimBtn.attributes("title")).toBe("Vim-Modus: Inaktiv");
+
+    await vimBtn.trigger("click");
+    expect(vimBtn.attributes("title")).toBe("Vim-Modus: Aktiv");
   });
 });

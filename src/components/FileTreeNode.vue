@@ -465,7 +465,7 @@ async function refresh() {
     @drop="onDrop"
   >
     <div 
-      class="flex items-center py-1.5 px-2 cursor-pointer hover:bg-app-bg-hover transition-all rounded-md mx-1 my-0.5"
+      class="flex items-center py-1.5 px-2 cursor-pointer hover:bg-app-bg-hover transition-all rounded-md mx-1 my-0.5 whitespace-nowrap min-w-full w-max"
       :class="{ 
         'bg-app-bg-active text-blue-500 font-medium': activePath === node.path,
         'ring-2 ring-blue-500 bg-blue-500/15': isDragOver 
@@ -536,17 +536,17 @@ async function refresh() {
         @keydown.esc="cancelEdit"
         @blur="submitEdit"
         @click.stop
-        class="text-sm px-1 py-0.5 bg-app-bg border border-blue-500 rounded text-app-text focus:outline-none w-full"
+        class="text-sm px-1 py-0.5 bg-app-bg border border-blue-500 rounded text-app-text focus:outline-none min-w-[140px]"
       />
-      <div v-else class="flex flex-col min-w-0 flex-1">
-        <span class="text-sm truncate select-none text-app-text" :class="{ 'text-app-text-muted': !isMarkdown && !node.isDirectory }">
+      <div v-else class="flex flex-col min-w-0 pr-4">
+        <span class="text-sm select-none text-app-text whitespace-nowrap" :class="{ 'text-app-text-muted': !isMarkdown && !node.isDirectory }">
           {{ node.title || node.name }}
         </span>
-        <div v-if="node.iast || node.devanagari" class="flex gap-1.5 mt-0.5">
-          <span v-if="node.devanagari" class="text-[9px] px-1 py-0.5 rounded bg-app-border/40 text-app-text-muted font-serif">
+        <div v-if="node.iast || node.devanagari" class="flex gap-1.5 mt-0.5 whitespace-nowrap">
+          <span v-if="node.devanagari" class="text-[9px] px-1 py-0.5 rounded bg-app-border/40 text-app-text-muted font-serif shrink-0">
             {{ node.devanagari }}
           </span>
-          <span v-if="node.iast" class="text-[9px] px-1 py-0.5 rounded bg-app-border/40 text-app-text-muted">
+          <span v-if="node.iast" class="text-[9px] px-1 py-0.5 rounded bg-app-border/40 text-app-text-muted shrink-0">
             {{ node.iast }}
           </span>
         </div>
@@ -554,7 +554,7 @@ async function refresh() {
     </div>
     
     <!-- Children -->
-    <div v-if="node.isDirectory && isOpen">
+    <div v-if="node.isDirectory && isOpen" class="min-w-full w-max">
       <div v-if="isLoading" class="text-xs text-app-text-muted py-1 opacity-80" :style="{ paddingLeft: ((depth + 1) * 1 + 0.5) + 'rem' }">
         Loading...
       </div>

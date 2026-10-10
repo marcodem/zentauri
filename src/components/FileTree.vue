@@ -143,15 +143,36 @@ defineExpose({
 </script>
 
 <template>
-  <div class="h-full bg-app-bg-secondary border-r border-app-border overflow-y-auto flex flex-col">
-    <div class="px-4 py-3 border-b border-app-border sticky top-0 bg-app-bg-secondary z-10 flex items-center justify-between group">
+  <div class="h-full bg-app-bg-secondary border-r border-app-border flex flex-col min-w-0 overflow-hidden">
+    <div class="px-4 py-3 border-b border-app-border shrink-0 bg-app-bg-secondary z-10 flex items-center justify-between group">
       <div class="flex items-center gap-2 select-none text-app-text">
         <img src="../assets/centaur.png" alt="ZenTauri Logo" class="h-6 w-6 object-contain opacity-85 mix-blend-multiply dark:mix-blend-screen dark:invert" />
         <span class="font-bold tracking-wide text-sm">ZenTauri</span>
       </div>
     </div>
+
+    <!-- Quick Filter Input Bar (Pinned at top when workspace/tabs present) -->
+    <div 
+      v-if="computedRootPaths.length > 0 || displayOpenTabs.length > 0" 
+      class="px-2 py-1.5 border-b border-app-border/60 bg-app-bg-secondary flex items-center gap-1.5 shrink-0 z-10"
+    >
+      <div class="relative w-full flex items-center">
+        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="absolute left-2 text-app-text-muted"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        <input 
+          v-model="quickFilter"
+          type="text" 
+          placeholder="Filter files..." 
+          class="w-full bg-app-bg text-[11px] text-app-text pl-6 pr-6 py-1 rounded border border-app-border focus:border-blue-500 focus:outline-none placeholder:text-app-text-muted/60"
+        />
+        <button 
+          v-if="quickFilter" 
+          @click="quickFilter = ''" 
+          class="absolute right-1.5 text-app-text-muted hover:text-app-text text-xs cursor-pointer"
+        >✕</button>
+      </div>
+    </div>
     
-    <div class="flex-1 py-2 flex flex-col gap-1">
+    <div class="flex-1 py-2 flex flex-col gap-1 overflow-x-auto overflow-y-auto min-w-0 custom-scrollbar">
       <!-- Big Welcome/Empty State when no workspace is open and no files are loaded -->
       <div v-if="computedRootPaths.length === 0 && displayOpenTabs.length === 0" class="px-4 py-8 flex flex-col gap-3">
         <div class="text-center mb-1">
@@ -173,29 +194,11 @@ defineExpose({
         </button>
       </div>
 
-      <template v-else>
-        <!-- Quick Filter Input Bar (Always Visible) -->
-        <div class="px-2 py-1.5 border-b border-app-border/60 bg-app-bg-secondary flex items-center gap-1.5 sticky top-0 z-10">
-          <div class="relative w-full flex items-center">
-            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="absolute left-2 text-app-text-muted"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-            <input 
-              v-model="quickFilter"
-              type="text" 
-              placeholder="Filter files..." 
-              class="w-full bg-app-bg text-[11px] text-app-text pl-6 pr-6 py-1 rounded border border-app-border focus:border-blue-500 focus:outline-none placeholder:text-app-text-muted/60"
-            />
-            <button 
-              v-if="quickFilter" 
-              @click="quickFilter = ''" 
-              class="absolute right-1.5 text-app-text-muted hover:text-app-text text-xs"
-            >✕</button>
-          </div>
-        </div>
-
+      <div v-else class="min-w-full w-max flex flex-col">
         <!-- Open Editors Section (Querbalken 1) -->
-        <div v-if="displayOpenTabs && displayOpenTabs.length > 0" class="mb-2">
+        <div v-if="displayOpenTabs && displayOpenTabs.length > 0" class="mb-2 min-w-full w-max">
           <div 
-            class="px-2 py-1.5 text-xs font-bold uppercase tracking-wider text-app-text-muted flex justify-between items-center group/section cursor-pointer select-none bg-app-bg-secondary hover:bg-app-bg transition-colors border-y border-app-border" 
+            class="px-2 py-1.5 text-xs font-bold uppercase tracking-wider text-app-text-muted flex justify-between items-center group/section cursor-pointer select-none bg-app-bg-secondary hover:bg-app-bg transition-colors border-y border-app-border sticky left-0 z-[5] min-w-full" 
             @click="isOpenEditorsExpanded = !isOpenEditorsExpanded"
           >
             <div class="flex items-center gap-1.5">
@@ -211,33 +214,33 @@ defineExpose({
             </div>
           </div>
           
-          <div v-show="isOpenEditorsExpanded" class="flex flex-col py-1">
+          <div v-show="isOpenEditorsExpanded" class="flex flex-col py-1 min-w-full w-max">
             <div 
               v-for="tab in displayOpenTabs" 
               :key="tab.id"
               @click="$emit('select', tab.path)"
-              class="flex items-center justify-between px-2 py-1 text-[13px] cursor-pointer hover:bg-app-bg transition-colors group/tab"
+              class="flex items-center justify-between px-2 py-1 text-[13px] cursor-pointer hover:bg-app-bg transition-colors group/tab whitespace-nowrap min-w-full w-max"
               :class="{'bg-app-bg border-l-2 border-l-blue-500': activePath === tab.path, 'border-l-2 border-l-transparent': activePath !== tab.path}"
             >
-              <div class="flex items-center gap-1.5 truncate">
+              <div class="flex items-center gap-1.5 whitespace-nowrap min-w-0 pr-2">
                 <button 
                   @click.stop="$emit('close-tab', openTabs?.findIndex(t => t.id === tab.id) ?? -1)"
-                  class="opacity-0 group-hover/tab:opacity-100 text-app-text-muted hover:text-app-text transition-all p-[2px] rounded-sm hover:bg-app-border"
+                  class="opacity-0 group-hover/tab:opacity-100 text-app-text-muted hover:text-app-text transition-all p-[2px] rounded-sm hover:bg-app-border shrink-0 cursor-pointer"
                   title="Close"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                 </button>
-                <div v-if="!activePath || activePath !== tab.path" class="w-[14px] group-hover/tab:hidden"></div>
+                <div v-if="!activePath || activePath !== tab.path" class="w-[14px] group-hover/tab:hidden shrink-0"></div>
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-400 opacity-90 shrink-0"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
-                <span class="truncate text-app-text" :class="{'text-blue-400 font-medium': activePath === tab.path}">{{ tab.title }}</span>
-                <span v-if="getDisplayDirectory(tab.path)" class="text-[10px] text-app-text-muted truncate ml-1.5 opacity-60 italic font-mono">{{ getDisplayDirectory(tab.path) }}</span>
+                <span class="whitespace-nowrap text-app-text" :class="{'text-blue-400 font-medium': activePath === tab.path}">{{ tab.title }}</span>
+                <span v-if="getDisplayDirectory(tab.path)" class="text-[10px] text-app-text-muted whitespace-nowrap ml-1.5 opacity-60 italic font-mono">{{ getDisplayDirectory(tab.path) }}</span>
               </div>
             </div>
           </div>
         </div>
 
         <!-- Workspace / Parent Folder Sections (Multi-Folder Support) -->
-        <div v-if="computedRootPaths.length > 0" class="flex flex-col">
+        <div v-if="computedRootPaths.length > 0" class="flex flex-col min-w-full w-max">
           <WorkspaceFolderSection
             v-for="(folderPath, idx) in computedRootPaths"
             :key="folderPath"
@@ -260,7 +263,7 @@ defineExpose({
             Open Folder
           </button>
         </div>
-      </template>
+      </div>
     </div>
   </div>
 </template>

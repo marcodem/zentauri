@@ -8,8 +8,20 @@ title: Zentauri — Technical Documentation
 Willkommen zur offiziellen Dokumentation für **Zentauri**, dem modernen, ultra-schnellen Markdown-Editor für akademische Arbeiten und wissenschaftliche Textkorpora.
 
 ::: note-box
-Zentauri ist ein nativer Desktop-Editor auf Basis des **Tauri v2** Frameworks. Er kombiniert ein extrem schlankes, performantes **Rust-Backend** mit einem reaktiven **Vue 3 Frontend**, optimiert für wissenschaftliches Arbeiten, Wissensvernetzung und hochwertige PDF-Publikation.
+**Zweck & Layout-Philosophie**:
+Der primäre Zweck von Zentauri ist es, aus **Markdown sauberes, semantisches HTML herzustellen** (prädestiniert für wissenschaftliche Web-Korpora, Online-Editionen und VitePress-Dokumentationen). 
+
+Zwar besteht eine integrierte PDF-Exportfunktion, Zentauri versteht sich jedoch nicht als mächtige Desktop-Publishing-Suite (DTP): Es bietet bewusst nur wenige, gezielte Markdown-Syntaxerweiterungen (`::: grammar-box`, `::: note-box`, `::: center`, `:indent`, `:br`, Tabellenspans), die ein minimales, didaktisches Layouten direkt im Textfluss erlauben.
 :::
+
+---
+
+## 🎯 Primärzweck: Markdown zu HTML
+
+Zentauri fokussiert sich auf die medienneutrale Strukturierung von Texten:
+1. **HTML als primäres Zielformat:** Die Textauszeichnung wird verlustfrei und hochgradig standardisiert in HTML überführt – ideal für Webseiten, VitePress-Dokumentationen und digitale Lehrbücher.
+2. **Minimales Layouting im Markdown:** Statt visueller Pixel-Schieberei gibt es eine kleine, feine Auswahl an semantischen Layout-Direktiven (Container-Boxen, Einrückungen, Inline-Signalmarkierungen und Textzentrierung).
+3. **PDF-Export:** Die integrierte PDF-Funktion rendert das erzeugte HTML zur Weitergabe und Archivierung, ersetzt aber kein komplexes Satzprogramm für Print-Layouts.
 
 ---
 

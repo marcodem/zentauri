@@ -110,4 +110,31 @@ describe("Settings Component - Update Flow & Layout", () => {
     await new Promise((r) => setTimeout(r, 10));
     expect(mockRelaunch).toHaveBeenCalled();
   });
+
+  it("allows selecting Payer-Day and Payer-Night palettes and applies them", async () => {
+    const wrapper = mount(Settings, {
+      props: { isOpen: true },
+    });
+
+    const themeSelect = wrapper.find<HTMLSelectElement>("select#theme");
+    expect(themeSelect.exists()).toBe(true);
+
+    const options = themeSelect
+      .findAll("option")
+      .map((opt) => opt.attributes("value"));
+    expect(options).toContain("payer-day");
+    expect(options).toContain("payer-night");
+
+    await themeSelect.setValue("payer-day");
+    expect(document.documentElement.getAttribute("data-theme")).toBe(
+      "payer-day",
+    );
+    expect(document.documentElement.classList.contains("dark")).toBe(false);
+
+    await themeSelect.setValue("payer-night");
+    expect(document.documentElement.getAttribute("data-theme")).toBe(
+      "payer-night",
+    );
+    expect(document.documentElement.classList.contains("dark")).toBe(true);
+  });
 });

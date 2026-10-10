@@ -42,3 +42,15 @@ Zentauri features a built-in Javascript-based syntax repair utility (`auto-repai
 ## 4. Metadata Display
 
 The file explorer natively hooks into the SQLite backend to fetch and display intelligent YAML metadata. Instead of just file names, the explorer dynamically displays parsed document `title`s and visual badges representing localized content (`IAST`, `Devanagari`).
+
+---
+
+## 5. QA-Vergleichsmodus & Synchron-Scrollen
+
+Für Übersetzer, Lektoren und vergleichende Textanalysen (nach Vorbild des Payer QA Viewers):
+
+- **Dual- & Triple-Pane (2-Col / 3-Col):** Parallele Anzeige einer Referenzdatei links neben dem CodeMirror-Editor (2-Col) bzw. mit zusätzlicher Live-Vorschau rechts (3-Col).
+- **SWAP-Funktion:** Schneller Seitentausch von Referenz- und Arbeitsdokument mit einem Klick.
+- **Heading-basiertes Synchron-Scrollen:** Intelligente Verknüpfung über Markdown-Überschriften (`#`, `##`, `###`), Nummernpräfixe und relative Interpolation – kein Desynchronisieren bei unterschiedlich langen Sprachfassungen. Umschaltbar zwischen *Sync: Header*, *Sync: Percentage* und *Sync: Off*.
+- **Parallele Sprachnavigation:** Automatische Erkennung paralleler Sprachversionen (z. B. `de/` ↔ `en/`) und Ein-Klick-Auswahl passender Referenzdokumente im Workspace.
+

@@ -49,6 +49,7 @@ const ALLOWED_RENDERED_DATA_ATTRS = [
   "data-local-asset-url",
   "data-mermaid-source",
   "data-resolved-path",
+  "data-source-line",
   "data-tag",
   "data-tikz-source",
   "data-zen-diagram-expanded",
@@ -323,11 +324,21 @@ export function katexMathPlugin(mdInstance: MarkdownIt) {
     }
   };
 
-  mdInstance.renderer.rules.math_block = (tokens: Token[], idx: number) => {
+  mdInstance.renderer.rules.math_block = (
+    tokens: Token[],
+    idx: number,
+    _options: any,
+    env: any,
+  ) => {
+    const token = tokens[idx];
+    const lineAttr =
+      env?.sourceLines && token.map
+        ? ` data-source-line="${token.map[0] + 1}"`
+        : "";
     try {
-      return `<div class="katex-block my-4 flex justify-center">${katex.renderToString(tokens[idx].content, { displayMode: true, throwOnError: false })}</div>`;
+      return `<div class="katex-block my-4 flex justify-center"${lineAttr}>${katex.renderToString(token.content, { displayMode: true, throwOnError: false })}</div>`;
     } catch (_err) {
-      return `<pre class="text-red-500 font-mono">${mdInstance.utils.escapeHtml(tokens[idx].content)}</pre>`;
+      return `<pre class="text-red-500 font-mono"${lineAttr}>${mdInstance.utils.escapeHtml(token.content)}</pre>`;
     }
   };
 }
@@ -337,19 +348,43 @@ function setupFenceRule(mdInstance: MarkdownIt) {
   mdInstance.renderer.rules.fence = (tokens, idx, options, env, self) => {
     const token = tokens[idx];
     const info = token.info.trim();
+    const lineAttr =
+      env?.sourceLines && token.map
+        ? ` data-source-line="${token.map[0] + 1}"`
+        : "";
     if (info === "mermaid") {
       const code = token.content.trim();
-      return `<pre class="mermaid" data-mermaid-source="${mdInstance.utils.escapeHtml(code)}">${mdInstance.utils.escapeHtml(code)}</pre>`;
+      return `<pre class="mermaid"${lineAttr} data-mermaid-source="${mdInstance.utils.escapeHtml(code)}">${mdInstance.utils.escapeHtml(code)}</pre>`;
     }
     if (info === "math" || info === "katex") {
       try {
-        return `<div class="katex-block my-4 flex justify-center">${katex.renderToString(token.content.trim(), { displayMode: true, throwOnError: false })}</div>`;
+        return `<div class="katex-block my-4 flex justify-center"${lineAttr}>${katex.renderToString(token.content.trim(), { displayMode: true, throwOnError: false })}</div>`;
       } catch (_err) {
-        return `<pre class="text-red-500 font-mono">${mdInstance.utils.escapeHtml(token.content)}</pre>`;
+        return `<pre class="text-red-500 font-mono"${lineAttr}>${mdInstance.utils.escapeHtml(token.content)}</pre>`;
       }
     }
     return defaultFence ? defaultFence(tokens, idx, options, env, self) : "";
   };
+}
+
+function setupSourceLines(mdInstance: MarkdownIt) {
+  mdInstance.core.ruler.push("inject_source_lines", (state) => {
+    if (!state.env?.sourceLines) return true;
+
+    for (const token of state.tokens) {
+      if (
+        token.map &&
+        (token.type.endsWith("_open") ||
+          token.type === "fence" ||
+          token.type === "code_block" ||
+          token.type === "hr" ||
+          token.type === "math_block")
+      ) {
+        token.attrSet("data-source-line", String(token.map[0] + 1));
+      }
+    }
+    return true;
+  });
 }
 
 function createBaseMarkdownIt(): MarkdownIt {
@@ -365,6 +400,7 @@ function createBaseMarkdownIt(): MarkdownIt {
     .use(katexMathPlugin);
 
   setupFenceRule(instance);
+  setupSourceLines(instance);
   return instance;
 }
 
@@ -488,14 +524,13 @@ export function normalizeMarkdownSource(
 
 export function renderMarkdown(
   src: string,
-  options?: { markdownExtensionsEnabled?: boolean },
+  options?: { markdownExtensionsEnabled?: boolean; sourceLines?: boolean },
 ): string {
   const markdownExtensionsEnabled = options?.markdownExtensionsEnabled ?? true;
+  const sourceLines = options?.sourceLines ?? false;
   const normalizedSrc = normalizeMarkdownSource(src, markdownExtensionsEnabled);
 
-  const cacheKey = markdownExtensionsEnabled
-    ? `ext:${normalizedSrc}`
-    : `noext:${normalizedSrc}`;
+  const cacheKey = `${markdownExtensionsEnabled ? "ext" : "noext"}:${sourceLines ? "lines" : "nolines"}:${normalizedSrc}`;
   const cached = markdownRenderCache.get(cacheKey);
   if (cached != null) {
     // Refresh LRU order on hit
@@ -510,7 +545,7 @@ export function renderMarkdown(
   const startedAt = performance.now();
   try {
     const renderer = markdownExtensionsEnabled ? mdExtended : mdBasic;
-    let rawHtml = renderer.render(normalizedSrc);
+    let rawHtml = renderer.render(normalizedSrc, { sourceLines });
 
     if (markdownExtensionsEnabled) {
       // Remove empty title containers (e.g. <div class="md-box__title"></div> or whitespace only)

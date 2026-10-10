@@ -1,10 +1,12 @@
 # Welcome to Zentauri
 
-This is a minimal Markdown editor based on Tauri and Vue.
-specially designed for the presentation of text in systematic grammar works
+This is a minimal Markdown editor based on Tauri and Vue, specially designed for the presentation of text in systematic grammar works and scholarly corpora.
 
-Klick the third icon from the top in the left sideline to get a (partially clickable) cheatsheet describing the implemented
-Markdown extensions
+> [!NOTE]
+> **Primary Purpose: Markdown to HTML**  
+> Zentauri's main objective is producing clean, structured **HTML from Markdown**. While an integrated **PDF export** is provided, Zentauri is not a bloated desktop publishing suite: it deliberately offers only a minimal set of extra Markdown syntax extensions (`::: grammar-box`, `::: note-box`, `::: center`, `:indent`, `:br`, and table alignments) that permit minimal, structured layouting directly within the text flow.
+
+Click the third icon from the top in the left activity bar to open the interactive syntax cheatsheet.
 
 ## Scholarly Editing (e.g. Sanskrit Grammar)
 ::: important[Check it out]

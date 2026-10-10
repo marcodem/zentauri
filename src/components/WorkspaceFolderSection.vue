@@ -402,10 +402,10 @@ defineExpose({
 </script>
 
 <template>
-  <div class="mb-1">
+  <div class="mb-1 min-w-full w-max">
     <!-- Folder Querbalken (Section Header) -->
     <div 
-      class="px-2 py-1.5 text-xs font-bold text-app-text-muted flex justify-between items-center group/section cursor-pointer select-none bg-app-bg-secondary hover:bg-app-bg transition-colors border-y border-app-border min-w-0" 
+      class="px-2 py-1.5 text-xs font-bold text-app-text-muted flex justify-between items-center group/section cursor-pointer select-none bg-app-bg-secondary hover:bg-app-bg transition-colors border-y border-app-border min-w-full sticky left-0 z-[5]" 
       @click="isFolderExpanded = !isFolderExpanded"
       :title="`Workspace: ${folderPath}`"
     >
@@ -469,17 +469,17 @@ defineExpose({
     </div>
 
     <!-- Tree Content -->
-    <div v-show="isFolderExpanded" class="py-1">
-      <div v-if="isLoading" class="px-6 py-2 text-xs text-app-text-muted opacity-80">
+    <div v-show="isFolderExpanded" class="py-1 min-w-full w-max">
+      <div v-if="isLoading" class="px-6 py-2 text-xs text-app-text-muted opacity-80 whitespace-nowrap">
         Loading workspace folder...
       </div>
-      <div v-else-if="loadError" class="px-4 py-2 text-xs text-red-400 italic">
+      <div v-else-if="loadError" class="px-4 py-2 text-xs text-red-400 italic whitespace-nowrap">
         Failed to load folder
       </div>
-      <div v-else-if="computedFilteredEntries.length === 0" class="px-6 py-2 text-xs text-app-text-muted text-center italic opacity-70">
+      <div v-else-if="computedFilteredEntries.length === 0" class="px-6 py-2 text-xs text-app-text-muted text-center italic opacity-70 whitespace-nowrap">
         {{ quickFilter ? 'No matching files' : 'Empty folder' }}
       </div>
-      <div v-else class="flex flex-col">
+      <div v-else class="flex flex-col min-w-full w-max">
         <FileTreeNode 
           v-for="entry in computedFilteredEntries" 
           :key="entry.path"

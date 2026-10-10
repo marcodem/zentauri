@@ -6,6 +6,12 @@ title: User Guide & Customization
 
 Zentauri is designed specifically for academic writing, knowledge management, and presentation of structured text (such as systematic grammars and linguistic paradigms).
 
+::: tip Core Purpose & Layout Philosophy
+* **Markdown to HTML:** The primary objective of Zentauri is compiling semantic Markdown into clean **HTML** (ideal for web publishings, online documentation, and digital text corpora).
+* **Minimal Layouting:** Zentauri is an authoring tool rather than a desktop publishing suite. It provides a carefully selected set of extra Markdown syntax extensions (container boxes, text centering, indents, table line-breaks) to allow minimal, structured layout directly in text.
+* **PDF Export:** While Zentauri includes a PDF export function, its role is paginating and printing the generated HTML document cleanly rather than providing a freeform DTP layout canvas.
+:::
+
 ---
 
 ## 1. Interface & Navigation

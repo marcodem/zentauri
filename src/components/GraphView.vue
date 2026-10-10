@@ -5,6 +5,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import "v-network-graph/lib/style.css";
 import * as vNG from "v-network-graph";
 import { ForceLayout } from "v-network-graph/lib/force-layout";
+import { isDarkTheme } from "../lib/theme";
 
 const props = defineProps<{
   folderPath: string;
@@ -21,21 +22,19 @@ const layouts = ref({
 const isLoading = ref(true);
 
 const isDark = ref(
-  document.documentElement.getAttribute("data-theme") === "dark" ||
-    document.documentElement.classList.contains("dark"),
+  isDarkTheme(
+    document.documentElement.getAttribute("data-theme") || "system",
+  ) || document.documentElement.classList.contains("dark"),
 );
 
 let observer: MutationObserver | null = null;
 
 onMounted(() => {
   const updateTheme = () => {
-    const theme = document.documentElement.getAttribute("data-theme");
+    const theme =
+      document.documentElement.getAttribute("data-theme") || "system";
     isDark.value =
-      theme === "dark" ||
-      theme === "solarized-dark" ||
-      theme === "dracula" ||
-      theme === "tokyonight" ||
-      document.documentElement.classList.contains("dark");
+      isDarkTheme(theme) || document.documentElement.classList.contains("dark");
   };
 
   updateTheme();

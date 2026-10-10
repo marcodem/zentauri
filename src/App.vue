@@ -10,23 +10,27 @@ import {
 } from "vue";
 import ActivityBar from "./components/ActivityBar.vue";
 import Cheatsheet from "./components/Cheatsheet.vue";
-import Editor from "./components/Editor.vue";
+import Editor, { type CursorInfo } from "./components/Editor.vue";
 import FileTree from "./components/FileTree.vue";
 import Preview from "./components/Preview.vue";
 import SearchPanel from "./components/SearchPanel.vue";
+import StatusBar from "./components/StatusBar.vue";
 import UpdateNotification from "./components/UpdateNotification.vue";
 
-const GraphView = defineAsyncComponent(
-  () => import("./components/GraphView.vue"),
-);
-const Settings = defineAsyncComponent(
-  () => import("./components/Settings.vue"),
-);
+import Settings from "./components/Settings.vue";
 const HelpSystem = defineAsyncComponent(
   () => import("./components/HelpSystem.vue"),
 );
 import ContextMenu from "./components/ContextMenu.vue";
+import QaReferencePane from "./components/QaReferencePane.vue";
 import { autoRepairMarkdown } from "./lib/auto-repair";
+import { extractHeadings, interpolateTargetLine } from "./lib/heading-sync";
+import {
+  type LanguageInfo,
+  detectLanguageFromPath,
+  detectWorkspaceLanguages,
+  findCorrespondingFilePath,
+} from "./lib/language-detector";
 import CHEAT_SHEET, { type SyntaxItem } from "./lib/syntax-cheatsheet";
 import { convertMarkdownToTypst } from "./lib/typstConverter";
 
@@ -96,7 +100,52 @@ watch(
 
 const markdownSource = ref("");
 const editorRef = ref<InstanceType<typeof Editor> | null>(null);
+const previewRef = ref<InstanceType<typeof Preview> | null>(null);
 const fileTreeRef = ref<InstanceType<typeof FileTree> | null>(null);
+
+const cursorInfo = ref<CursorInfo>({
+  line: 1,
+  column: 1,
+  selectedChars: 0,
+  totalLines: 1,
+});
+
+function onCursorChange(info: CursorInfo) {
+  cursorInfo.value = info;
+}
+
+const wordCount = computed(() => {
+  const text = markdownSource.value || "";
+  return text.trim() ? text.trim().match(/\S+/g)?.length || 0 : 0;
+});
+
+const charCount = computed(() => {
+  return (markdownSource.value || "").length;
+});
+
+const readTime = computed(() => {
+  return Math.max(1, Math.ceil(wordCount.value / 200));
+});
+
+const currentWorkspaceName = computed(() => {
+  if (!workspaceRoot.value) return null;
+  const parts = workspaceRoot.value.split(/[/\\]/).filter(Boolean);
+  return parts.length > 0 ? parts[parts.length - 1] : null;
+});
+
+function handleJumpToLinePrompt() {
+  const maxLines = cursorInfo.value.totalLines || 1;
+  const input = prompt(
+    `Go to Line (1 - ${maxLines}):`,
+    String(cursorInfo.value.line),
+  );
+  if (input !== null) {
+    const target = Number.parseInt(input.trim(), 10);
+    if (!Number.isNaN(target) && editorRef.value) {
+      editorRef.value.jumpToLine(target);
+    }
+  }
+}
 
 const workspaceRoot = ref<string | null>(null);
 const workspaceRoots = ref<string[]>([]);
@@ -294,18 +343,41 @@ function startSidebarResize(e: MouseEvent) {
   window.addEventListener("mouseup", onMouseUp);
 }
 
-type ViewMode = "source" | "split" | "live" | "graph";
+type ViewMode = "source" | "split" | "live" | "qa-2col" | "qa-3col";
+const rawStoredMode = localStorage.getItem("zentauri-view-mode");
 const viewMode = ref<ViewMode>(
-  (localStorage.getItem("zentauri-view-mode") as ViewMode) || "split",
+  ["source", "split", "live", "qa-2col", "qa-3col"].includes(
+    rawStoredMode as any,
+  )
+    ? (rawStoredMode as ViewMode)
+    : "split",
 );
 
 function setViewMode(mode: ViewMode) {
   viewMode.value = mode;
   localStorage.setItem("zentauri-view-mode", mode);
+  if (isQaMode.value) {
+    autoLoadReferenceForActiveTab();
+  }
 }
 
-const showPreview = computed(() => viewMode.value === "split");
+const isQaMode = computed(
+  () => viewMode.value === "qa-2col" || viewMode.value === "qa-3col",
+);
+const showQaReference = computed(() => isQaMode.value);
+const showPreview = computed(
+  () => viewMode.value === "split" || viewMode.value === "qa-3col",
+);
 const isLivePreview = computed(() => viewMode.value === "live");
+
+// QA Reference Document State & Multi-Language Navigation
+const qaReferenceRef = ref<InstanceType<typeof QaReferencePane> | null>(null);
+const qaReferencePath = ref<string | null>(null);
+const qaReferenceContent = ref<string>("");
+const qaReferenceTitle = ref<string>("Referenzdokument");
+const qaReferenceLang = ref<string>("de");
+const availableLanguages = ref<LanguageInfo[]>([]);
+const knownWorkspaceFilePaths = ref<string[]>([]);
 
 const showCheatsheet = ref(false);
 const showSearch = ref(false);
@@ -318,6 +390,392 @@ const isAutoRepaired = ref(false);
 const isPdfExported = ref(false);
 const autoSaveEnabled = ref(true);
 const pdfPaper = ref<"a4" | "us-letter">("a4");
+
+const isMac =
+  typeof navigator !== "undefined" &&
+  /Mac|iPod|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+const saveShortcut = isMac ? "⌘S" : "Ctrl+S";
+const pdfShortcut = isMac ? "⌘P" : "Ctrl+P";
+
+type SyncMode = "header" | "percentage" | "off";
+const syncMode = ref<SyncMode>("header");
+const syncScroll = computed(() => syncMode.value !== "off");
+
+const initialSettingsStr = localStorage.getItem("zentauri-settings");
+if (initialSettingsStr) {
+  try {
+    const parsedSettings = JSON.parse(initialSettingsStr);
+    if (parsedSettings.syncMode !== undefined) {
+      syncMode.value = parsedSettings.syncMode;
+    } else if (parsedSettings.syncScroll === false) {
+      syncMode.value = "off";
+    }
+    if (parsedSettings.vimMode !== undefined) {
+      vimMode.value = parsedSettings.vimMode;
+    }
+  } catch {}
+}
+
+function saveSyncSettings() {
+  const currentSettings = localStorage.getItem("zentauri-settings");
+  let s: Record<string, unknown> = {};
+  if (currentSettings) {
+    try {
+      s = JSON.parse(currentSettings);
+    } catch {}
+  }
+  localStorage.setItem(
+    "zentauri-settings",
+    JSON.stringify({
+      ...s,
+      syncMode: syncMode.value,
+      syncScroll: syncScroll.value,
+    }),
+  );
+}
+
+function setSyncMode(mode: SyncMode) {
+  syncMode.value = mode;
+  saveSyncSettings();
+}
+
+function cycleSyncMode() {
+  if (syncMode.value === "header") {
+    syncMode.value = "percentage";
+  } else if (syncMode.value === "percentage") {
+    syncMode.value = "off";
+  } else {
+    syncMode.value = "header";
+  }
+  saveSyncSettings();
+}
+
+function toggleSyncScroll() {
+  cycleSyncMode();
+}
+
+async function scanWorkspaceForLanguages() {
+  if (!workspaceRoot.value) {
+    const tabPaths = tabs.value
+      .map((t) => t.path)
+      .filter((p) => p && !p.startsWith("untitled://"));
+    knownWorkspaceFilePaths.value = tabPaths;
+    availableLanguages.value = detectWorkspaceLanguages(tabPaths);
+    return;
+  }
+
+  if (isTauri) {
+    try {
+      const nodes: any = await invoke("search_workspace", {
+        path: workspaceRoot.value,
+        query: ".md",
+      });
+      if (Array.isArray(nodes) && nodes.length > 0) {
+        const paths = nodes.map((n: any) => n.path).filter(Boolean);
+        knownWorkspaceFilePaths.value = paths;
+        availableLanguages.value = detectWorkspaceLanguages(paths);
+        return;
+      }
+    } catch (err) {
+      console.warn("Failed to search workspace files for languages:", err);
+    }
+  }
+
+  const tabPaths = tabs.value
+    .map((t) => t.path)
+    .filter((p) => p && !p.startsWith("untitled://"));
+  knownWorkspaceFilePaths.value = tabPaths;
+  availableLanguages.value = detectWorkspaceLanguages(tabPaths);
+}
+
+async function loadReferenceFile(path: string) {
+  qaReferencePath.value = path;
+  const filename = path.replace(/\\/g, "/").split("/").pop() || "Referenz";
+  qaReferenceTitle.value = filename;
+
+  const langInfo = detectLanguageFromPath(path);
+  if (langInfo) {
+    qaReferenceLang.value = langInfo.langCode;
+  }
+
+  const openTab = tabs.value.find((t) => t.path === path);
+  if (openTab) {
+    qaReferenceContent.value = openTab.content;
+    return;
+  }
+
+  if (isTauri) {
+    try {
+      const content = await readTextFile(path);
+      qaReferenceContent.value = content;
+    } catch (err) {
+      console.warn("Failed to read reference file:", err);
+    }
+  }
+}
+
+async function autoLoadReferenceForActiveTab() {
+  const currentPath = activeTab.value?.path;
+  await scanWorkspaceForLanguages();
+
+  if (!currentPath || currentPath.startsWith("untitled://")) {
+    if (!qaReferenceContent.value) {
+      qaReferenceTitle.value = "Referenz (Wählen...)";
+      qaReferenceContent.value =
+        "# Referenzdokument\n\nWählen Sie eine Referenzdatei oder Sprache zur Gegenüberstellung.";
+    }
+    return;
+  }
+
+  const targetRef = findCorrespondingFilePath(
+    currentPath,
+    qaReferenceLang.value,
+    knownWorkspaceFilePaths.value,
+  );
+
+  if (targetRef) {
+    await loadReferenceFile(targetRef);
+  } else if (!qaReferenceContent.value) {
+    qaReferenceTitle.value = "Referenz (Wählen...)";
+    qaReferenceContent.value = `# Keine korrespondierende ${qaReferenceLang.value.toUpperCase()}-Datei gefunden\n\nFür \`${activeTab.value?.title}\` wurde im Pfad \`${qaReferenceLang.value}/\` kein automatisches Gegenstück gefunden. Bitte wählen Sie eine Referenzdatei über "Wählen...".`;
+  }
+}
+
+async function handleChooseReferenceFile() {
+  if (isTauri) {
+    try {
+      const selected = await open({
+        multiple: false,
+        directory: false,
+        filters: [{ name: "Markdown", extensions: ["md", "markdown"] }],
+      });
+      if (selected && typeof selected === "string") {
+        await loadReferenceFile(selected);
+      }
+    } catch (err) {
+      console.error("Choose reference file failed:", err);
+    }
+  } else {
+    const otherTabs = tabs.value.filter(
+      (_, idx) => idx !== activeTabIndex.value,
+    );
+    if (otherTabs.length > 0) {
+      const chosen = otherTabs[0];
+      qaReferencePath.value = chosen.path;
+      qaReferenceTitle.value = chosen.title;
+      qaReferenceContent.value = chosen.content;
+    }
+  }
+}
+
+async function handleChangeReferenceLanguage(langCode: string) {
+  qaReferenceLang.value = langCode;
+  const currentPath = activeTab.value?.path;
+  if (currentPath && !currentPath.startsWith("untitled://")) {
+    const targetRef = findCorrespondingFilePath(
+      currentPath,
+      langCode,
+      knownWorkspaceFilePaths.value,
+    );
+    if (targetRef) {
+      await loadReferenceFile(targetRef);
+    }
+  }
+}
+
+function handleSwapDocuments() {
+  if (!qaReferenceContent.value) return;
+
+  const oldEditorPath = activeTab.value?.path || `untitled://${Date.now()}`;
+  const oldEditorTitle = activeTab.value?.title || "Dokument";
+  const oldEditorContent = markdownSource.value;
+
+  const newEditorPath = qaReferencePath.value || `untitled://${Date.now()}`;
+  const newEditorTitle = qaReferenceTitle.value || "Dokument";
+  const newEditorContent = qaReferenceContent.value;
+
+  qaReferencePath.value = oldEditorPath;
+  qaReferenceTitle.value = oldEditorTitle;
+  qaReferenceContent.value = oldEditorContent;
+  const refLang = detectLanguageFromPath(oldEditorPath);
+  if (refLang) {
+    qaReferenceLang.value = refLang.langCode;
+  }
+
+  if (activeTab.value) {
+    activeTab.value.path = newEditorPath;
+    activeTab.value.title = newEditorTitle;
+    activeTab.value.content = newEditorContent;
+  }
+  markdownSource.value = newEditorContent;
+  saveTabsState();
+}
+
+let activeScroller: "editor" | "preview" | "reference" | null = null;
+let syncSource: "editor" | "preview" | "reference" | null = null;
+let syncResetTimer: ReturnType<typeof setTimeout> | null = null;
+let editorSyncRaf: number | null = null;
+let previewSyncRaf: number | null = null;
+let refSyncRaf: number | null = null;
+
+function onEditorUserInteraction() {
+  activeScroller = "editor";
+}
+
+function onPreviewUserInteraction() {
+  activeScroller = "preview";
+}
+
+function onReferenceUserInteraction() {
+  activeScroller = "reference";
+}
+
+function onEditorScroll(info: {
+  fractionalLine: number;
+  ratio: number;
+  totalLines: number;
+}) {
+  if (syncMode.value === "off") return;
+  if (syncSource === "preview" || syncSource === "reference") return;
+
+  activeScroller = "editor";
+  syncSource = "editor";
+
+  if (editorSyncRaf !== null) {
+    cancelAnimationFrame(editorSyncRaf);
+  }
+
+  editorSyncRaf = requestAnimationFrame(() => {
+    editorSyncRaf = null;
+
+    // 1. Sync Reference Pane (if QA mode active)
+    if (
+      showQaReference.value &&
+      qaReferenceRef.value &&
+      qaReferenceContent.value
+    ) {
+      if (syncMode.value === "header") {
+        const editorHeadings = extractHeadings(markdownSource.value);
+        const refHeadings = extractHeadings(qaReferenceContent.value);
+        const totalRefLines = qaReferenceContent.value.split("\n").length;
+        const targetRefLine = interpolateTargetLine(
+          info.fractionalLine,
+          editorHeadings,
+          refHeadings,
+          info.totalLines,
+          totalRefLines,
+        );
+        qaReferenceRef.value.scrollToFractionalLine(
+          targetRefLine,
+          info.ratio,
+          totalRefLines,
+        );
+      } else {
+        qaReferenceRef.value.scrollToRatio(info.ratio);
+      }
+    }
+
+    // 2. Sync Preview Pane (if present)
+    if (showPreview.value && previewRef.value) {
+      previewRef.value.scrollToFractionalLine(
+        info.fractionalLine,
+        info.ratio,
+        info.totalLines,
+      );
+    }
+
+    if (syncResetTimer) clearTimeout(syncResetTimer);
+    syncResetTimer = setTimeout(() => {
+      syncSource = null;
+    }, 60);
+  });
+}
+
+function onPreviewScroll(info: {
+  fractionalLine: number;
+  ratio: number;
+}) {
+  if (syncMode.value === "off" || !showPreview.value) return;
+  if (syncSource === "editor" || syncSource === "reference") return;
+
+  activeScroller = "preview";
+  syncSource = "preview";
+
+  if (previewSyncRaf !== null) {
+    cancelAnimationFrame(previewSyncRaf);
+  }
+
+  previewSyncRaf = requestAnimationFrame(() => {
+    previewSyncRaf = null;
+    if (editorRef.value) {
+      editorRef.value.scrollToFractionalLine(info.fractionalLine, info.ratio);
+    }
+    if (syncResetTimer) clearTimeout(syncResetTimer);
+    syncResetTimer = setTimeout(() => {
+      syncSource = null;
+    }, 60);
+  });
+}
+
+function onReferenceScroll(info: {
+  fractionalLine: number;
+  ratio: number;
+  totalLines: number;
+}) {
+  if (syncMode.value === "off" || !showQaReference.value) return;
+  if (syncSource === "editor" || syncSource === "preview") return;
+
+  activeScroller = "reference";
+  syncSource = "reference";
+
+  if (refSyncRaf !== null) {
+    cancelAnimationFrame(refSyncRaf);
+  }
+
+  refSyncRaf = requestAnimationFrame(() => {
+    refSyncRaf = null;
+
+    if (editorRef.value) {
+      if (syncMode.value === "header" && qaReferenceContent.value) {
+        const refHeadings = extractHeadings(qaReferenceContent.value);
+        const editorHeadings = extractHeadings(markdownSource.value);
+        const totalEditorLines = (markdownSource.value || "").split(
+          "\n",
+        ).length;
+        const targetEditorLine = interpolateTargetLine(
+          info.fractionalLine,
+          refHeadings,
+          editorHeadings,
+          info.totalLines,
+          totalEditorLines,
+        );
+        editorRef.value.scrollToFractionalLine(targetEditorLine, info.ratio);
+      } else {
+        editorRef.value.scrollToRatio(info.ratio);
+      }
+    }
+
+    if (syncResetTimer) clearTimeout(syncResetTimer);
+    syncResetTimer = setTimeout(() => {
+      syncSource = null;
+    }, 60);
+  });
+}
+
+function toggleVimMode() {
+  vimMode.value = !vimMode.value;
+  const currentSettings = localStorage.getItem("zentauri-settings");
+  let s: Record<string, unknown> = {};
+  if (currentSettings) {
+    try {
+      s = JSON.parse(currentSettings);
+    } catch {}
+  }
+  localStorage.setItem(
+    "zentauri-settings",
+    JSON.stringify({ ...s, vimMode: vimMode.value }),
+  );
+}
 
 const saveStatus = computed(() => {
   if (isPdfExported.value) {
@@ -609,6 +1067,7 @@ onMounted(() => {
       const s = JSON.parse(settingsStr);
       if (s.autoSave !== undefined) autoSaveEnabled.value = s.autoSave;
       if (s.pdfPaper) pdfPaper.value = s.pdfPaper;
+      if (s.vimMode !== undefined) vimMode.value = s.vimMode;
     } catch (e) {}
   }
 
@@ -705,6 +1164,9 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+  if (editorSyncRaf !== null) cancelAnimationFrame(editorSyncRaf);
+  if (previewSyncRaf !== null) cancelAnimationFrame(previewSyncRaf);
+  if (syncResetTimer) clearTimeout(syncResetTimer);
   window.removeEventListener("keydown", handleGlobalKeydown);
   window.removeEventListener("beforeunload", handleBeforeUnload);
   if (autoSave) {
@@ -728,6 +1190,25 @@ function handleGlobalKeydown(e: KeyboardEvent) {
     } else {
       handleExportPdf();
     }
+  } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "g") {
+    e.preventDefault();
+    handleJumpToLinePrompt();
+  } else if (
+    ((e.metaKey || e.ctrlKey) &&
+      e.altKey &&
+      (e.code === "KeyD" || e.key.toLowerCase() === "d")) ||
+    (e.key === "F4" && !e.shiftKey)
+  ) {
+    e.preventDefault();
+    editorRef.value?.toggleTransliteration("iast");
+  } else if (
+    ((e.metaKey || e.ctrlKey) &&
+      e.altKey &&
+      (e.code === "KeyH" || e.key.toLowerCase() === "h")) ||
+    (e.key === "F4" && e.shiftKey)
+  ) {
+    e.preventDefault();
+    editorRef.value?.toggleTransliteration("hk");
   }
 }
 
@@ -1166,6 +1647,9 @@ async function selectTab(index: number) {
   }
   saveTabsState();
   scrollToActiveTab();
+  if (isQaMode.value) {
+    autoLoadReferenceForActiveTab();
+  }
 }
 
 async function handlePreviewOpenFile(linkPath: string) {
@@ -1335,6 +1819,15 @@ function handleSettingsUpdate(settings: any) {
     autoSaveEnabled.value = settings.autoSave;
   if (settings.vimMode !== undefined) vimMode.value = settings.vimMode;
   if (settings.pdfPaper !== undefined) pdfPaper.value = settings.pdfPaper;
+  if (settings.syncMode !== undefined) {
+    syncMode.value = settings.syncMode;
+  } else if (settings.syncScroll !== undefined) {
+    syncMode.value = settings.syncScroll
+      ? syncMode.value === "off"
+        ? "header"
+        : syncMode.value
+      : "off";
+  }
   if (settings.showCheatsheet !== undefined)
     showCheatsheet.value = settings.showCheatsheet;
 }
@@ -1402,68 +1895,197 @@ async function handleExportPdf() {
     <UpdateNotification class="print:hidden" />
     
     <!-- Toolbar -->
-    <header class="flex-none flex items-center px-4 py-2 border-b border-app-border bg-app-bg-secondary select-none print:hidden" data-tauri-drag-region>
+    <header class="flex-none flex items-center px-4 py-2 border-b border-app-border bg-app-bg-secondary select-none print:hidden relative z-30" data-tauri-drag-region>
       <!-- Auto-Save, Auto-Repair & Export Status -->
       <div class="flex-1 text-center text-sm font-medium text-app-text-muted absolute left-0 right-0 pointer-events-none flex items-center justify-center gap-2">
         <span class="inline-block rounded-full" :class="saveStatus.dotClass" :title="saveStatus.title"></span>
         <span>{{ saveStatus.text }}</span>
       </div>
       
-      <div class="flex gap-2 z-10 relative ml-auto">
-        <button 
-          v-if="!autoSaveEnabled || activeTab?.isDirty"
-          @click="() => forceSave(true)"
-          class="px-2.5 py-1 text-xs font-semibold rounded transition-colors border shadow-xs flex items-center gap-1.5 cursor-pointer"
-          :class="activeTab?.isDirty 
-            ? 'bg-amber-500 hover:bg-amber-600 text-white border-amber-600 dark:bg-amber-500 dark:hover:bg-amber-600 dark:text-slate-950' 
-            : 'bg-app-bg hover:bg-app-bg-secondary text-app-text-muted hover:text-app-text border-app-border'"
-          title="Save file to disk (Cmd/Ctrl+S)"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-          Save
-        </button>
-        <button 
-          @click="handleExportPdf"
-          class="px-3 py-1 bg-amber-600 hover:bg-amber-700 text-white dark:bg-amber-500 dark:hover:bg-amber-600 dark:text-slate-950 text-xs font-semibold rounded transition-colors shadow-xs cursor-pointer"
-          title="Export as native PDF via Typst (Cmd/Ctrl+P)"
-        >
-          Export PDF
-        </button>
-        <div class="flex items-center bg-app-bg p-0.5 rounded-md border border-app-border">
+      <!-- Unified View Mode & Representation Action Toolbar -->
+      <div class="flex items-center bg-app-bg p-0.5 rounded-md border border-app-border shadow-xs z-10 relative ml-auto gap-0.5">
+
+        <!-- Source Mode Button -->
+        <div class="relative group/tooltip inline-flex items-center">
           <button 
             @click="setViewMode('source')" 
-            class="p-1.5 rounded transition-colors"
-            :class="viewMode === 'source' ? 'bg-app-bg-secondary text-app-text shadow-xs' : 'text-app-text-muted hover:text-app-text'"
-            title="Source Mode (Code Only)"
+            class="w-7 h-7 flex items-center justify-center rounded transition-colors cursor-pointer bg-app-bg"
+            :class="viewMode === 'source' ? 'text-blue-500 dark:text-blue-400 font-semibold shadow-xs ring-1 ring-blue-500/30' : 'text-app-text-muted hover:text-app-text hover:bg-app-bg-hover'"
+            title="Source Code Editor"
+            aria-label="Source Mode"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="16 18 22 12 16 6"/>
+              <polyline points="8 6 2 12 8 18"/>
+            </svg>
           </button>
+
+          <!-- Balloon Tooltip -->
+          <div class="pointer-events-none absolute top-full mt-2 left-1/2 -translate-x-1/2 opacity-0 group-hover/tooltip:opacity-100 translate-y-1 group-hover/tooltip:translate-y-0 transition-all duration-150 delay-0 group-hover/tooltip:delay-150 z-50 flex flex-col items-center whitespace-nowrap">
+            <div class="w-2 h-2 -mb-1 rotate-45 bg-[#18181b] dark:bg-[#0f1e35] border-t border-l border-slate-700/60 dark:border-slate-600/60"></div>
+            <div class="px-2 py-1 text-[11px] font-medium rounded shadow-xl bg-[#18181b] text-slate-100 dark:bg-[#0f1e35] dark:text-[#e8e0d3] border border-slate-700/60 dark:border-slate-600/60 leading-tight">
+              Source Mode
+            </div>
+          </div>
+        </div>
+
+        <!-- Split Mode Button -->
+        <div class="relative group/tooltip inline-flex items-center">
           <button 
             @click="setViewMode('split')" 
-            class="p-1.5 rounded transition-colors"
-            :class="viewMode === 'split' ? 'bg-app-bg-secondary text-app-text shadow-xs' : 'text-app-text-muted hover:text-app-text'"
+            class="w-7 h-7 flex items-center justify-center rounded transition-colors cursor-pointer bg-app-bg"
+            :class="viewMode === 'split' ? 'text-blue-500 dark:text-blue-400 font-semibold shadow-xs ring-1 ring-blue-500/30' : 'text-app-text-muted hover:text-app-text hover:bg-app-bg-hover'"
             title="Split Mode (Editor + Preview)"
+            aria-label="Split Mode"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M12 3v18"/></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect width="18" height="18" x="3" y="3" rx="2"/>
+              <path d="M12 3v18"/>
+            </svg>
           </button>
+
+          <!-- Balloon Tooltip -->
+          <div class="pointer-events-none absolute top-full mt-2 left-1/2 -translate-x-1/2 opacity-0 group-hover/tooltip:opacity-100 translate-y-1 group-hover/tooltip:translate-y-0 transition-all duration-150 delay-0 group-hover/tooltip:delay-150 z-50 flex flex-col items-center whitespace-nowrap">
+            <div class="w-2 h-2 -mb-1 rotate-45 bg-[#18181b] dark:bg-[#0f1e35] border-t border-l border-slate-700/60 dark:border-slate-600/60"></div>
+            <div class="px-2 py-1 text-[11px] font-medium rounded shadow-xl bg-[#18181b] text-slate-100 dark:bg-[#0f1e35] dark:text-[#e8e0d3] border border-slate-700/60 dark:border-slate-600/60 leading-tight">
+              Split Mode (Editor + Preview)
+            </div>
+          </div>
+        </div>
+
+        <!-- 2-Col QA Comparison Button -->
+        <div class="relative group/tooltip inline-flex items-center">
           <button 
-            @click="setViewMode('graph')" 
-            class="p-1.5 rounded transition-colors"
-            :class="viewMode === 'graph' ? 'bg-app-bg-secondary text-app-text shadow-xs' : 'text-app-text-muted hover:text-app-text'"
-            title="Knowledge Graph"
+            @click="setViewMode('qa-2col')" 
+            class="w-7 h-7 flex items-center justify-center rounded transition-colors cursor-pointer bg-app-bg"
+            :class="viewMode === 'qa-2col' ? 'text-blue-500 dark:text-blue-400 font-semibold shadow-xs ring-1 ring-blue-500/30' : 'text-app-text-muted hover:text-app-text hover:bg-app-bg-hover'"
+            title="2-Col QA Vergleich (Referenz + Editor)"
+            aria-label="2-Col QA Mode"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect width="18" height="18" x="3" y="3" rx="2"/>
+              <path d="M12 3v18"/>
+              <path d="m8 10 2 2-2 2"/>
+              <path d="m16 10-2 2 2 2"/>
+            </svg>
           </button>
-          <!-- Live Preview Mode (WYSIWYG) disabled for now
+
+          <!-- Balloon Tooltip -->
+          <div class="pointer-events-none absolute top-full mt-2 left-1/2 -translate-x-1/2 opacity-0 group-hover/tooltip:opacity-100 translate-y-1 group-hover/tooltip:translate-y-0 transition-all duration-150 delay-0 group-hover/tooltip:delay-150 z-50 flex flex-col items-center whitespace-nowrap">
+            <div class="w-2 h-2 -mb-1 rotate-45 bg-[#18181b] dark:bg-[#0f1e35] border-t border-l border-slate-700/60 dark:border-slate-600/60"></div>
+            <div class="px-2 py-1 text-[11px] font-medium rounded shadow-xl bg-[#18181b] text-slate-100 dark:bg-[#0f1e35] dark:text-[#e8e0d3] border border-slate-700/60 dark:border-slate-600/60 leading-tight">
+              2-Col QA Vergleich
+            </div>
+          </div>
+        </div>
+
+        <!-- 3-Col QA Comparison Button -->
+        <div class="relative group/tooltip inline-flex items-center">
           <button 
-            @click="setViewMode('live')" 
-            class="p-1.5 rounded transition-colors"
-            :class="viewMode === 'live' ? 'bg-app-bg-secondary text-app-text shadow-xs' : 'text-app-text-muted hover:text-app-text'"
-            title="Live Preview Mode (Inline Hybrid Editor)"
+            @click="setViewMode('qa-3col')" 
+            class="w-7 h-7 flex items-center justify-center rounded transition-colors cursor-pointer bg-app-bg"
+            :class="viewMode === 'qa-3col' ? 'text-blue-500 dark:text-blue-400 font-semibold shadow-xs ring-1 ring-blue-500/30' : 'text-app-text-muted hover:text-app-text hover:bg-app-bg-hover'"
+            title="3-Col QA Vergleich (Referenz + Editor + Vorschau)"
+            aria-label="3-Col QA Mode"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect width="18" height="18" x="3" y="3" rx="2"/>
+              <path d="M9 3v18"/>
+              <path d="M15 3v18"/>
+            </svg>
           </button>
-          -->
+
+          <!-- Balloon Tooltip -->
+          <div class="pointer-events-none absolute top-full mt-2 left-1/2 -translate-x-1/2 opacity-0 group-hover/tooltip:opacity-100 translate-y-1 group-hover/tooltip:translate-y-0 transition-all duration-150 delay-0 group-hover/tooltip:delay-150 z-50 flex flex-col items-center whitespace-nowrap">
+            <div class="w-2 h-2 -mb-1 rotate-45 bg-[#18181b] dark:bg-[#0f1e35] border-t border-l border-slate-700/60 dark:border-slate-600/60"></div>
+            <div class="px-2 py-1 text-[11px] font-medium rounded shadow-xl bg-[#18181b] text-slate-100 dark:bg-[#0f1e35] dark:text-[#e8e0d3] border border-slate-700/60 dark:border-slate-600/60 leading-tight">
+              3-Col QA (Ref + Edit + Prev)
+            </div>
+          </div>
+        </div>
+
+        <!-- Sync Scroll Mode Button (visible in Split, QA 2-Col or QA 3-Col) -->
+        <template v-if="viewMode === 'split' || isQaMode">
+          <div class="w-[1px] h-3.5 bg-app-border mx-0.5"></div>
+
+          <div class="relative group/tooltip inline-flex items-center">
+            <button
+              @click="cycleSyncMode"
+              class="h-7 px-1.5 flex items-center justify-center gap-1 rounded transition-colors cursor-pointer bg-app-bg"
+              :class="syncMode !== 'off' ? 'text-amber-500 dark:text-amber-400 font-semibold shadow-xs ring-1 ring-amber-500/30' : 'text-app-text-muted hover:text-app-text hover:bg-app-bg-hover'"
+              :title="`Scroll-Sync: ${syncMode === 'header' ? 'Header Matching' : syncMode === 'percentage' ? 'Percentage' : 'Aus'}`"
+              aria-label="Scroll-Synchronisation"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+              </svg>
+              <span class="text-[10px] font-mono font-bold leading-none uppercase">
+                {{ syncMode === 'header' ? 'H' : syncMode === 'percentage' ? '%' : 'Off' }}
+              </span>
+            </button>
+
+            <!-- Balloon Tooltip -->
+            <div class="pointer-events-none absolute top-full mt-2 left-1/2 -translate-x-1/2 opacity-0 group-hover/tooltip:opacity-100 translate-y-1 group-hover/tooltip:translate-y-0 transition-all duration-150 delay-0 group-hover/tooltip:delay-150 z-50 flex flex-col items-center whitespace-nowrap">
+              <div class="w-2 h-2 -mb-1 rotate-45 bg-[#18181b] dark:bg-[#0f1e35] border-t border-l border-slate-700/60 dark:border-slate-600/60"></div>
+              <div class="px-2 py-1 text-[11px] font-medium rounded shadow-xl bg-[#18181b] text-slate-100 dark:bg-[#0f1e35] dark:text-[#e8e0d3] border border-slate-700/60 dark:border-slate-600/60 leading-tight">
+                {{ syncMode === 'header' ? 'Sync: Header-Matching' : syncMode === 'percentage' ? 'Sync: Prozentual' : 'Sync: Deaktiviert' }} (Klicken zum Umschalten)
+              </div>
+            </div>
+          </div>
+        </template>
+
+        <!-- SWAP Button (visible in QA mode) -->
+        <template v-if="isQaMode">
+          <div class="w-[1px] h-3.5 bg-app-border mx-0.5"></div>
+
+          <div class="relative group/tooltip inline-flex items-center">
+            <button
+              @click="handleSwapDocuments"
+              class="w-7 h-7 flex items-center justify-center rounded transition-colors cursor-pointer bg-app-bg text-amber-500 hover:text-amber-400 hover:bg-app-bg-hover active:scale-95"
+              title="Dokumente tauschen: Referenz ⇄ Editor (SWAP)"
+              aria-label="Dokumente tauschen"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="16 3 21 8 16 13"/>
+                <line x1="21" y1="8" x2="9" y2="8"/>
+                <polyline points="8 21 3 16 8 11"/>
+                <line x1="3" y1="16" x2="15" y2="16"/>
+              </svg>
+            </button>
+
+            <!-- Balloon Tooltip -->
+            <div class="pointer-events-none absolute top-full mt-2 left-1/2 -translate-x-1/2 opacity-0 group-hover/tooltip:opacity-100 translate-y-1 group-hover/tooltip:translate-y-0 transition-all duration-150 delay-0 group-hover/tooltip:delay-150 z-50 flex flex-col items-center whitespace-nowrap">
+              <div class="w-2 h-2 -mb-1 rotate-45 bg-[#18181b] dark:bg-[#0f1e35] border-t border-l border-slate-700/60 dark:border-slate-600/60"></div>
+              <div class="px-2 py-1 text-[11px] font-medium rounded shadow-xl bg-[#18181b] text-slate-100 dark:bg-[#0f1e35] dark:text-[#e8e0d3] border border-slate-700/60 dark:border-slate-600/60 leading-tight">
+                Seiten tauschen: Referenz ⇄ Editor (SWAP)
+              </div>
+            </div>
+          </div>
+        </template>
+
+        <!-- Divider -->
+        <div class="w-[1px] h-3.5 bg-app-border mx-0.5"></div>
+
+        <!-- Vim Mode Toggle Button -->
+        <div class="relative group/tooltip inline-flex items-center">
+          <button
+            @click="toggleVimMode"
+            class="w-7 h-7 flex items-center justify-center rounded transition-colors cursor-pointer bg-app-bg"
+            :class="vimMode ? 'text-blue-500 dark:text-blue-400 font-bold shadow-xs ring-1 ring-blue-500/30' : 'text-app-text-muted hover:text-app-text hover:bg-app-bg-hover'"
+            :title="vimMode ? 'Vim-Modus: Aktiv' : 'Vim-Modus: Inaktiv'"
+            aria-label="Vim Mode"
+          >
+            <span class="font-mono font-bold text-xs select-none leading-none">V</span>
+          </button>
+
+          <!-- Balloon Tooltip -->
+          <div class="pointer-events-none absolute top-full mt-2 right-0 opacity-0 group-hover/tooltip:opacity-100 translate-y-1 group-hover/tooltip:translate-y-0 transition-all duration-150 delay-0 group-hover/tooltip:delay-150 z-50 flex flex-col items-end whitespace-nowrap">
+            <div class="w-2 h-2 -mb-1 mr-2.5 rotate-45 bg-[#18181b] dark:bg-[#0f1e35] border-t border-l border-slate-700/60 dark:border-slate-600/60"></div>
+            <div class="px-2 py-1 text-[11px] font-medium rounded shadow-xl bg-[#18181b] text-slate-100 dark:bg-[#0f1e35] dark:text-[#e8e0d3] border border-slate-700/60 dark:border-slate-600/60 leading-tight">
+              {{ vimMode ? 'Vim-Modus: Aktiv' : 'Vim-Modus: Inaktiv' }}
+            </div>
+          </div>
         </div>
       </div>
     </header>
@@ -1480,7 +2102,7 @@ async function handleExportPdf() {
       <!-- File Tree Sidebar -->
       <div 
         v-show="showExplorer" 
-        class="flex-none border-r border-app-border print:hidden h-full"
+        class="flex-none border-r border-app-border print:hidden h-full overflow-hidden"
         :style="{ width: sidebarWidth + 'px' }"
       >
         <FileTree 
@@ -1560,17 +2182,30 @@ async function handleExportPdf() {
           </div>
         </div>
         
-        <!-- Graph View -->
-        <div v-if="viewMode === 'graph'" class="flex-1 overflow-hidden h-full flex flex-col min-w-0 bg-app-bg">
-          <GraphView v-if="workspaceRoot" :folderPath="workspaceRoot" @select="loadFile" />
-          <div v-else class="flex-1 flex items-center justify-center text-app-text-muted">
-            No Workspace Folder Open
+        <!-- Editor/Preview/QA Split Container -->
+        <div class="flex-1 flex overflow-hidden print:block print:overflow-visible print:h-auto">
+          <!-- QA Reference Pane (Left, visible in QA Mode) -->
+          <div v-if="showQaReference" class="flex-1 h-full min-w-0 print:hidden">
+            <QaReferencePane
+              ref="qaReferenceRef"
+              :title="qaReferenceTitle"
+              :filePath="qaReferencePath"
+              :content="qaReferenceContent"
+              :langCode="qaReferenceLang"
+              :availableLanguages="availableLanguages"
+              :syncMode="syncMode"
+              @scroll="onReferenceScroll"
+              @user-interaction="onReferenceUserInteraction"
+              @change-language="handleChangeReferenceLanguage"
+              @choose-file="handleChooseReferenceFile"
+              @swap="handleSwapDocuments"
+              @close="setViewMode('split')"
+              @open-url="openExternalUrl"
+              @set-sync-mode="setSyncMode"
+            />
           </div>
-        </div>
 
-        <!-- Editor/Preview Split (Editor Left, Preview Right) -->
-        <div v-else class="flex-1 flex overflow-hidden print:block print:overflow-visible print:h-auto">
-          <!-- Editor Pane (Left) -->
+          <!-- Editor Pane (Center/Left) -->
           <div class="flex-1 h-full min-w-0 flex flex-col border-r border-app-border print:hidden">
             <!-- Quick Snippet Toolbar (Dynamic Dropdown populated directly from Syntax Reference CHEAT_SHEET) -->
             <div class="flex-none flex items-center justify-between gap-2 px-3 py-1.5 bg-app-bg-secondary border-b border-app-border text-xs select-none">
@@ -1609,23 +2244,80 @@ async function handleExportPdf() {
                   </button>
                 </div>
               </div>
+
+              <!-- Transliteration Toggle Buttons (IAST ⇄ Devanagari & HK ⇄ Devanagari) -->
+              <div class="flex items-center gap-1.5 shrink-0 ml-auto">
+                <button
+                  type="button"
+                  @click="editorRef?.toggleTransliteration('iast')"
+                  title="IAST ⇄ Devanagari Umschalter (Cmd+Alt+D / F4)"
+                  class="flex items-center gap-1 px-2 py-0.5 rounded bg-app-bg hover:bg-app-bg-hover border border-app-border text-xs font-mono transition-colors whitespace-nowrap cursor-pointer shadow-xs active:scale-95 text-app-text"
+                >
+                  <span class="text-blue-500 font-semibold">IAST</span>
+                  <span class="text-app-text-muted">⇄</span>
+                  <span class="text-[#b22222] font-bold">देव</span>
+                  <span class="hidden xl:inline text-[10px] text-app-text-muted opacity-80">(⌥⌘D)</span>
+                </button>
+                <button
+                  type="button"
+                  @click="editorRef?.toggleTransliteration('hk')"
+                  title="Harvard-Kyoto ⇄ Devanagari Umschalter (Cmd+Alt+H / Shift+F4)"
+                  class="flex items-center gap-1 px-2 py-0.5 rounded bg-app-bg hover:bg-app-bg-hover border border-app-border text-xs font-mono transition-colors whitespace-nowrap cursor-pointer shadow-xs active:scale-95 text-app-text"
+                >
+                  <span class="text-emerald-500 font-semibold">HK</span>
+                  <span class="text-app-text-muted">⇄</span>
+                  <span class="text-[#b22222] font-bold">देव</span>
+                  <span class="hidden xl:inline text-[10px] text-app-text-muted opacity-80">(⌥⌘H)</span>
+                </button>
+              </div>
             </div>
 
             <!-- CodeMirror Editor -->
             <div class="flex-1 h-full min-w-0 overflow-hidden">
-              <Editor ref="editorRef" v-model="markdownSource" :vimMode="vimMode" :livePreview="isLivePreview" />
+              <Editor
+                ref="editorRef"
+                v-model="markdownSource"
+                :vimMode="vimMode"
+                :livePreview="isLivePreview"
+                @scroll="onEditorScroll"
+                @user-interaction="onEditorUserInteraction"
+                @cursor-change="onCursorChange"
+              />
             </div>
           </div>
 
 
           <!-- Preview Pane (Right) -->
           <div v-show="showPreview" class="flex-1 h-full bg-app-bg min-w-0 print:!block print:w-full print:h-auto print:overflow-visible print:bg-white">
-            <Preview :source="markdownSource" @open-url="openExternalUrl" @open-file="handlePreviewOpenFile" />
+            <Preview
+              ref="previewRef"
+              :source="markdownSource"
+              @scroll="onPreviewScroll"
+              @user-interaction="onPreviewUserInteraction"
+              @open-url="openExternalUrl"
+              @open-file="handlePreviewOpenFile"
+            />
           </div>
         </div>
 
       </div>
     </div>
+
+    <!-- Status Bar -->
+    <StatusBar
+      :cursorInfo="cursorInfo"
+      :wordCount="wordCount"
+      :charCount="charCount"
+      :readTime="readTime"
+      :vimMode="vimMode"
+      :syncScroll="syncScroll"
+      :syncMode="syncMode"
+      :viewMode="viewMode"
+      :workspaceName="currentWorkspaceName"
+      :activeFilePath="tabs[activeTabIndex]?.path"
+      :saveStatus="saveStatus"
+      @jump-to-line="handleJumpToLinePrompt"
+    />
 
     <!-- Tab Bar Context Menu -->
     <ContextMenu 

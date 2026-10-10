@@ -4,6 +4,17 @@ title: Release Notes
 
 # 🚀 Zentauri Release Notes
 
+### ZenTauri v1.2.0
+- **QA Reference Dual-Document Modus:** Neuer Arbeitsmodus für vergleichende Textarbeit und Übersetzungskontrolle (`QaReferencePane.vue`). Bietet wählbare 2-Spalten- (Referenz links, Editor rechts) und 3-Spalten-Layouts (Referenz, Editor, Live-Vorschau) inklusive SWAP-Button zum sofortigen Seitentausch.
+- **Intelligente Heading-Scroll-Synchronisation (`heading-sync.ts`):** Präziser Scroll-Abgleich basierend auf Markdown-Überschriften (`#`, `##`, `###`), der auch bei unterschiedlich langen Sprachversionen (z. B. Sanskrit-Original vs. deutsche Übersetzung) die Orientierung wahrt. Wählbare Modi: *Sync: Header*, *Sync: Percentage*, *Sync: Off*.
+- **Automatischer Sprachdetektor & Korpusnavigation (`language-detector.ts`):** Automatische Erkennung paralleler Sprachversionen über Ordnerstrukturen (z. B. `/de/` ↔ `/en/`) oder Dateinamen (`doc_de.md` ↔ `doc_en.md`).
+- **Harvard-Kyoto & IAST Sanskrit-Transliteration:** Vollständige bidirektionale Unterstützung für Harvard-Kyoto (HK) und IAST mit Devanāgarī. Schnelle Tastatur-Shortcuts `⌥⌘H` (HK) und `⌥⌘D` (IAST) sowie Menü-Buttons.
+- **Tag-sichere Direktiven-Transliteration:** Intelligente Tag-Isolation für `:sig[...]` und `:mark[...]`, die Markup-Container vor Zerstörung schützt und den Text innerhalb und außerhalb der Tags verlässlich konvertiert.
+- **Neue Statusleiste & Indikatoren (`StatusBar.vue`):** Interaktive Statusanzeigen für Zeilen/Spalten, Zeichen/Wörter, aktiven Scroll-Sync-Modus und schnelles Transliterations-Toggling.
+- **Birchville „Scholarly Synthesis“ Standard:** Perfektionierte Pergament- und Deep-Ink-Farbpalette mit Frosted-Glass-Effekten und konsistenter Typografie.
+
+---
+
 ### ZenTauri v1.1.23
 - **Tab-Management & Schutz ungespeicherter Änderungen:** Schließen von modifizierten Tabs bei deaktiviertem Auto-Save blendet einen nativen 3-Wege-Dialog (Speichern, Nicht speichern, Abbrechen) via Tauri Dialog ein. Neues Kontextmenü per Rechtsklick auf Tabs (Schließen, Andere schließen, Rechts davon schließen, Pfad kopieren, Im Finder anzeigen).
 - **Dateisystem-Synchronisation (Rust-First Watcher):** Einbindung des `notify`-Crates im Rust-Backend zur rekursiven Überwachung gemounteter Arbeitsbereiche. Änderungen werden über debouncte `workspace-fs-changed`-Events an das Frontend gestreamt, um den Dateibaum live zu synchronisieren.

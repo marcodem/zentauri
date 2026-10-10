@@ -124,14 +124,14 @@ function processInlineScholarly(rawText: string): string {
         if (pipe) {
           danda = ` ${pipe.trim() === "||" ? "॥" : "।"}`;
         }
-        result += `#text(font: ("Kohinoor Devanagari", "Noto Sans Devanagari", "Noto Serif Devanagari", "Devanagari MT"))[${escapeTypst(content)}${danda}]`;
+        result += `#text(font: ("Kohinoor Devanagari", "Noto Sans Devanagari", "Noto Serif Devanagari", "Devanagari MT"), fill: rgb("#b22222"))[${escapeTypst(content)}${danda}]`;
       } else {
         result += escapeTypst(matchedStr);
       }
     } else if (match[2]) {
       // :sig[Text]
       const sigContent = matchedStr.slice(5, -1);
-      result += `#text(fill: red, weight: "bold")[${escapeTypst(sigContent)}]`;
+      result += `#text(fill: rgb("#ff0000"), weight: "bold")[${escapeTypst(sigContent)}]`;
     } else if (match[3]) {
       // :mark[Text]
       const markContent = matchedStr.slice(6, -1);
