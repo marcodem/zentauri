@@ -65,6 +65,15 @@ This is a minimal Markdown editor based on Tauri and Vue.
 Try the extensive Markdown extensions ported from ZenNotes!
 :::
 
+## 📝 Scholarly Features Demo
+
+Zentauri supports academic footnotes[^1] as well as named citations[^ref].
+
+Definition Lists
+: Definition lists allow clean structuring of technical glossaries.
+IAST
+: International Alphabet of Sanskrit Transliteration.
+
 You can use math: $e^{i\\pi} + 1 = 0$
 
 Or Mermaid:
@@ -73,7 +82,11 @@ graph TD
   A[Tauri] --> B(Vue)
   B --> C{Zentauri}
 \`\`\`
+
+[^1]: This is a standard footnote rendered at the bottom of the document.
+[^ref]: Footnotes include bidirectional anchor navigation back to the text citation.
 `;
+
 
 const tabs = ref<Tab[]>([]);
 const activeTabIndex = ref(-1);
