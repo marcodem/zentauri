@@ -1,3 +1,22 @@
+# Release Notes — ZenTauri v1.3.0
+
+ZenTauri v1.3.0 brings scholarly markdown enhancements including **academic footnotes** with bidirectional anchor navigation, **definition lists** for domain glossaries, syntax reference updates, full bilingual documentation with roadmap separation, and Birchville portal navigation integration.
+
+## Highlights & Key Features (v1.3.0)
+
+### 📝 Scholarly Markdown Extensions
+* **Academic Footnotes (`markdown-it-footnote`):** Support for numeric citations (`[^1]`), named keys (`[^ref]`), footnote divider styling, and bidirectional anchor jumping back to text (`↩`).
+* **Definition Lists (`markdown-it-deflist`):** Semantic `<dl>`, `<dt>`, and `<dd>` structures for clean terminology definitions and scholarly glossaries.
+* **Syntax Cheatsheet Integration:** Quick-insert snippet buttons and reference guide entries in `syntax-cheatsheet.ts`.
+* **Welcome Document Demonstration:** Built-in default document showcases footnotes and definition lists out of the box.
+
+### 🌐 Bilingual Documentation & Ecosystem
+* **English & German VitePress Docs:** Full English default documentation and German (`/de/`) localization with synchronized navigation.
+* **Roadmap & Backlog Delineation:** Clean separation between currently implemented features and future architectural roadmap items.
+* **Birchville Portal Linkage:** Top-left tree crest links directly to `https://birchville.org` across all portal pages.
+
+---
+
 # Release Notes — ZenTauri v1.2.0
 
 ZenTauri v1.2.0 is a major minor-feature release introducing the **QA Reference Dual-Document Mode** with intelligent heading-based scroll synchronization, automatic bilingual corpus detection, bidirectional **Harvard-Kyoto (HK) & IAST Sanskrit transliteration**, tag-safe directive conversions, an interactive Birchville status bar, and deep visual polish aligned with the Birchville „Scholarly Synthesis“ standard.

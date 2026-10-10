@@ -4,6 +4,15 @@ title: Release Notes
 
 # 🚀 Zentauri Release Notes
 
+### ZenTauri v1.3.0
+- **Akademische Fußnoten:** Vollständige bidirektionale Fußnotennavigation (`markdown-it-footnote`) mit Ziffernmarkern, benannten Zitaten (`[^ref]`), sauberer Trennlinie und Rücksprung-Links (`↩`).
+- **Definitionslisten:** Standardkonformes Parsing von Definitionslisten (`markdown-it-deflist`) für Fachglossare, grammatikalische Begriffspaare und Lexika mittels semantischem `<dl>`, `<dt>` und `<dd>`.
+- **Syntax-Cheatsheet Integration:** Neues Snippet für Fußnoten in der Schnellzugriffsleiste und dem Syntax-Spickzettel (`syntax-cheatsheet.ts`).
+- **Zweisprachige Dokumentation:** Vollständige englische Dokumentation mit deutscher Lokalisierung (`/de/`), strukturierter Roadmap/Backlog-Trennung und Birchville-Portalverlinkung.
+- **Aktualisiertes Startdokument:** Integrierte Demonstration wissenschaftlicher Fußnoten und Definitionslisten direkt im Standard-Begrüßungsdokument.
+
+---
+
 ### ZenTauri v1.2.0
 - **QA Reference Dual-Document Modus:** Neuer Arbeitsmodus für vergleichende Textarbeit und Übersetzungskontrolle (`QaReferencePane.vue`). Bietet wählbare 2-Spalten- (Referenz links, Editor rechts) und 3-Spalten-Layouts (Referenz, Editor, Live-Vorschau) inklusive SWAP-Button zum sofortigen Seitentausch.
 - **Intelligente Heading-Scroll-Synchronisation (`heading-sync.ts`):** Präziser Scroll-Abgleich basierend auf Markdown-Überschriften (`#`, `##`, `###`), der auch bei unterschiedlich langen Sprachversionen (z. B. Sanskrit-Original vs. deutsche Übersetzung) die Orientierung wahrt. Wählbare Modi: *Sync: Header*, *Sync: Percentage*, *Sync: Off*.
