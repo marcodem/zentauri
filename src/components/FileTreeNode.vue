@@ -457,7 +457,7 @@ async function refresh() {
     @contextmenu="onContextMenu" 
     @keydown="onKeyDown" 
     tabindex="0" 
-    class="outline-none"
+    class="outline-none min-w-full w-max flex flex-col"
     :draggable="!isEditing && !node.isNew"
     @dragstart="onDragStart"
     @dragover="onDragOver"
@@ -465,12 +465,12 @@ async function refresh() {
     @drop="onDrop"
   >
     <div 
-      class="flex items-center py-1.5 px-2 cursor-pointer hover:bg-app-bg-hover transition-all rounded-md mx-1 my-0.5 whitespace-nowrap min-w-full w-max"
+      class="flex items-center py-1.5 px-2 cursor-pointer hover:bg-app-bg-hover transition-all rounded-md my-0.5 whitespace-nowrap min-w-full w-max"
       :class="{ 
         'bg-app-bg-active text-blue-500 font-medium': activePath === node.path,
         'ring-2 ring-blue-500 bg-blue-500/15': isDragOver 
       }"
-      :style="{ paddingLeft: (depth * 0.85 + 0.25) + 'rem' }"
+      :style="{ paddingLeft: (depth * 0.85 + 0.5) + 'rem' }"
       @click="onClick"
     >
 
@@ -554,8 +554,8 @@ async function refresh() {
     </div>
     
     <!-- Children -->
-    <div v-if="node.isDirectory && isOpen" class="min-w-full w-max">
-      <div v-if="isLoading" class="text-xs text-app-text-muted py-1 opacity-80" :style="{ paddingLeft: ((depth + 1) * 1 + 0.5) + 'rem' }">
+    <div v-if="node.isDirectory && isOpen" class="min-w-full w-max flex flex-col">
+      <div v-if="isLoading" class="text-xs text-app-text-muted py-1 opacity-80 whitespace-nowrap" :style="{ paddingLeft: ((depth + 1) * 1 + 0.5) + 'rem' }">
         Loading...
       </div>
       <FileTreeNode 

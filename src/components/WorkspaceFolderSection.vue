@@ -402,10 +402,10 @@ defineExpose({
 </script>
 
 <template>
-  <div class="mb-1 min-w-full w-max">
+  <div class="mb-1 min-w-full flex flex-col">
     <!-- Folder Querbalken (Section Header) -->
     <div 
-      class="px-2 py-1.5 text-xs font-bold text-app-text-muted flex justify-between items-center group/section cursor-pointer select-none bg-app-bg-secondary hover:bg-app-bg transition-colors border-y border-app-border min-w-full sticky left-0 z-[5]" 
+      class="px-2 py-1.5 text-xs font-bold text-app-text-muted flex justify-between items-center group/section cursor-pointer select-none bg-app-bg-secondary hover:bg-app-bg transition-colors border-y border-app-border w-full sticky left-0 z-[5]" 
       @click="isFolderExpanded = !isFolderExpanded"
       :title="`Workspace: ${folderPath}`"
     >
@@ -469,7 +469,7 @@ defineExpose({
     </div>
 
     <!-- Tree Content -->
-    <div v-show="isFolderExpanded" class="py-1 min-w-full w-max">
+    <div v-show="isFolderExpanded" class="py-1 min-w-full w-max flex flex-col">
       <div v-if="isLoading" class="px-6 py-2 text-xs text-app-text-muted opacity-80 whitespace-nowrap">
         Loading workspace folder...
       </div>

@@ -194,11 +194,11 @@ defineExpose({
         </button>
       </div>
 
-      <div v-else class="min-w-full w-max flex flex-col">
+      <div v-else class="min-w-full flex flex-col">
         <!-- Open Editors Section (Querbalken 1) -->
-        <div v-if="displayOpenTabs && displayOpenTabs.length > 0" class="mb-2 min-w-full w-max">
+        <div v-if="displayOpenTabs && displayOpenTabs.length > 0" class="mb-2 min-w-full flex flex-col">
           <div 
-            class="px-2 py-1.5 text-xs font-bold uppercase tracking-wider text-app-text-muted flex justify-between items-center group/section cursor-pointer select-none bg-app-bg-secondary hover:bg-app-bg transition-colors border-y border-app-border sticky left-0 z-[5] min-w-full" 
+            class="px-2 py-1.5 text-xs font-bold uppercase tracking-wider text-app-text-muted flex justify-between items-center group/section cursor-pointer select-none bg-app-bg-secondary hover:bg-app-bg transition-colors border-y border-app-border sticky left-0 z-[5] w-full" 
             @click="isOpenEditorsExpanded = !isOpenEditorsExpanded"
           >
             <div class="flex items-center gap-1.5">
@@ -222,7 +222,7 @@ defineExpose({
               class="flex items-center justify-between px-2 py-1 text-[13px] cursor-pointer hover:bg-app-bg transition-colors group/tab whitespace-nowrap min-w-full w-max"
               :class="{'bg-app-bg border-l-2 border-l-blue-500': activePath === tab.path, 'border-l-2 border-l-transparent': activePath !== tab.path}"
             >
-              <div class="flex items-center gap-1.5 whitespace-nowrap min-w-0 pr-2">
+              <div class="flex items-center gap-1.5 whitespace-nowrap min-w-0 pr-4">
                 <button 
                   @click.stop="$emit('close-tab', openTabs?.findIndex(t => t.id === tab.id) ?? -1)"
                   class="opacity-0 group-hover/tab:opacity-100 text-app-text-muted hover:text-app-text transition-all p-[2px] rounded-sm hover:bg-app-border shrink-0 cursor-pointer"
@@ -240,7 +240,7 @@ defineExpose({
         </div>
 
         <!-- Workspace / Parent Folder Sections (Multi-Folder Support) -->
-        <div v-if="computedRootPaths.length > 0" class="flex flex-col min-w-full w-max">
+        <div v-if="computedRootPaths.length > 0" class="flex flex-col min-w-full">
           <WorkspaceFolderSection
             v-for="(folderPath, idx) in computedRootPaths"
             :key="folderPath"

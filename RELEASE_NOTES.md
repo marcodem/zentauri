@@ -1,3 +1,16 @@
+# Release Notes — ZenTauri v1.3.1
+
+ZenTauri v1.3.1 is a patch release focusing on UI/UX refinements in the File Explorer, ensuring a cleaner layout on ultra-wide screens and robust handling of long filenames.
+
+## Fixes & Enhancements (v1.3.1)
+
+### 📂 File Explorer Layout Refinements
+* **Constrained Sidebar Width:** Implemented a sensible maximum width for the sidebar (clamped at 480px), preventing layout breakage on ultra-wide displays while still allowing manual resizing up to the maximum limit.
+* **Horizontal Scrolling for Long Filenames:** Enabled horizontal scrolling for file tree entries and open tabs, ensuring that long filenames and deep folder hierarchies are fully legible without wrapping or breaking the layout.
+* **Sticky Action Headers:** Folder headers and action icons (such as "New File" and "Refresh") now use sticky positioning, ensuring they remain visible and accessible even when scrolling horizontally through deeply nested trees.
+
+---
+
 # Release Notes — ZenTauri v1.3.0
 
 ZenTauri v1.3.0 brings scholarly markdown enhancements including **academic footnotes** with bidirectional anchor navigation, **definition lists** for domain glossaries, syntax reference updates, full bilingual documentation with roadmap separation, and Birchville portal navigation integration.

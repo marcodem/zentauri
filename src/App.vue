@@ -87,7 +87,6 @@ graph TD
 [^ref]: Footnotes include bidirectional anchor navigation back to the text citation.
 `;
 
-
 const tabs = ref<Tab[]>([]);
 const activeTabIndex = ref(-1);
 
@@ -160,9 +159,21 @@ function handleJumpToLinePrompt() {
   }
 }
 
+function getInitialSidebarWidth(): number {
+  if (typeof window === "undefined") return 256;
+  const saved = localStorage.getItem("zentauri-sidebar-width");
+  if (saved) {
+    const w = Number.parseInt(saved, 10);
+    if (!Number.isNaN(w)) {
+      return Math.min(Math.max(160, w), 480);
+    }
+  }
+  return 256;
+}
+
 const workspaceRoot = ref<string | null>(null);
 const workspaceRoots = ref<string[]>([]);
-const sidebarWidth = ref(256);
+const sidebarWidth = ref(getInitialSidebarWidth());
 const isResizingSidebar = ref(false);
 
 function saveWorkspaceRoots() {
@@ -336,7 +347,7 @@ function startSidebarResize(e: MouseEvent) {
 
   function onMouseMove(moveEvent: MouseEvent) {
     const delta = moveEvent.clientX - startX;
-    const newWidth = Math.min(Math.max(160, startWidth + delta), 800);
+    const newWidth = Math.min(Math.max(160, startWidth + delta), 480);
     sidebarWidth.value = newWidth;
   }
 
@@ -1069,8 +1080,8 @@ onMounted(() => {
   const savedSidebarWidth = localStorage.getItem("zentauri-sidebar-width");
   if (savedSidebarWidth) {
     const w = Number.parseInt(savedSidebarWidth, 10);
-    if (!Number.isNaN(w) && w >= 160 && w <= 800) {
-      sidebarWidth.value = w;
+    if (!Number.isNaN(w)) {
+      sidebarWidth.value = Math.min(Math.max(160, w), 480);
     }
   }
 
@@ -2115,7 +2126,7 @@ async function handleExportPdf() {
       <!-- File Tree Sidebar -->
       <div 
         v-show="showExplorer" 
-        class="flex-none border-r border-app-border print:hidden h-full overflow-hidden"
+        class="flex-none border-r border-app-border print:hidden h-full overflow-hidden max-w-[480px] min-w-[160px]"
         :style="{ width: sidebarWidth + 'px' }"
       >
         <FileTree 
@@ -2136,7 +2147,7 @@ async function handleExportPdf() {
       <!-- Cheatsheet Sidebar -->
       <div 
         v-show="showCheatsheet" 
-        class="flex-none border-r border-app-border print:hidden h-full"
+        class="flex-none border-r border-app-border print:hidden h-full max-w-[480px] min-w-[160px]"
         :style="{ width: sidebarWidth + 'px' }"
       >
         <Cheatsheet @insertSnippet="handleInsertSnippet" @insert="handleInsertFromCheatsheet" class="h-full" />
@@ -2145,7 +2156,7 @@ async function handleExportPdf() {
       <!-- Search Sidebar -->
       <div 
         v-show="showSearch" 
-        class="flex-none border-r border-app-border print:hidden h-full"
+        class="flex-none border-r border-app-border print:hidden h-full max-w-[480px] min-w-[160px]"
         :style="{ width: sidebarWidth + 'px' }"
       >
         <SearchPanel 

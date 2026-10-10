@@ -150,4 +150,54 @@ describe("FileTree Component", () => {
       writable: true,
     });
   });
+
+  it("provides horizontal scroll container and renders long filenames without truncation", async () => {
+    Object.defineProperty(window, "__TAURI_INTERNALS__", {
+      value: {},
+      configurable: true,
+      writable: true,
+    });
+
+    const longFileName =
+      "2026-10-10_Scholarly_Analysis_of_Sanskrit_Grammar_and_Morphological_Rules_Very_Long_Document_Name.md";
+    const wrapper = mount(FileTree, {
+      props: {
+        rootPath: "/Users/test/my-project",
+        rootPaths: ["/Users/test/my-project"],
+        openTabs: [
+          {
+            id: "long-tab-1",
+            path: `/Users/test/my-project/${longFileName}`,
+            title: longFileName,
+            content: "# Long content",
+          },
+        ],
+      },
+      global: {
+        stubs: {
+          ContextMenu: true,
+        },
+      },
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    // Scrollable tree container must support horizontal scrolling
+    const scrollContainer = wrapper.find(".overflow-x-auto");
+    expect(scrollContainer.exists()).toBe(true);
+    expect(scrollContainer.classes()).toContain("custom-scrollbar");
+
+    // Open editors and long filename should preserve whitespace-nowrap and w-max
+    const longTabElement = wrapper.find(".group\\/tab");
+    expect(longTabElement.exists()).toBe(true);
+    expect(longTabElement.classes()).toContain("whitespace-nowrap");
+    expect(longTabElement.classes()).toContain("w-max");
+    expect(longTabElement.text()).toContain(longFileName);
+
+    Object.defineProperty(window, "__TAURI_INTERNALS__", {
+      value: undefined,
+      configurable: true,
+      writable: true,
+    });
+  });
 });

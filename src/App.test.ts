@@ -84,4 +84,31 @@ describe("App Component Integration", () => {
     await vimBtn.trigger("click");
     expect(vimBtn.attributes("title")).toBe("Vim-Modus: Aktiv");
   });
+
+  it("enforces maximum width constraint of 480px on sidebar container", () => {
+    localStorage.setItem("zentauri-sidebar-width", "999");
+    const wrapper = mount(App, {
+      global: {
+        stubs: {
+          Editor: true,
+          Preview: true,
+          Cheatsheet: true,
+          HelpSystem: true,
+          Settings: true,
+          SearchPanel: true,
+          UpdateNotification: true,
+          StatusBar: true,
+        },
+      },
+    });
+
+    const fileTreeContainer =
+      wrapper.findComponent(FileTree).element.parentElement;
+    expect(fileTreeContainer).not.toBeNull();
+    expect(fileTreeContainer?.classList.contains("max-w-[480px]")).toBe(true);
+    expect(fileTreeContainer?.classList.contains("min-w-[160px]")).toBe(true);
+    // Width style should be clamped to 480px even if 999 was stored in localStorage
+    expect(fileTreeContainer?.getAttribute("style")).toContain("width: 480px");
+    localStorage.removeItem("zentauri-sidebar-width");
+  });
 });
