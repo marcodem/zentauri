@@ -28,6 +28,26 @@ describe("renderMarkdown", () => {
     expect(tableHtml).toContain('rowspan="2"');
   });
 
+  it("renders footnotes with working anchors", () => {
+    for (const markdownExtensionsEnabled of [true, false]) {
+      const html = renderMarkdown("Text[^1]\n\n[^1]: Die Notiz.", {
+        markdownExtensionsEnabled,
+      });
+      expect(html).toContain('class="footnote-ref"');
+      expect(html).toContain('href="#fn1"');
+      expect(html).toContain('id="fn1"');
+      expect(html).toContain("Die Notiz.");
+      expect(html).not.toContain('href="Note"');
+    }
+  });
+
+  it("renders definition lists", () => {
+    const html = renderMarkdown("Begriff\n: Definition");
+    expect(html).toContain("<dl>");
+    expect(html).toContain("<dt>Begriff</dt>");
+    expect(html).toContain("<dd>Definition</dd>");
+  });
+
   it("renders grammar-box without title correctly (no empty title line)", () => {
     const noTitleHtml = renderMarkdown("::: grammar-box\nInhalt\n:::");
     expect(noTitleHtml).not.toContain("md-box__title");

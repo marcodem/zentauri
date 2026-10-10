@@ -109,6 +109,18 @@ const CHEAT_SHEET: SyntaxCategory[] = [
         after: "",
         desc: "Ruler",
       },
+      {
+        label: "[^1] Footnote",
+        before: "[^1]\n\n[^1]: ",
+        after: "",
+        desc: "Footnote (reference and definition)",
+      },
+      {
+        label: "Term : Definition",
+        before: "\nTerm\n: ",
+        after: "",
+        desc: "Definition list",
+      },
     ],
   },
 

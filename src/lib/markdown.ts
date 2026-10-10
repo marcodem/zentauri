@@ -3,7 +3,11 @@ import katex from "katex";
 import MarkdownIt from "markdown-it";
 import markdownItAttrs from "markdown-it-attrs";
 // @ts-ignore
+import markdownItDeflist from "markdown-it-deflist";
+// @ts-ignore
 import * as extensiblePluginModule from "markdown-it-extensible";
+// @ts-ignore
+import markdownItFootnote from "markdown-it-footnote";
 // @ts-ignore
 import multimdTable from "markdown-it-multimd-table";
 import { adjustContainerNesting } from "./auto-repair";
@@ -397,6 +401,8 @@ function createBaseMarkdownIt(): MarkdownIt {
       autolabel: true,
     })
     .use(markdownItAttrs)
+    .use(markdownItFootnote)
+    .use(markdownItDeflist)
     .use(katexMathPlugin);
 
   setupFenceRule(instance);
