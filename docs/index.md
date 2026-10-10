@@ -3,52 +3,53 @@ layout: doc
 title: Zentauri — Technical Documentation
 ---
 
-# 🌌 Zentauri — Technische Dokumentation
+# 🌌 Zentauri — Technical Documentation
 
-Willkommen zur offiziellen Dokumentation für **Zentauri**, dem modernen, ultra-schnellen Markdown-Editor für akademische Arbeiten und wissenschaftliche Textkorpora.
+Welcome to the official documentation for **Zentauri**, the modern, ultra-fast Markdown editor designed for academic research, philological studies, and structured text corpora.
 
 ::: note-box
-**Zweck & Layout-Philosophie**:
-Der primäre Zweck von Zentauri ist es, aus **Markdown sauberes, semantisches HTML herzustellen** (prädestiniert für wissenschaftliche Web-Korpora, Online-Editionen und VitePress-Dokumentationen). 
+**Purpose & Layout Philosophy**:
+The primary purpose of Zentauri is compiling **Markdown into clean, semantic HTML** (predestined for scholarly web corpora, digital editions, and VitePress documentations). 
 
-Zwar besteht eine integrierte PDF-Exportfunktion, Zentauri versteht sich jedoch nicht als mächtige Desktop-Publishing-Suite (DTP): Es bietet bewusst nur wenige, gezielte Markdown-Syntaxerweiterungen (`::: grammar-box`, `::: note-box`, `::: center`, `:indent`, `:br`, Tabellenspans), die ein minimales, didaktisches Layouten direkt im Textfluss erlauben.
+While an integrated PDF export function is built-in, Zentauri is not intended as a desktop publishing suite (DTP): it deliberately provides a concise, carefully chosen set of Markdown syntax extensions (`::: grammar-box`, `::: note-box`, `::: center`, `:indent`, `:br`, table spans) that enable minimal, didactic layouting directly within the natural text flow.
 :::
 
 ---
 
-## 🎯 Primärzweck: Markdown zu HTML
+## 🎯 Primary Purpose: Markdown to HTML
 
-Zentauri fokussiert sich auf die medienneutrale Strukturierung von Texten:
-1. **HTML als primäres Zielformat:** Die Textauszeichnung wird verlustfrei und hochgradig standardisiert in HTML überführt – ideal für Webseiten, VitePress-Dokumentationen und digitale Lehrbücher.
-2. **Minimales Layouting im Markdown:** Statt visueller Pixel-Schieberei gibt es eine kleine, feine Auswahl an semantischen Layout-Direktiven (Container-Boxen, Einrückungen, Inline-Signalmarkierungen und Textzentrierung).
-3. **PDF-Export:** Die integrierte PDF-Funktion rendert das erzeugte HTML zur Weitergabe und Archivierung, ersetzt aber kein komplexes Satzprogramm für Print-Layouts.
+Zentauri focuses on media-neutral text structuring:
+1. **HTML as the Primary Target:** Text markup is transformed into standard-compliant, semantic HTML without formatting loss — ideal for websites, VitePress portals, and digital textbooks.
+2. **Minimal In-Markdown Layouting:** Rather than pixel-pushing visual layouts, Zentauri provides a focused set of semantic directives (container boxes, text centering, indents, inline signal markers, and table line breaks).
+3. **PDF Export:** The native PDF export engine paginates and prints the generated HTML for archiving and distribution, rather than serving as a complex manual layout designer.
 
 ---
 
-## 🏛️ Kernsäulen
+## 🏛️ Core Architectural Pillars
 
-| Kernsäule | Technologie | Zielsetzung |
+| Pillar | Technology | Objective |
 | :--- | :--- | :--- |
-| 🦀 **Rust-First Architektur** | Tauri v2, Rust, SQLite | Maximale Performance, minimaler Speicherverbrauch und native OS-Integration |
-| 📝 **Scholarly Editing** | Vue 3, CodeMirror 6, markdown-it-extensible | Split-Pane Editing, Silent Auto-Repair und akademische Metadaten |
-| 🖨️ **Nativer PDF-Export** | Typst (`typst-as-lib`) | Blitzschneller, hochpräziser PDF-Satz ohne Chromium- oder Node.js-Ballast |
-| 🕸️ **Knowledge Graph** | SQLite Indexing, `v-network-graph` | Interaktive Visualisierung von Dokumentenverknüpfungen und Wiki-Links |
+| 🦀 **Rust-First Architecture** | Tauri v2, Rust, SQLite | Maximum responsiveness, minimal memory footprint, and native OS integration |
+| 📝 **Scholarly Editing** | Vue 3, CodeMirror 6, markdown-it-extensible | Split-pane editing, silent auto-repair, and philological metadata |
+| 🖨️ **Native PDF Export** | Typst (`typst-as-lib`) | Instantaneous, high-precision academic PDF typesetting without Chromium or Node.js bloat |
+| 🕸️ **Knowledge Graph** | SQLite Indexing, `v-network-graph` | Interactive visualization of bidirectional document cross-references and Wiki links |
 
 ---
 
-## 📌 Dokumentationsübersicht
+## 📌 Documentation Overview
 
-### Erste Schritte
-- 💻 **[Installation & Setup](./installation)**: Anleitung für macOS (Gatekeeper-Freigabe), Windows und Linux sowie automatische Updates.
-- 📖 **[Benutzerhandbuch & Custom CSS](./user-guide)**: Bedienung des Editors, Erstellen eigener Syntax-Elemente und Anpassung via `custom.css`.
+### Getting Started
+- 💻 **[Installation & Setup](./installation)**: Step-by-step setup for macOS (Gatekeeper bypass), Windows, and Linux, plus seamless automatic updates.
+- 📖 **[User Guide & Customization](./user-guide)**: Editor workflows, custom inline/block syntax creation, and styling via `custom.css`.
 
-### Architektur & Technik
-- 📐 **[System-Architektur](./system-architecture)**: Rust-First File-Explorer, IPC-Kommunikation, SQLite-Indexierung und Typst-PDF-Pipeline.
-- 📝 **[Scholarly Features](./scholarly-features)**: Container-Blöcke (`::: grammar-box`), Devanāgarī-Formatierung und Knowledge-Graph.
-- 🚀 **[Release Notes](./release-notes)**: Versionshistorie und Feature-Übersicht von v1.0 bis v1.1.20.
+### Architecture & Specifications
+- 📐 **[System Architecture](./system-architecture)**: Rust-first file explorer, IPC bridges, SQLite indexing, and native Typst PDF pipeline.
+- ⌨️ **[Sanskrit Input Architecture](./scholarly-input-architecture)**: 3-stage hybrid input concept, in-editor live IME, and global transliteration hotkeys.
+- 📝 **[Scholarly Features](./scholarly-features)**: Container blocks (`::: grammar-box`), Devanāgarī font cascade, and QA dual-pane comparison mode.
+- 🚀 **[Release Notes](./release-notes)**: Complete release history and feature highlights.
 
 ---
 
-::: tip HINWEIS
-Nutzen Sie die linke Navigationsleiste, um direkt zwischen den Kapiteln zu wechseln.
+::: tip NAVIGATION
+Use the left sidebar or the language selector in the top navigation bar to explore topics and switch languages.
 :::

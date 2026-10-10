@@ -1,91 +1,90 @@
 ---
-title: Sanskrit-Eingabesteuerung & Hybrid-Architektur
+title: Sanskrit Input Control & Hybrid Architecture
 ---
 
-# ⌨️ Sanskrit-Eingabesteuerung & Hybrid-Architektur
+# ⌨️ Sanskrit Input Control & Hybrid Architecture
 
-Dieses Dokument erfasst die architektonische Analyse und Entscheidungsmatrix zur Handhabung von Sanskrit-Eingaben (IAST, Harvard-Kyoto, Devanāgarī) in Zentauri.
-
----
-
-## 1. Ausgangslage & Problemstellung
-
-Wissenschaftliche Texte und Lehrmaterialien im Bereich Indologie/Sanskrit sind typischerweise **Mischtexte**:
-* Fließtext in modernen Sprachen (Deutsch, Englisch) mit normaler Satzstruktur und Groß-/Kleinschreibung.
-* Eingebettete Sanskrit-Fachbegriffe, Flexionsformen, Zitate und Verse in IAST (International Alphabet of Sanskrit Transliteration) oder Devanāgarī.
-
-Daraus resultiert ein ergonomischer Zielkonflikt bei der Tastatureingabe:
-1. **Diakritika-Reichtum:** IAST erfordert Makrons (`ā`, `ī`, `ū`), Unterpunkte (`ṛ`, `ṝ`, `ḷ`, `ṃ`, `ḥ`, `ṭ`, `ḍ`, `ṇ`, `ṣ`), Tilden (`ñ`) und Akzente (`ś`), die auf Standard-Tastaturen keine Direkttasten besitzen.
-2. **Standard-ASCII-Alternativen:** Transliterationssysteme wie **Harvard-Kyoto (HK)** kodieren alle Phoneme verlustfrei in 7-Bit ASCII (`kRSNaH`), sind jedoch für Druck und Bildschirmlesung ungeeignet.
-3. **Persistenz vs. Eingabefluss:** Wie soll der Text im Markdown-Dokument gespeichert werden, und wo/wie soll die Eingabetransformation erfolgen?
+This document outlines the architectural analysis and decision matrix governing Sanskrit input workflows (IAST, Harvard-Kyoto, Devanāgarī) in Zentauri.
 
 ---
 
-## 2. Architektonische Entscheidungsmatrix
+## 1. Context & Problem Statement
 
-| Dimension | Option A: OS-Tastaturlayout | Option B: Nur Harvard-Kyoto (HK) | Option C: Applikationsebene (Editor-IME) |
+Scholarly texts, critical editions, and didactic materials in Indology and Sanskrit are typically **mixed-language corpora**:
+* Running prose in modern languages (English, German) with standard casing, capitalization, and punctuation.
+* Embedded Sanskrit technical terminology, declension paradigms, citations, and verses in IAST (International Alphabet of Sanskrit Transliteration) or Devanāgarī.
+
+This creates a fundamental ergonomic tension during keyboard input:
+1. **Abundance of Diacritics:** IAST requires macrons (`ā`, `ī`, `ū`), underdots (`ṛ`, `ṝ`, `ḷ`, `ṃ`, `ḥ`, `ṭ`, `ḍ`, `ṇ`, `ṣ`), tildes (`ñ`), and acute accents (`ś`), none of which exist as dedicated keys on standard physical keyboards.
+2. **Standard ASCII Alternatives:** Transliteration schemes like **Harvard-Kyoto (HK)** map all phonemes losslessly to 7-bit ASCII (`kRSNaH`), but raw ASCII notation is unsuitable for publication, print, and screen reading.
+3. **Persistence vs. Authoring Flow:** How should text be persisted in the underlying Markdown file, and where/how should phonetic transformation occur?
+
+---
+
+## 2. Architectural Decision Matrix
+
+| Dimension | Option A: OS Keyboard Layout | Option B: Harvard-Kyoto Only | Option C: Application-Level (Editor IME) |
 | :--- | :--- | :--- | :--- |
-| **Setup-Aufwand** | Hoch (Benutzer muss Drittanbieter-Layouts wie EasyUnicode installieren). | Keiner (Standard-US/DE-Tastatur genügt). | **Keiner** (funktioniert out-of-the-box in der App). |
-| **Plattformkonsistenz** | Gering (macOS, Windows und Linux nutzen komplett unterschiedliche Dead-Keys). | Hoch (plattformunabhängiges ASCII). | **Absolut** (identisches Verhalten auf allen Betriebssystemen via CodeMirror 6). |
-| **Schreibfluss im Mischtext** | **Störend:** Ständiger Wechsel des Systemlayouts (z. B. `Cmd+Space`) mitten im Satz. | Mäßig: Manuelle Konvertierung oder unleserlicher Quelltext. | **Nahtlos:** Kontextabhängige automatische Wandlung ohne Tastenlayout-Wechsel. |
-| **Quelltext-Lesbarkeit** | Hervorragend (echtes IAST im Markdown). | **Schlecht:** ASCII-Kürzel (`dharmakSetre`) wirken typografisch unruhig. | Hervorragend (echtes IAST oder Devanāgarī im Quelltext). |
-| **Satzanfang / Großschreibung** | Kein Konflikt. | **Konflikt:** Großbuchstaben in HK sind phonetisch belegt (`R` = ṛ, `S` = ṣ). | Kein Konflikt dank kontextueller Scopes. |
-| **Korpus-Kompatibilität** | Hoch. | Gering (müsste vorab konvertiert werden). | **Hoch** (bestehende IAST- und Devanāgarī-Dateien bleiben unverändert). |
+| **Setup Overhead** | High (User must install third-party layouts like EasyUnicode). | None (Standard US/UK keyboard suffices). | **None** (Works immediately out-of-the-box in the application). |
+| **Cross-Platform Consistency** | Low (macOS, Windows, and Linux use vastly different dead-key chains). | High (Platform-independent ASCII). | **Absolute** (Identical behavior across all platforms via CodeMirror 6). |
+| **Flow in Mixed Text** | **Disruptive:** Constant switching of OS input sources (e.g. `Cmd+Space`) mid-sentence. | Moderate: Manual post-conversion or unreadable source text. | **Seamless:** Context-aware automatic conversion without switching keyboard layouts. |
+| **Source Readability** | Excellent (True IAST directly in Markdown). | **Poor:** ASCII mnemonics (`dharmakSetre`) disrupt visual reading flow. | Excellent (True IAST or Devanāgarī preserved in source). |
+| **Sentence Capitalization** | No conflict. | **Conflict:** Uppercase letters in HK carry phonetic meaning (`R` = ṛ, `S` = ṣ). | No conflict thanks to contextual scope boundaries. |
+| **Corpus Compatibility** | High. | Low (Requires pre-filtering before export). | **High** (Existing IAST and Devanāgarī documents remain untouched). |
 
 ---
 
-## 3. Das 3-stufige Hybridkonzept
+## 3. The 3-Stage Hybrid Concept
 
-Aus der Gegenüberstellung ergibt sich die hybride Architektur, die maximale Ergonomie bei voller Standardkonformität gewährleistet:
+Synthesizing these trade-offs yields a hybrid architecture that balances maximum authoring ergonomics with strict standard compliance:
 
 ```mermaid
 flowchart TD
-    subgraph Stufe1["Stufe 1: Persistenz & Quelltext (Markdown)"]
-        DOC["Kanonischer Text: IAST (kṛṣṇaḥ) oder Devanāgarī (कृष्णः)"]
+    subgraph Stage1["Stage 1: Persistence & Source Document (Markdown)"]
+        DOC["Canonical Text: IAST (kṛṣṇaḥ) or Devanāgarī (कृष्णः)"]
     end
 
-    subgraph Stufe2["Stufe 2: Live-Eingabeschicht (CodeMirror 6 In-Editor IME)"]
-        SCOPE["Scope-Erkennung: 《...》 oder ⟪...⟫"]
-        HK_INPUT["Tippen in 7-Bit HK (kRSNaH)"]
-        COMPOSE["Fließtext: Compose-Sequenzen (.r => ṛ, -a => ā)"]
-        SCOPE -->|Automatische Echtzeit-Wandlung| DOC
-        COMPOSE -->|Ersetzt Dead-Key| DOC
+    subgraph Stage2["Stage 2: Live Input Layer (CodeMirror 6 In-Editor IME)"]
+        SCOPE["Scope Detection: 《...》 or ⟪...⟫"]
+        HK_INPUT["Typing in 7-Bit HK (kRSNaH)"]
+        COMPOSE["Running Prose: Compose Sequences (.r => ṛ, -a => ā)"]
+        SCOPE -->|Real-Time Conversion| DOC
+        COMPOSE -->|Replaces Dead Keys| DOC
         HK_INPUT --> SCOPE
     end
 
-    subgraph Stufe3["Stufe 3: Post-Hoc Tooling & Batch-Wandlung"]
+    subgraph Stage3["Stage 3: Post-Hoc Tooling & Batch Conversion"]
         SHORTCUTS["⌥⌘D (IAST ⇄ Deva) / ⌥⌘H (HK ⇄ Deva)"]
-        BATCH["Korpus-Import & Schnellumschaltung markierter Wörter"]
+        BATCH["Corpus Import & Selection Word Toggling"]
         SHORTCUTS --> DOC
         BATCH --> DOC
     end
 ```
 
-### Stufe 1: Kanonische Speicherung (Markdown-Ebene)
-* Das Markdown-Dokument speichert **immer** echtes IAST (`kṛṣṇaḥ`) oder natives Unicode-Devanāgarī (`कृष्णः`).
-* Keine Bindung an Zentauri: Die Dateien bleiben in Git, GitHub, VS Code und Typst typografisch sauber und lesbar.
-* Harvard-Kyoto fungiert rein als Eingabe- und Transformationswerkzeug, niemals als Zwangs-Speicherformat.
+### Stage 1: Canonical Storage (Markdown Level)
+* The underlying Markdown file **always** persists standard IAST (`kṛṣṇaḥ`) or native Unicode Devanāgarī (`कृष्णः`).
+* No vendor lock-in: Files remain clean, interoperable, and readable in Git, GitHub, VS Code, and Typst.
+* Harvard-Kyoto functions purely as an authoring accelerator and transliteration tool, never as an enforced storage format.
 
-### Stufe 2: Kontext-gesteuerte Live-Eingabe (In-Editor IME)
-Die Eingabesteuerung erfolgt direkt in der CodeMirror-6-Transaktionsschicht des Editors:
-1. **Scope-basierter Live-IME:**
-   * Innerhalb der etablierten Sanskrit-Klammern (`《...》` und `⟪...⟫`) tippt der Autor in flüssigem Harvard-Kyoto ASCII.
-   * Der Editor transformiert die Zeichen beim Tippen sofort in die konfigurierte Zieldarstellung (IAST oder Devanāgarī).
-   * Außerhalb der Klammern bleibt die Tastatur auf Standard-Deutsch/Englisch.
-2. **Compose-Key Simulation im freien Text:**
-   * Für einzelne Sanskrit-Wörter im Fließtext ohne Klammern bietet der Editor intuitive Compose-Sequenzen (z. B. `.r` => `ṛ`, `-a` => `ā`, `~n` => `ñ`, `'s` => `ś`, `.s` => `ṣ`), ohne dass der Benutzer ein OS-Sonderlayout benötigt.
+### Stage 2: Context-Aware Live Input (In-Editor IME)
+Input handling is embedded directly within CodeMirror 6's transaction layer:
+1. **Scope-Based Live IME:**
+   * Inside designated Sanskrit delimiters (`《...》` and `⟪...⟫`), the author types in fluent Harvard-Kyoto ASCII.
+   * The editor converts characters on the fly into the configured target representation (IAST or Devanāgarī).
+   * Outside delimiters, the keyboard remains in standard language mode without interference.
+2. **Compose-Key Sequences in Running Prose:**
+   * For individual words without bracket delimiters, the editor emulates intuitive compose sequences (e.g., `.r` => `ṛ`, `-a` => `ā`, `~n` => `ñ`, `'s` => `ś`, `.s` => `ṣ`) without requiring custom OS keyboards.
 
-### Stufe 3: Post-Hoc Transliteration & Korpus-Tools (Bereits implementiert)
-* Tastatur-Shortcuts `⌥⌘D` (IAST ⇄ Devanāgarī) und `⌥⌘H` (Harvard-Kyoto ⇄ Devanāgarī) im Header und Editor.
-* Schnelle Umwandlung bestehender Texte, Zitate oder importierter Korpora.
+### Stage 3: Post-Hoc Transliteration & Corpus Tools (Active)
+* Global keyboard shortcuts `⌥⌘D` (IAST ⇄ Devanāgarī) and `⌥⌘H` (Harvard-Kyoto ⇄ Devanāgarī) available in the editor and toolbar.
+* Fast, lossless conversion of selected words or whole documents during corpus ingestion.
 
 ---
 
-## 4. Garantie für native OS-Tastaturlayouts (EasyUnicode / Dead-Keys)
+## 4. Guarantee for Native OS Keyboard Layouts (EasyUnicode / Dead Keys)
 
-**Ja, direkte Eingaben über installierte OS-Tastaturlayouts sind zu 100 % gewährleistet und bleiben vollwertig unterstützt:**
+**Direct input via installed operating-system keyboard layouts remains 100% supported and uninhibited:**
 
-1. **Native Unicode-Durchleitung:** CodeMirror 6 verarbeitet alle vom Betriebssystem gesendeten Zeichen (`beforeinput`/`input`) transparent. Wer auf OS-Ebene z. B. `⌥a` => `ā` oder `⌥r` => `ṛ` tippt, schreibt ohne jeden Umweg direkt IAST in das Dokument.
-2. **Kollisionsfreiheit:** Der anwendungsbasierte Editor-IME (Stufe 2) verarbeitet ausschließlich reine ASCII-Zeichenfolgen (Harvard-Kyoto) und lässt bereits zusammengesetzte IAST-Unicode-Zeichen (`ā`, `ī`, `ū`, `ṛ`, `ṣ` etc.) unangetastet.
-3. **Abschaltbarkeit (Opt-in / Passthrough):** Stufe 2 wird als optionaler Modus konfigurierbar sein (*Editor-IME: Auto / HK-to-IAST / Aus*). Autoren mit eingespieltem OS-Tastaturlayout können den Editor-IME vollständig deaktiviert lassen und wie gewohnt arbeiten.
-
+1. **Transparent Unicode Passthrough:** CodeMirror 6 processes all character input events sent by the OS (`beforeinput`/`input`) transparently. Authors who type e.g. `⌥a` => `ā` or `⌥r` => `ṛ` directly insert standard IAST into the document.
+2. **Zero Collision Risk:** The application-level Editor IME (Stage 2) listens solely to ASCII token patterns (Harvard-Kyoto) and leaves pre-composed Unicode glyphs (`ā`, `ī`, `ū`, `ṛ`, `ṣ` etc.) completely untouched.
+3. **Configurable Passthrough (Opt-in / Opt-out):** Stage 2 will provide configurable toggle states (*Editor IME: Auto / HK-to-IAST / Off*). Authors accustomed to established OS layouts can keep the in-editor IME disabled and work exactly as before.

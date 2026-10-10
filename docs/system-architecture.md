@@ -74,12 +74,12 @@ Zentauri completely drops heavy Chromium/Playwright dependencies in favor of nat
 
 ---
 
-## 5. Sanskrit-Eingabesteuerung (Hybrid-Architektur)
+## 5. Sanskrit Input Architecture (Hybrid Framework)
 
-Für indologische Mischtexte (Deutsch/Englisch + IAST/Devanāgarī) verfolgt Zentauri ein dreistufiges Hybrid-Konzept auf Applikationsebene statt fehleranfälliger OS-Tastaturlayouts oder reinem ASCII-Harvard-Kyoto:
+For multilingual scholarly prose (English/German + IAST/Devanāgarī), Zentauri adopts a 3-stage hybrid input architecture at the application level rather than relying on brittle OS layouts or raw ASCII Harvard-Kyoto:
 
-1. **Kanonische Speicherung:** Persistenz im Markdown-Quelltext immer in standardkonformem IAST (`kṛṣṇaḥ`) oder Devanāgarī (`कृष्णः`).
-2. **In-Editor IME (CodeMirror 6):** Automatische Scope-basierte Live-Transliteration aus Harvard-Kyoto innerhalb von `《...》` und `⟪...⟫` sowie Dead-Key/Compose-Sequenzen für den Fließtext.
-3. **Post-Hoc Tooling:** Globale Tastaturkürzel (`⌥⌘D`, `⌥⌘H`) zur schnellen Wandlung markierter Abschnitte.
+1. **Canonical Persistence:** Source Markdown files always store standard IAST (`kṛṣṇaḥ`) or Devanāgarī (`कृष्णः`).
+2. **In-Editor IME (CodeMirror 6):** Automatic scope-based live transliteration from Harvard-Kyoto inside `《...》` and `⟪...⟫`, accompanied by compose-key sequences for running prose.
+3. **Post-Hoc Tooling:** Global shortcuts (`⌥⌘D`, `⌥⌘H`) for instantaneous selection toggling.
 
-Ausführliche Spezifikation und Entscheidungsmatrix siehe: [Sanskrit Input Architecture](./scholarly-input-architecture.md).
+Full architectural specification and trade-off matrix: [Sanskrit Input Architecture](./scholarly-input-architecture.md).

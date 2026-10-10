@@ -45,12 +45,12 @@ The file explorer natively hooks into the SQLite backend to fetch and display in
 
 ---
 
-## 5. QA-Vergleichsmodus & Synchron-Scrollen
+## 5. QA Dual-Document Comparison & Heading Sync
 
-Für Übersetzer, Lektoren und vergleichende Textanalysen (nach Vorbild des Payer QA Viewers):
+Tailored for translators, scholarly editors, and comparative philology (inspired by the Payer QA Viewer):
 
-- **Dual- & Triple-Pane (2-Col / 3-Col):** Parallele Anzeige einer Referenzdatei links neben dem CodeMirror-Editor (2-Col) bzw. mit zusätzlicher Live-Vorschau rechts (3-Col).
-- **SWAP-Funktion:** Schneller Seitentausch von Referenz- und Arbeitsdokument mit einem Klick.
-- **Heading-basiertes Synchron-Scrollen:** Intelligente Verknüpfung über Markdown-Überschriften (`#`, `##`, `###`), Nummernpräfixe und relative Interpolation – kein Desynchronisieren bei unterschiedlich langen Sprachfassungen. Umschaltbar zwischen *Sync: Header*, *Sync: Percentage* und *Sync: Off*.
-- **Parallele Sprachnavigation:** Automatische Erkennung paralleler Sprachversionen (z. B. `de/` ↔ `en/`) und Ein-Klick-Auswahl passender Referenzdokumente im Workspace.
+- **Dual- & Triple-Pane Layouts (2-Col / 3-Col):** Parallel display of a reference document on the left alongside the active CodeMirror editor (2-Col), or with an additional live preview on the right (3-Col).
+- **Instant SWAP:** One-click swapping of reference and active editor documents without losing scroll positions.
+- **Intelligent Heading-Based Scroll Synchronization:** Harmonizes scrolling based on Markdown headings (`#`, `##`, `###`), numeric prefixes, and proportional interpolation — eliminating scroll drift across asymmetrical translations. Modes: *Sync: Header*, *Sync: Percentage*, and *Sync: Off*.
+- **Bilingual Corpus Navigation:** Automatic heuristic detection of parallel language files (e.g., `de/` ↔ `en/` or `_de.md` ↔ `_en.md`) with one-click selection from the status bar.
 
