@@ -60,13 +60,13 @@ Zentauri verwaltet eine lokale SQLite-Datenbank (`.zentauri/index.db`) innerhalb
 
 - **`files`**: Speichert Dateipfade, Ordnerstrukturen, Zeitstempel und Dateigrößen.
 - **`markdown_metadata`**: Speichert extrahiertes YAML-Frontmatter wie `title`, `tags`, `iast` und `devanagari`.
-- **`markdown_links`**: Bildet `[[Wiki-Links]]` und Standard-Links für den Wissensgraphen ab.
+- **`markdown_links`**: Bildet `[[Wiki-Links]]` und Standard-Links als Indexbasis ab (interaktive Graph-Oberfläche geparkt auf der [Roadmap](./roadmap)).
 
 ---
 
-## 4. Nativer Typst PDF-Export
+## 4. Nativer Typst PDF-Export (Roadmap / Architekturplan)
 
-Zentauri verzichtet vollständig auf Headless-Chromium-Engines zugunsten eines nativen Rust-Satzes. **Typst** (`typst-as-lib`) wird direkt im Tauri-Backend aufgerufen. Das Vue-Frontend generiert aus dem Markdown einen Typst-AST, übergibt diesen per IPC an Rust, und der native Typst-Compiler erzeugt blitzschnell ein akademisch gesetztes PDF.
+Zentauris Architektur-Roadmap verzichtet vollständig auf Headless-Chromium-Engines zugunsten eines nativen Rust-Satzes. Für Version 2.0.0 ist die Einbindung von **Typst** (`typst-as-lib`) direkt im Tauri-Backend geplant (siehe [Roadmap & Backlog](./roadmap)). Das Vue-Frontend generiert aus dem Markdown einen Typst-AST, übergibt diesen per IPC an Rust, und der native Typst-Compiler erzeugt blitzschnell ein akademisch gesetztes PDF ohne externe Toolchains.
 
 ---
 
@@ -74,8 +74,8 @@ Zentauri verzichtet vollständig auf Headless-Chromium-Engines zugunsten eines n
 
 Für indologische Mischtexte (Deutsch/Englisch + IAST/Devanāgarī) verfolgt Zentauri ein dreistufiges Hybrid-Konzept auf Applikationsebene statt fehleranfälliger OS-Tastaturlayouts oder reinem ASCII-Harvard-Kyoto:
 
-1. **Kanonische Speicherung:** Persistenz im Markdown-Quelltext immer in standardkonformem IAST (`kṛṣṇaḥ`) oder Devanāgarī (`कृष्णः`).
-2. **In-Editor IME (CodeMirror 6):** Automatische Scope-basierte Live-Transliteration aus Harvard-Kyoto innerhalb von `《...》` und `⟪...⟫` sowie Dead-Key/Compose-Sequenzen für den Fließtext.
-3. **Post-Hoc Tooling:** Globale Tastaturkürzel (`⌥⌘D`, `⌥⌘H`) zur schnellen Wandlung markierter Abschnitte.
+1. **Kanonische Speicherung (Aktiv):** Persistenz im Markdown-Quelltext immer in standardkonformem IAST (`kṛṣṇaḥ`) oder Devanāgarī (`कृष्णः`).
+2. **In-Editor IME (Roadmap / Backlog für v2.0.0):** Automatische Scope-basierte Live-Transliteration aus Harvard-Kyoto innerhalb von `《...》` und `⟪...⟫` sowie Compose-Sequenzen für den Fließtext.
+3. **Post-Hoc Tooling (Aktiv):** Globale Tastaturkürzel (`⌥⌘D`, `⌥⌘H`) und Toolbar-Schalter mit tag-sicherem Parsing zur schnellen Wandlung markierter Abschnitte.
 
-Ausführliche Spezifikation und Entscheidungsmatrix siehe: [Sanskrit-Eingabearchitektur](./scholarly-input-architecture.md).
+Ausführliche Spezifikation und Entscheidungsmatrix siehe: [Sanskrit-Eingabearchitektur](./scholarly-input-architecture.md) und [Roadmap & Backlog](./roadmap).

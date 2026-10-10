@@ -36,24 +36,30 @@ This creates a fundamental ergonomic tension during keyboard input:
 
 ## 3. The 3-Stage Hybrid Concept
 
+::: info Implementation Status
+* **Stage 1 (Canonical Storage):** ✅ **Active** — Standard IAST/Devanāgarī persistence in Markdown.
+* **Stage 2 (In-Editor Live IME):** 📋 **Roadmap / Backlog** — Planned CodeMirror extension for v2.0.0 (see [Roadmap & Backlog](./roadmap)).
+* **Stage 3 (Post-Hoc Transliteration):** ✅ **Active** — Keyboard shortcuts `⌥⌘D` & `⌥⌘H` and toolbar buttons.
+:::
+
 Synthesizing these trade-offs yields a hybrid architecture that balances maximum authoring ergonomics with strict standard compliance:
 
 ```mermaid
 flowchart TD
-    subgraph Stage1["Stage 1: Persistence & Source Document (Markdown)"]
+    subgraph Stage1["Stage 1: Persistence & Source Document (Active)"]
         DOC["Canonical Text: IAST (kṛṣṇaḥ) or Devanāgarī (कृष्णः)"]
     end
 
-    subgraph Stage2["Stage 2: Live Input Layer (CodeMirror 6 In-Editor IME)"]
+    subgraph Stage2["Stage 2: Live Input Layer (Roadmap / Backlog)"]
         SCOPE["Scope Detection: 《...》 or ⟪...⟫"]
         HK_INPUT["Typing in 7-Bit HK (kRSNaH)"]
         COMPOSE["Running Prose: Compose Sequences (.r => ṛ, -a => ā)"]
-        SCOPE -->|Real-Time Conversion| DOC
-        COMPOSE -->|Replaces Dead Keys| DOC
+        SCOPE -.->|Future Real-Time Conversion| DOC
+        COMPOSE -.->|Future Auto-Replace| DOC
         HK_INPUT --> SCOPE
     end
 
-    subgraph Stage3["Stage 3: Post-Hoc Tooling & Batch Conversion"]
+    subgraph Stage3["Stage 3: Post-Hoc Tooling & Batch Conversion (Active)"]
         SHORTCUTS["⌥⌘D (IAST ⇄ Deva) / ⌥⌘H (HK ⇄ Deva)"]
         BATCH["Corpus Import & Selection Word Toggling"]
         SHORTCUTS --> DOC
@@ -61,13 +67,14 @@ flowchart TD
     end
 ```
 
-### Stage 1: Canonical Storage (Markdown Level)
+### Stage 1: Canonical Storage (Markdown Level) — ✅ Active
 * The underlying Markdown file **always** persists standard IAST (`kṛṣṇaḥ`) or native Unicode Devanāgarī (`कृष्णः`).
 * No vendor lock-in: Files remain clean, interoperable, and readable in Git, GitHub, VS Code, and Typst.
 * Harvard-Kyoto functions purely as an authoring accelerator and transliteration tool, never as an enforced storage format.
 
-### Stage 2: Context-Aware Live Input (In-Editor IME)
-Input handling is embedded directly within CodeMirror 6's transaction layer:
+### Stage 2: Context-Aware Live Input (In-Editor IME) — 📋 Planned (Backlog / Roadmap)
+*This stage is currently tracked in the backlog for ZenTauri v2.0.0.*
+When implemented, input handling will be embedded directly within CodeMirror 6's transaction layer:
 1. **Scope-Based Live IME:**
    * Inside designated Sanskrit delimiters (`《...》` and `⟪...⟫`), the author types in fluent Harvard-Kyoto ASCII.
    * The editor converts characters on the fly into the configured target representation (IAST or Devanāgarī).
@@ -75,9 +82,10 @@ Input handling is embedded directly within CodeMirror 6's transaction layer:
 2. **Compose-Key Sequences in Running Prose:**
    * For individual words without bracket delimiters, the editor emulates intuitive compose sequences (e.g., `.r` => `ṛ`, `-a` => `ā`, `~n` => `ñ`, `'s` => `ś`, `.s` => `ṣ`) without requiring custom OS keyboards.
 
-### Stage 3: Post-Hoc Transliteration & Corpus Tools (Active)
+### Stage 3: Post-Hoc Transliteration & Corpus Tools — ✅ Active
 * Global keyboard shortcuts `⌥⌘D` (IAST ⇄ Devanāgarī) and `⌥⌘H` (Harvard-Kyoto ⇄ Devanāgarī) available in the editor and toolbar.
 * Fast, lossless conversion of selected words or whole documents during corpus ingestion.
+* Tag-safe directive isolation preserving `:sig[...]` and `:mark[...]` markup wrappers.
 
 ---
 

@@ -13,6 +13,7 @@ Zentauri integrates custom extensions on top of `markdown-it-extensible` to supp
 We've extended the standard markdown parser to support unique semantic blocks crucial for grammatical descriptions and literary analysis:
 
 - **Scholarly Blocks:** Custom containers like `::: grammar-box`, `::: note-box`, and `::: important`.
+- **Footnotes & Definition Lists:** Complete academic footnoting (`[^1]` and `[^1]: Note`) and multi-line definition lists (`Term\n: Definition`).
 - **Inline Sanskrit Typographics:** Support for special inline syntax like `《Sanskrit》` mapping perfectly to custom fallback fonts (e.g., Noto Sans Devanagari) during rendering.
 - **Visual Signals:** Direct inline highlights using `:sig[Signal]` and `:mark[Highlight]`.
 - **Math & Equations:** Native MathJax/KaTeX syntax `$e^{i\pi} + 1 = 0$` mapped to Typst math environments.
@@ -20,9 +21,13 @@ We've extended the standard markdown parser to support unique semantic blocks cr
 
 ---
 
-## 2. Interactive Knowledge Graph
+## 2. Interactive Knowledge Graph (Roadmap / Backlog for v2.0.0)
 
-Zentauri parses and extracts document connections dynamically:
+::: info Status: Parked on Roadmap
+The interactive Knowledge Graph visualization (`v-network-graph`) is currently parked in the backlog (see [Roadmap & Backlog](./roadmap)) to keep the v1.x core editor lean and performant. Link extraction and database indexing remain active in the Rust backend.
+:::
+
+Planned re-integration features:
 
 - Support for bi-directional `[[Wiki Links]]` and standard relative markdown links `[Label](./file.md)`.
 - Powered by `v-network-graph` in the frontend, generating a visual, interactive constellation of your notes and scholarly research.

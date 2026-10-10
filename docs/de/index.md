@@ -27,12 +27,12 @@ Zentauri fokussiert sich auf die medienneutrale Strukturierung von Texten:
 
 ## 🏛️ Kernsäulen
 
-| Kernsäule | Technologie | Zielsetzung |
+| Kernsäule | Technologie | Status & Zielsetzung |
 | :--- | :--- | :--- |
-| 🦀 **Rust-First Architektur** | Tauri v2, Rust, SQLite | Maximale Performance, minimaler Speicherverbrauch und native OS-Integration |
-| 📝 **Scholarly Editing** | Vue 3, CodeMirror 6, markdown-it-extensible | Split-Pane Editing, Silent Auto-Repair und akademische Metadaten |
-| 🖨️ **Nativer PDF-Export** | Typst (`typst-as-lib`) | Blitzschneller, hochpräziser PDF-Satz ohne Chromium- oder Node.js-Ballast |
-| 🕸️ **Knowledge Graph** | SQLite Indexing, `v-network-graph` | Interaktive Visualisierung von Dokumentenverknüpfungen und Wiki-Links |
+| 🦀 **Rust-First Architektur** | Tauri v2, Rust, SQLite | **Aktiv** — Maximale Performance, minimaler Speicherverbrauch und native OS-Integration |
+| 📝 **Scholarly Editing** | Vue 3, CodeMirror 6, markdown-it-extensible | **Aktiv** — Split-Pane Editing, QA-Vergleichsmodus, Fußnoten, Silent Auto-Repair und Metadaten |
+| 🖨️ **Nativer PDF-Export** | Typst (`typst-as-lib`) | **Roadmap** — Blitzschneller, hochpräziser PDF-Satz nativ in Rust ohne Chromium oder Node.js |
+| 🕸️ **Knowledge Graph** | SQLite Indexing, `v-network-graph` | **Roadmap** — Visuelle Darstellung von Verknüpfungen (Indexierung aktiv, UI-Ansicht im Backlog) |
 
 ---
 
@@ -45,7 +45,8 @@ Zentauri fokussiert sich auf die medienneutrale Strukturierung von Texten:
 ### Architektur & Technik
 - 📐 **[System-Architektur](./system-architecture)**: Rust-First File-Explorer, IPC-Kommunikation, SQLite-Indexierung und Typst-PDF-Pipeline.
 - ⌨️ **[Sanskrit-Eingabearchitektur](./scholarly-input-architecture)**: 3-stufiges Hybridkonzept, In-Editor IME und Tastatur-Shortcuts.
-- 📝 **[Scholarly Features](./scholarly-features)**: Container-Blöcke (`::: grammar-box`), Devanāgarī-Formatierung und QA-Vergleichsmodus.
+- 📝 **[Scholarly Features](./scholarly-features)**: Container-Blöcke (`::: grammar-box`), Fußnoten, Devanāgarī-Formatierung und QA-Vergleichsmodus.
+- 📋 **[Roadmap & Backlog](./roadmap)**: Gegenüberstellung aktiver Funktionen versus geplanter Meilensteine für Version 2.0.0.
 - 🚀 **[Release Notes](./release-notes)**: Versionshistorie und Feature-Übersicht von v1.0 bis v1.2.0.
 
 ---

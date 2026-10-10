@@ -27,12 +27,12 @@ Zentauri focuses on media-neutral text structuring:
 
 ## 🏛️ Core Architectural Pillars
 
-| Pillar | Technology | Objective |
+| Pillar | Technology | Status & Objective |
 | :--- | :--- | :--- |
-| 🦀 **Rust-First Architecture** | Tauri v2, Rust, SQLite | Maximum responsiveness, minimal memory footprint, and native OS integration |
-| 📝 **Scholarly Editing** | Vue 3, CodeMirror 6, markdown-it-extensible | Split-pane editing, silent auto-repair, and philological metadata |
-| 🖨️ **Native PDF Export** | Typst (`typst-as-lib`) | Instantaneous, high-precision academic PDF typesetting without Chromium or Node.js bloat |
-| 🕸️ **Knowledge Graph** | SQLite Indexing, `v-network-graph` | Interactive visualization of bidirectional document cross-references and Wiki links |
+| 🦀 **Rust-First Architecture** | Tauri v2, Rust, SQLite | **Active** — Maximum responsiveness, minimal memory footprint, and native OS integration |
+| 📝 **Scholarly Editing** | Vue 3, CodeMirror 6, markdown-it-extensible | **Active** — Split-pane editing, QA dual-comparison, footnotes, silent auto-repair, and philological metadata |
+| 🖨️ **Native PDF Export** | Typst (`typst-as-lib`) | **Roadmap** — Instantaneous, high-precision academic PDF typesetting natively in Rust without Chromium |
+| 🕸️ **Knowledge Graph** | SQLite Indexing, `v-network-graph` | **Roadmap** — Visual constellation of bidirectional cross-references (indexing active, UI parked) |
 
 ---
 
@@ -45,7 +45,8 @@ Zentauri focuses on media-neutral text structuring:
 ### Architecture & Specifications
 - 📐 **[System Architecture](./system-architecture)**: Rust-first file explorer, IPC bridges, SQLite indexing, and native Typst PDF pipeline.
 - ⌨️ **[Sanskrit Input Architecture](./scholarly-input-architecture)**: 3-stage hybrid input concept, in-editor live IME, and global transliteration hotkeys.
-- 📝 **[Scholarly Features](./scholarly-features)**: Container blocks (`::: grammar-box`), Devanāgarī font cascade, and QA dual-pane comparison mode.
+- 📝 **[Scholarly Features](./scholarly-features)**: Container blocks (`::: grammar-box`), footnotes, Devanāgarī font cascade, and QA dual-pane comparison mode.
+- 📋 **[Roadmap & Backlog](./roadmap)**: Delineation of active v1.x core features versus planned v2.0.0 milestones.
 - 🚀 **[Release Notes](./release-notes)**: Complete release history and feature highlights.
 
 ---
