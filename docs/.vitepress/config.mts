@@ -144,6 +144,7 @@ export default defineConfig({
   themeConfig: {
     outline: false,
     logo: "/birchville_logo.png",
+    logoLink: "https://birchville.org",
     siteTitle: "Zentauri",
     socialLinks: [
       { icon: "github", link: "https://github.com/marcodem/zentauri" },
